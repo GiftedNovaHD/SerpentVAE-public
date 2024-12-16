@@ -13,3 +13,11 @@ A method to dynamically segment and compress information into latent tokens acro
 # Kernels
 - Mamba-1 State Space Duality (SSD) kernel (extended from Mamba-2 SSD kernel by relaxing the Scalar-Identity constraint of Mamba-2)
   - We support negative eigenvalues to allow eigenvalues to range from (-1, 1)
+ 
+# Checklist
+- [] Encoder and Decoder
+- [] Implement VAE
+- [] Training loop and training
+- [] Inference Code
+- [] Demo Model
+- [] Kernels
