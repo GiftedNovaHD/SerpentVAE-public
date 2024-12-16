@@ -21,3 +21,7 @@ A method to dynamically segment and compress information into latent tokens acro
 - [ ] Inference Code
 - [ ] Demo Model
 - [ ] Kernels
+
+# Future Plans
+- [ ] Extend SerpentVAE to the Conditional VAE case where the context from previous contexts is used as the conditional input
+- [ ] Add kernels for Forgetful Causal Top-K Attention to support the use of approximate k-nearest neighbour search to speed up attention
