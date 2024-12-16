@@ -25,3 +25,5 @@ A method to dynamically segment and compress information into latent tokens acro
 # Future Plans
 - [ ] Extend SerpentVAE to the Conditional VAE case where the context from previous contexts is used as the conditional input
 - [ ] Add kernels for Forgetful Causal Top-K Attention to support the use of approximate k-nearest neighbour search to speed up attention
+- [ ] Integrate Stochastic Variantal Inference (SVI) to SerpentVAE for better quality
+- [ ] Experiment with other sequence mixers such as DeltaNet which are supposedly more expressive, espescially when eigenvalues can be negative
