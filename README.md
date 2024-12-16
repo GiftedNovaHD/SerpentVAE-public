@@ -15,9 +15,9 @@ A method to dynamically segment and compress information into latent tokens acro
   - We support negative eigenvalues to allow eigenvalues to range from (-1, 1)
  
 # Checklist
-- [] Encoder and Decoder
-- [] Implement VAE
-- [] Training loop and training
-- [] Inference Code
-- [] Demo Model
-- [] Kernels
+- [ ] Encoder and Decoder
+- [ ] Implement VAE
+- [ ] Training loop and training
+- [ ] Inference Code
+- [ ] Demo Model
+- [ ] Kernels
