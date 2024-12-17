@@ -49,4 +49,5 @@ class ConceptMixer(nn.Module):
 
     # Project the modified hidden token back to the hidden dimension
     hidden_token_out = self.hidden_down(hidden_token_out) # (batch_size, concept_dim) -> (batch_size, hidden_dim)
+    
     return hidden_token_out
