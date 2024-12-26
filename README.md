@@ -4,11 +4,19 @@ A method to dynamically segment and compress information into latent tokens acro
 # Encoder
 - Mamba-1 based encoder
 
-# Quantisation Scheme'
+# Quantisation Scheme
 - Scale-VAE
 
 # Decoder
-- Mamba-1 based decoder with Mamba-1 being used to replace self attention, and normal cross attention is used.
+- Mamba-1 based decoder with Mamba-1 being used to replace self attention, and a gating mechanism is used to control information passed to the hidden token being decoded
+
+# SerpentVAE Training Scheme
+- Randomly sample contiguous segements and train the model to reconstruct the data
+- Slowly increase the length of the segments
+
+# SerpentVAE Inference Scheme
+- Greedily increase the length of the segment until reconstruction error increases alot
+- Start next segment
 
 # Kernels
 - Mamba-1 State Space Duality (SSD) kernel (extended from Mamba-2 SSD kernel by relaxing the Scalar-Identity constraint of Mamba-2)

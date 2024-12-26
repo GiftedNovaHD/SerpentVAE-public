@@ -28,7 +28,10 @@ class DecoderLayer(nn.Module):
 
     raise NotImplementedError
   
-  def forward(self, hidden_token, concept_token, mambaa_states):
+  def forward(self, hidden_token, concept_token, mamba_states):
+    raise NotImplementedError
+  
+  def infer_forward(self, hidden_token, concept_token, mamba_states):
     raise NotImplementedError
 
 class Decoder(nn.Module):
