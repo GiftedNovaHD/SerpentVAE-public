@@ -2,7 +2,6 @@
 import torch.nn as nn
 import einx
 
-
 class ConceptMixer(nn.Module):
   """
     This roughly performs the same function as cross attention, but since we only use one concept token at a time, we would just be directly adding the concept token.
@@ -30,8 +29,8 @@ class ConceptMixer(nn.Module):
 
   def forward(self, hidden_token, concept_token):
     """
-      hidden_token: hidden token
-      concept_token: concept token
+      hidden_token: hidden token (batch_size, hidden_dim)
+      concept_token: concept token (batch_size, concept_dim)
     """
     # Project concept token 
     layer_concept_token = self.concept_proj(concept_token) # (batch_size, concept_dim) -> (batch_size, concept_dim)
