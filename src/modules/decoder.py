@@ -64,39 +64,33 @@ class DecoderLayer(nn.Module):
     hidden_states = self.ssm(hidden_states, inference_params=inference_params, **mixer_kwargs)
     
     # Concept Mixer Pass
-    if not self.fused_add_norm:
-      residual = hidden_states + residual
-      hidden_states = self.concept_mixer_rms_norm(residual.to(dtype=self.concept_mixer_rms_norm.weight.dtype))
-      if self.residual_in_fp32:
-        residual = residual.to(torch.float32)
-    else:
-      hidden_states, residual = rmsnorm_fn(
-      hidden_states,
-      self.concept_mixer_rms_norm.weight,
-      self.concept_mixer_rms_norm.bias,
-      residual=residual,
-      prenorm=True,
-      residual_in_fp32=self.residual_in_fp32,
-      eps=self.concept_mixer_rms_norm.eps,
-      )
+    # Norm Pass
+    hidden_states, residual = rmsnorm_fn(
+    hidden_states,
+    self.concept_mixer_rms_norm.weight,
+    self.concept_mixer_rms_norm.bias,
+    residual=residual,
+    prenorm=True,
+    residual_in_fp32=self.residual_in_fp32,
+    eps=self.concept_mixer_rms_norm.eps,
+    )
+
+    # Mixer Pass
     hidden_states = self.concept_mixer(hidden_states,concept_tokens)
     
     # MLP Pass
-    if not self.fused_add_norm:
-      residual = hidden_states + residual
-      hidden_states = self.mlp_rms_norm(residual.to(dtype=self.mlp_rms_norm.weight.dtype))
-      if self.residual_in_fp32:
-        residual = residual.to(torch.float32)
-    else:
-      hidden_states, residual = rmsnorm_fn(
-      hidden_states,
-      self.mlp_rms_norm.weight,
-      self.mlp_rms_norm.bias,
-      residual=residual,
-      prenorm=True,
-      residual_in_fp32=self.residual_in_fp32,
-      eps=self.mlp_rms_norm.eps,
-      )
+    # Norm Pass
+    hidden_states, residual = rmsnorm_fn(
+    hidden_states,
+    self.mlp_rms_norm.weight,
+    self.mlp_rms_norm.bias,
+    residual=residual,
+    prenorm=True,
+    residual_in_fp32=self.residual_in_fp32,
+    eps=self.mlp_rms_norm.eps,
+    )
+
+    # Mixer Pass
     hidden_states = self.mlp(hidden_states)
         
     return hidden_states, residual
