@@ -131,7 +131,7 @@ class Encoder(nn.Module):
     self.apply(
       partial(
         _init_weights,
-        num_layers=num_layers,
+        num_layer=num_layers,
         **({}),
         n_residuals_per_layer=1 if mlp_inner_dim == 0 else 2,  # 2 if we have MLP
         )

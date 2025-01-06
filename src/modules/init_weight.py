@@ -6,7 +6,7 @@ import torch.nn as nn
 
 def _init_weights(
         module,
-        n_layer,
+        num_layer,
         initializer_range=0.02,  # Now only used for embedding layer.
         rescale_prenorm_residual=True,
         n_residuals_per_layer=1,  # Change to 2 if we have MLP
@@ -33,4 +33,4 @@ def _init_weights(
         # Having just p *= scale would repeatedly scale it down
         nn.init.kaiming_uniform_(p, a=math.sqrt(5))
         with torch.no_grad():
-          p /= math.sqrt(n_residuals_per_layer * n_layer)
+          p /= math.sqrt(n_residuals_per_layer * num_layer)
