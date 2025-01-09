@@ -6,7 +6,6 @@ from typing import Tuple, Optional, List, Callable
 from functools import partial
 
 # TO-DO: 
-# Loss function (done)
 # Kernels for scaling 
 # Hook torch extension to CUDA 
 
@@ -71,25 +70,30 @@ class ScaleVAE(nn.Module):
     h = self.encoder(input)
     return self.fc_mu(h), self.fc_logvar(h) 
   
+  def scale_mu(self, mu: Tensor, f: Tensor) -> Tensor:
+    """
+    Scales the mean of the approximate posterior
+    
+    """
+
   def reparameterize(self, 
-                     mu: Tensor, 
-                     logvar: Tensor, 
-                     f):
+                     scaled_mu: Tensor, 
+                     logvar: Tensor
+                     ) -> Tensor:
     """ 
-    (Standard) reeparameterization trick to sample from N(mu, var) from N(0,1)
+    (Standard) reparameterization trick to sample from N(mu, var) from N(0,1)
 
     Args: 
-      mu: mean from the encoder's latent space
+      scaled_mu: mean from the encoder's latent space
       logvar: log variance from the encoder's latent space
       f: scale factor 
     
     Returns:
       z: sampled latent vector
     """
-    std = torch.exp(0.5 * logvar) 
+    std = torch.exp(0.5 * logvar) # NOTE: In final iteration we remove the multiplication by 0.5 for slightly better numerical stability.
     eps = torch.randn_like(std)
-    h_x = f * mu # Scale mean 
-    return h_x + eps * std
+    return scaled_mu + eps * std
     
   def decode(self, z): 
     """
@@ -97,7 +101,7 @@ class ScaleVAE(nn.Module):
     """
     return self.decoder(z)
 
-  def forward(self, *inputs: Tensor) -> Tensor: 
+  def forward(self, inputs: Tensor) -> Tensor: 
     """
     Forward pass of ScaleVAE
     ----
@@ -108,23 +112,31 @@ class ScaleVAE(nn.Module):
     4. Reparameterize to get z and decode(z) -> output 
 
     Args: 
-      inputs: 
-
+      input
     """
 
-    mu, logvar = self.encode(*inputs) 
+    mu, logvar = self.encode(inputs) 
 
-    # Compute scaling factor f 
-    std_mu = torch.std(mu, dim=0, unbiased=False) 
-    f = self.des_std / std_mu 
+    """
+    Compute standard deviation across the batch (dim=0) for each latent dimension
+    """
+    if inputs.shape[0] == 1: 
+      f = torch.ones_like(mu)
+    else: 
+      std_mu = torch.std(mu, dim=0, unbiased=False) # Compute standard deviation across the batch (dim=0) for each latent dimension
+      f = self.des_std / (std_mu + 1e-8)
+    
 
-    # Scaling factor based on epoch 
+    # f = self.des_std / (std_mu + 1e-7) # TODO: Check how to handle this at inference time
+
+    # Scaling factor based on epoch: We scale mu based on the epoch 
     if self.epoch <= self.f_epo: 
-      scaled_mu = f * mu # Apply dimension-wise scaling
+      scaled_mu = f * mu # Apply dimension-wise scaling; might require kernel 
     else: 
       scaled_mu = f.mean() * mu
 
-    z = self.reparameterize(scaled_mu, logvar, f)
+    # Reparameterize using the *already scaled* mu
+    z = self.reparameterize(scaled_mu, logvar) 
     return self.decode(z), mu, logvar
   
   def loss_function(
@@ -137,7 +149,11 @@ class ScaleVAE(nn.Module):
   ): 
     """
     Computes the loss function of ScaleVAE: 
-    Reconstruction term - Kullback-Leibler divergence term using scaled-up posterior N(f * mu, sigma^2)
+    Reconstruction term - Kullback-Leibler (KL) divergence term using scaled-up posterior N(f * mu, sigma^2)
+    ----
+    1) Compute reconstruction loss 
+    2) Compute D_{KL} per sample, then average it over the batch 
+    3) Compute ELBO; we adhere to sign convention to maximize ELBO 
 
     Args: 
       x: original inputs
@@ -153,14 +169,14 @@ class ScaleVAE(nn.Module):
     recon_loss = recon_loss_fn(x_hat, x) 
 
     sigma_squared = torch.exp(logvar) # shape: [batch_size, latent_dim]
-    kl_per_dim= sigma_squared + scaled_mu.pow(2) - 1.0 - logvar 
-    kl = 0.5 * torch.sum(kl_per_dim, dim=1)
+    kl_per_dim= sigma_squared + scaled_mu.pow(2) - 1.0 - logvar # [batch_size, latent_dim]
+    kl = 0.5 * torch.sum(kl_per_dim, dim=1) # sum across latent dims => [batch_size]
     kl = torch.mean(kl)
 
-    # final elbo 
+    # Final ELBO that we wish to maximize
+    # TODO: verify that recon_loss is already negative log-likelihood 
     loss = recon_loss + kl 
     return loss 
-  
 
   def training_step(self, 
                     x: Tensor, 
