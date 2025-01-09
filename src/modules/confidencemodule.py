@@ -19,7 +19,6 @@ class ConfidenceModule(nn.Module):
     self.hidden_state_mlp = MLP(concept_dim, expand * concept_dim)
     self.concept_mlp = MLP(concept_dim, expand * concept_dim)
 
-
   def forward(self,
               encoder_last_hidden_states: Tensor,
               concept_tokens: Tensor
