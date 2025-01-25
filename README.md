@@ -1,6 +1,18 @@
 # SerpentVAE
 A method to dynamically segment and compress information into latent tokens across the time domain. Compared to other methods to segment such as using perplexity of a separate model, we directly use the reconstruction error as a proxy for how we should segment the data, based on the observation that if the next event/word is likely to follow, the increase in reconstruction error will not be significant.
 
+# Table of Contents
+- [SerpentVAE](#serpentvae)
+- [Encoder](#encoder)
+- [Quantisation Scheme](#quantisation-scheme)
+- [Decoder](#decoder)
+- [SerpentVAE Training Scheme](#serpentvae-training-scheme)
+- [SerpentVAE Inference Scheme](#serpentvae-inference-scheme)
+- [Kernels](#kernels)
+- [Checklist](#checklist)
+- [Future Plans](#future-plans)
+
+
 # Encoder
 - Mamba-1 based encoder
 
@@ -23,8 +35,10 @@ A method to dynamically segment and compress information into latent tokens acro
   - We support negative eigenvalues to allow eigenvalues to range from (-1, 1)
  
 # Checklist
-- [ ] Encoder and Decoder
+- [x] Encoder and Decoder
 - [ ] Implement VAE
+  - [ ] VMI-VAE implementation for neural-network estimation of VMI
+  - [ ] Implement ScaleVAE using distributions abstract base class
 - [ ] Training loop and training
 - [ ] Inference Code
 - [ ] Demo Model
