@@ -119,11 +119,11 @@ class ScaleVAE(nn.Module):
 
     # For batch size = 1, avoid std=0
     if inputs.shape[0] == 1: 
-      f_vec = torch.ones_like(mu) # (1, D)
+      f_vec = torch.ones_like(mu) # (1, latent_dim)
     else: 
       # Compute std across batch (dim=0) for each latent dimension
-      std_mu = torch.std(mu, dim=0, unbiased=False) # (L)
-      f_vec = self.des_std / (std_mu + 1e-8) # (L)
+      std_mu = torch.std(mu, dim=0, unbiased=False) # (seq_len)
+      f_vec = self.des_std / (std_mu + 1e-8) # (seq_len)
     
 
     # f = self.des_std / (std_mu + 1e-7) # TODO: Check how to handle this at inference time
@@ -173,7 +173,7 @@ class ScaleVAE(nn.Module):
 
     # sigma_squared = torch.exp(logvar) # shape: [batch_size, latent_dim]
     # kl_per_dim = sigma_squared + scaled_mu.pow(2) - 1.0 - logvar # [batch_size, latent_dim]
-    # kl = 0.5 * torch.sum(kl_per_dim, dim=1) # sum across latent dims => [batch_size]
+    # kl = 0.5 * torch.sum(kl_per_dim, dim=1) # sum across latent dims -> [batch_size]
     # kl = torch.mean(kl)
 
     # Final ELBO that we wish to maximize
@@ -212,20 +212,20 @@ class ScaleVAE(nn.Module):
     and the prior p(z) ~ N(0, I)
 
     Args: 
-      mu (B, D): Mean of the approximate posterior distribution 
-      logvar (B, D): Log variance of the approximate posterior distribution
+      mu (batch, hidden_dim): Mean of the approximate posterior distribution 
+      logvar (batch, hidden_dim): Log variance of the approximate posterior distribution
     
     Returns: 
       kl: Mean KL divergence per sample in the batch
     """
     # Compute variance 
-    sigma_squared = torch.exp(logvar) # (B, D)
+    sigma_squared = torch.exp(logvar) # (batch, latent_dim)
 
     # Compute KL divergence per dimension
-    kl_per_dim = sigma_squared + mu.pow(2) - 1.0 - logvar # (B, D) 
+    kl_per_dim = sigma_squared + mu.pow(2) - 1.0 - logvar # (batch, latent_dim) 
 
     # Sum over latent dimensions and take mean over batch
-    kl = 0.5 * torch.sum(kl_per_dim, dim=1) # Sum over latent dimension => [batch_size]
+    kl = 0.5 * torch.sum(kl_per_dim, dim=1) # Sum over latent dimension -> [batch_size]
     kl = kl.mean() # Mean over batch
     return kl 
 
@@ -240,46 +240,49 @@ class ScaleVAE(nn.Module):
     MI(x; z) = E_p(X)[D_KL[q_ϕ(z|x)∥E_p(X)[q_ϕ(z|x)]]]
 
     Args:
-      x_batch: 
-      num_samples: 
+      x_batch (batch, hidden_dim): A batch of input data 
+      num_samples (int): Number of z samples to draw per x
 
     Returns:
-      
+      MI estimate (scalar): Mutual information estimate
     """ 
 
     self.eval() # dont want dropout 
 
-    
+    # Encode to get (mu, logvar) for each input x
     mu, logvar = self.encode(x_batch) 
     std = torch.exp(0.5 * logvar)
 
-    B = x_batch.size(0)
-    D = mu.size(1) 
+    batch = x_batch.size(0)
+    hidden_dim = mu.size(1) 
 
-    eps = torch.randn(B, num_samples, D, device=x_batch.device)
-    mu_expanded = mu.unsqueeze(1) # (B, 1, D)
-    std_expanded = std.unsqueeze(1) # (B, 1, D)
+    # Sample z from q(z|x). shape -> (batch, num_samples, hidden_dim)
+    eps = torch.randn(batch, num_samples, hidden_dim, device=x_batch.device)
+    mu_expanded = mu.unsqueeze(1) # (batch, 1, hidden_dim)
+    std_expanded = std.unsqueeze(1) # (batch, 1, hidden_dim)
     z_samples = mu_expanded + eps * std_expanded 
 
     # Compute log q(z|x)
+    # We do a Gaussian log density for each sample
     log_q_z_given_x = self.gaussian_log_density(
       z_samples, mu_expanded, std_expanded
-    )    
+    ) # shape -> (batch, num_samples)
 
     # Approximate q(z) by fitting a single Gaussian to all z
-    all_z = z_samples.view(-1, D) # flatten => (B * num_samples, D)
-    mean_all_z = all_z.mean(dim=0, keepdim=True) # (1, D)
-    var_all_z = all_z.var(dim=0, keepdim=True) # (1, D)
-    std_all_z = torch.sqrt(var_all_z + 1e-8) # (1, D)
+    all_z = z_samples.view(-1, hidden_dim) # flatten -> (batch * num_samples, hidden_dim)
+    mean_all_z = all_z.mean(dim=0, keepdim=True) # (1, hidden_dim)
+    var_all_z = all_z.var(dim=0, keepdim=True) # (1, hidden_dim)
+    std_all_z = torch.sqrt(var_all_z + 1e-8) # (1, hidden_dim)
 
-    # compute log q(z) for each z sample under that fitted Gaussian 
+    # Compute log q(z) for each z sample under that fitted Gaussian 
     log_q_z = self.gaussian_log_density( 
       z_samples, 
       mean_all_z.expand_as(z_samples), 
       std_all_z.expand_as(z_samples)
-    )
+    ) # shape -> (batch, num_samples)
 
     # MI estimate 
+    # MI ~ 1/(l * num_samples) sum[log q(z|x) - log q(z)]
     mi_est = (log_q_z_given_x - log_q_z).mean()
 
     return mi_est
@@ -293,20 +296,21 @@ class ScaleVAE(nn.Module):
     log N(z | mu, var) = -0.5 * [ sum_d ( (z - mu)^2 / var) + log(2 * pi) + 2 * log(std) ) ]
 
     Args: 
-      z (B, num_samples, D)
+      z (batch, num_samples, hidden_dim)
       mu: basically same shape or broadcastable 
     
     Returns: 
-      log_prob (B, num_samples) 
+      log_prob (batch, num_samples) 
     """
     var = std.pow(2)
-    D = z.size(-1)
+    hidden_dim = z.size(-1)
     log_prob = -0.5 * ( 
       ((z - mu)**2 / (var + 1e8).sum(dim=-1) 
-       + D * torch.log(torch.tensor(2.0 * torch.pi, device=z.device))
+       + hidden_dim * torch.log(torch.tensor(2.0 * torch.pi, device=z.device))
        + torch.sum(torch.log(var + 1e8), dim=-1)
        )
     )
+    
     return log_prob
   
 
@@ -321,8 +325,8 @@ class ScaleVAE(nn.Module):
       A_u = Cov_x(E_u∼q(u|x)[u])
 
       Args:
-        mu (B, D): Mean of the approximate posterior distribution
-        threshold: Threshold for considering a unit active
+        mu (batch, hidden_dim): Mean of the approximate posterior distribution
+        threshold (float): Threshold for considering a unit active
 
       Returns:
           num_active_units: Number of active units
