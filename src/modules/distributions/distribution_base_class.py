@@ -10,10 +10,3 @@ class Distribution(ABC):
   def sample(self,):
     raise NotImplementedError
   
-  @abstractmethod
-  def log_likelihood(self,):
-    raise NotImplementedError
-  
-  @abstractmethod
-  def kl_divergence(self,):
-    raise NotImplementedError

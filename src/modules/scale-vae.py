@@ -230,7 +230,7 @@ class ScaleVAE(nn.Module):
     return kl 
 
   @torch.no_grad()
-  def compute_mi(self, 
+  def mutual_information(self, 
                  x_batch: Tensor, 
                  num_samples: int
                  ) -> Tensor:
@@ -246,7 +246,7 @@ class ScaleVAE(nn.Module):
     Returns:
       
     """ 
-    
+
     self.eval() # dont want dropout 
 
     
@@ -280,7 +280,9 @@ class ScaleVAE(nn.Module):
     )
 
     # MI estimate 
-    mi_est = (log_q_z_given_x - log_q_z).mean  
+    mi_est = (log_q_z_given_x - log_q_z).mean()
+
+    return mi_est
 
   def gaussian_log_density(
       z: Tensor, 
@@ -307,32 +309,6 @@ class ScaleVAE(nn.Module):
     )
     return log_prob
   
-  def mutual_information(self,
-                         actual_data: Tensor,
-                         predicted_data: Tensor
-                         ) -> Tensor:
-    """
-    Computes the mutual information between the latent variable z and the input x
-
-    MI(x; z) = E_p(X)[D_KL[q_ϕ(z|x)∥E_p(X)[q_ϕ(z|x)]]]
-
-    Args:
-      mu (B, D): Mean of the approximate posterior distribution 
-      logvar (B, D): Log variance of the approximate posterior distribution
-
-    Reeturns:
-      mi: Mutual information between z and x
-    """
-    
-
-    prior_sample = 
-
-    # Calculating the aggregate posterior distribution
-    
-
-
-
-    raise NotImplementedError
 
   def num_active_units(self,
                        mu: Tensor,
