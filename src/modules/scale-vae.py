@@ -233,7 +233,20 @@ class ScaleVAE(nn.Module):
   def compute_mi(self, 
                  x_batch: Tensor, 
                  num_samples: int
-                 ) -> Tensor: 
+                 ) -> Tensor:
+    """
+    Computes the mutual information between the latent variable z and the input x
+
+    MI(x; z) = E_p(X)[D_KL[q_ϕ(z|x)∥E_p(X)[q_ϕ(z|x)]]]
+
+    Args:
+      x_batch: 
+      num_samples: 
+
+    Returns:
+      
+    """ 
+    
     self.eval() # dont want dropout 
 
     
@@ -268,6 +281,7 @@ class ScaleVAE(nn.Module):
 
     # MI estimate 
     mi_est = (log_q_z_given_x - log_q_z).mean  
+
   def gaussian_log_density(
       z: Tensor, 
       mu: Tensor, 

@@ -6,6 +6,7 @@ import einx
 
 class ConfidenceModule(nn.Module):
   def __init__(self,
+               hidden_dim: int,
                concept_dim: int,
                expand: int
               ):
@@ -16,7 +17,8 @@ class ConfidenceModule(nn.Module):
     super().__init__()
     self.concept_dim = concept_dim
 
-    self.hidden_state_mlp = MLP(concept_dim, expand * concept_dim)
+    self.hidden_state_mlp = MLP(hidden_dim, expand * concept_dim)
+    self.hidden_state_up_proj = nn.Linear(hidden_dim, concept_dim)
     self.concept_mlp = MLP(concept_dim, expand * concept_dim)
 
   def forward(self,
@@ -34,6 +36,7 @@ class ConfidenceModule(nn.Module):
     # Compute the confidence score
     # NOTE: We want to prevent gradients of the confidence scoree from flowing back to the encoder so we detach the gradients here
     hidden_estimate = self.hidden_state_mlp(encoder_last_hidden_states.detach())
+    hidden_estimate = self.hidden_state_up_proj(hidden_estimate)
     concept_estimate = self.concept_mlp(concept_tokens.detach())
 
     confidence_score = einx.einsum("batch seq_len concept_dim, batch seq_len concept_dim -> batch seq_len 1", hidden_estimate, concept_estimate)
