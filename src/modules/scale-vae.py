@@ -225,7 +225,7 @@ class ScaleVAE(nn.Module):
       logvar (batch, hidden_dim): Log variance of the approximate posterior distribution
     
     Returns: 
-      kl: Mean KL divergence per sample in the batch
+      kl (float): KL divergence between q(z|x) and p(z)
     """
     # Compute variance 
     sigma_squared = torch.exp(logvar) # (batch, latent_dim)
@@ -307,8 +307,7 @@ class ScaleVAE(nn.Module):
                  recon_loss_fn: Callable[[Tensor, Tensor], Tensor]
                  ):
     """
-    Loss = recon_loss + kl + \lambda MI 
-
+    Updates the VAE parameters 
     """
     # Always unfreeze VAE parameters
     for p in self.encoder.parameters():
@@ -525,28 +524,3 @@ class QNet(nn.Module):
     q_dist_params = self.model(x_prime)
 
     return q_dist_params # mu and logvar of distribution of z we assume that formatting is all mu then all logvar
-
-  # encoder = Encoder() q_\phi (z | x)
-  # decoder = Decoder() p_\theta (x | z)
-  # auxilary_Q = AuxQNet() Q_\psi (x | z) 
-
-  # Here, x is the input to the encoder, z is the latent variable sampled, and x' is the output of the decoder
-  # for x in dataloader:
-  #   z = encoder.sample(x) 
-  #   log_Q = auxiliary_Q(x, z) 
-  #   loss_Q = log Q(x | z)
-
-  #   optimizer.zero_grad() 
-  #   loss_Q.backward()
-  #   optimizer.step()
-
-  #   x_recon = decoder.sample(z)
-  #   recon_loss = -log_likelihood(x, x_recon) 
-  #   kl_loss 
-  #   mi_term 
-
-  #   total_loss = recon_loss + kl_loss + mi_term
-
-  #   optimizer.zero_grad()
-  #   total_loss.backward()
-  #   optimizer.step()
