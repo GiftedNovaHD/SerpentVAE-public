@@ -12,7 +12,6 @@ A method to dynamically segment and compress information into latent tokens acro
 - [Checklist](#checklist)
 - [Future Plans](#future-plans)
 
-
 # Encoder
 - Mamba-1 based encoder
 
@@ -32,12 +31,12 @@ A method to dynamically segment and compress information into latent tokens acro
 
 # Kernels
 - Mamba-1 State Space Duality (SSD) kernel (extended from Mamba-2 SSD kernel by relaxing the Scalar-Identity constraint of Mamba-2)
-  - We support negative eigenvalues to allow eigenvalues to range from (-1, 1)
+  - We support negative eigenvalues to allow eigenvalues to range from $(-1, 1)$
  
 # Checklist
 - [x] Encoder and Decoder
 - [ ] Implement VAE
-  - [ ] VMI-VAE implementation for neural-network estimation of VMI
+  - [x] VMI-VAE implementation for neural-network estimation of VMI
   - [ ] Implement ScaleVAE using distributions abstract base class
 - [ ] Training loop and training
 - [ ] Inference Code
