@@ -3,7 +3,6 @@ import torch.nn as nn
 from torch import Tensor
 from typing import Optional, Tuple
 from modules.mlp import MLP
-from conceptmixer import ConceptMixer
 from mamba_ssm import Mamba, Mamba2
 from mamba_ssm.ops.triton.layer_norm import RMSNorm as RMSNorm, rmsnorm_fn
 from functools import partial
@@ -91,7 +90,6 @@ class Encoder(nn.Module):
   def __init__(self,
                num_layers: int,
                hidden_dim: int,
-               concept_dim: int,
                state_dim: int,
                conv_length: int,
                mamba_expand: int,
@@ -104,7 +102,6 @@ class Encoder(nn.Module):
     super().__init__() 
     self.num_layers = num_layers
     self.hidden_dim = hidden_dim
-    self.concept_dim = concept_dim
     self.state_dim = state_dim
     self.conv_length = conv_length
     self.mamba_expand = mamba_expand
@@ -122,11 +119,6 @@ class Encoder(nn.Module):
     ) for idx in range(num_layers)])
     
     self.last_hidden_rms_norm = RMSNorm(hidden_dim)
-    
-    # Up-project hidden states of encoder to concept tokens
-    self.concept_proj = nn.Linear(hidden_dim, concept_dim, **factory_kwargs)
-
-    self.concept_rms_norm = RMSNorm(concept_dim)
     
     self.apply(
       partial(
@@ -165,7 +157,7 @@ class Encoder(nn.Module):
                                       **mixer_kwargs)
       
 
-    # Final RMSNorm before creating concept tokens
+    # Final RMSNorm
     # Set prenorm=False here since we don't need the residual
     hidden_states = rmsnorm_fn(
       hidden_states,
@@ -176,20 +168,5 @@ class Encoder(nn.Module):
       prenorm=False,
       residual_in_fp32=self.residual_in_fp32
     )
-
-    # Project from hidden_dim to concept_dim; create concept tokens
-    concept_tokens = self.concept_proj(hidden_states)
-
-    # Final RMSNorm on concept tokens
-    # Set prenorm=False here since we don't need the residual
-    concept_tokens = rmsnorm_fn(
-      concept_tokens,
-      self.concept_rms_norm.weight,
-      self.concept_rms_norm.bias,
-      eps=self.concept_rms_norm.eps,
-      residual=None,
-      prenorm=False,
-      residual_in_fp32=self.residual_in_fp32
-    )
     
-    return concept_tokens  
+    return hidden_states
