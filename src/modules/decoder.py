@@ -55,7 +55,7 @@ class DecoderLayer(nn.Module):
 
     Args:
       hidden_states: the sequence to the decoder layer (required) Training: (batch, sequence_length, hidden_dim) Inference: (batch, 1, hidden_dim)
-      concept_tokens: the sequence of concept tokens for the concept mixer Training and Inference: (batch, 1, concept_dim)
+      concept_tokens: the sequence of concept tokens for the concept mixer Training: (batch, sequence_length, concept_dim) Inference: (batch, 1, concept_dim)
       residual: hidden_states = Mixer(LN(residual)) Training: (batch, sequence_length, hidden_dim) Inference: (batch, 1, hidden_dim)
       inference_params: the inference parameters for the SSM (optional)
     """ 
@@ -173,7 +173,7 @@ class Decoder(nn.Module):
     """
     Args:
       hidden_states: the sequence to the decoder layer (required) Training: (batch, sequence_length, hidden_dim) Inference: (batch, 1, hidden_dim)
-      concept_tokens: the sequence of concept tokens for the concept mixer Training and Inference: (batch, 1, concept_dim)
+      concept_tokens: the sequence of concept tokens for the concept mixer Training: (batch, sequence_length, concept_dim) Inference: (batch, 1, concept_dim)
       inference_params: the inference params for the SSM (optional)
 
     """

@@ -29,24 +29,24 @@ class ConceptMixer(nn.Module):
 
   def forward(self, hidden_token, concept_token):
     """
-      hidden_token: hidden token (batch_size, hidden_dim)
-      concept_token: concept token (batch_size, concept_dim)
+      hidden_token: hidden token (batch_size, sequence_length/1, hidden_dim)
+      concept_token: concept token (batch_size, sequence_length/1,  concept_dim)
     """
     # Project concept token 
-    layer_concept_token = self.concept_proj(concept_token) # (batch_size, concept_dim) -> (batch_size, concept_dim)
+    layer_concept_token = self.concept_proj(concept_token) # (batch_size, sequence_length/1, concept_dim) -> (batch_size, sequence_length/1, concept_dim)
 
     # Project the hidden token to the concept dimension
-    hidden_token_up = self.hidden_up(hidden_token) # (batch_size, hidden_dim) -> (batch_size, concept_dim)
+    hidden_token_up = self.hidden_up(hidden_token) # (batch_size, sequence_length/1, hidden_dim) -> (batch_size, sequence_length/1, concept_dim)
 
     # Gate the concept token based on the hidden state
-    gate = self.gate(hidden_token) # (batch_size, hidden_dim) -> (batch_size, concept_dim)
-    gate = nn.functional.tanh(gate) # (batch_size, concept_dim) -> (batch_size, concept_dim)
-    gated_concept_token = gate * layer_concept_token # (batch_size, concept_dim) -> (batch_size, concept_dim)
+    gate = self.gate(hidden_token) # (batch_size, sequence_length/1, hidden_dim) -> (batch_size, sequence_length/1, concept_dim)
+    gate = nn.functional.tanh(gate) # (batch_size, seqeunce_length/1, concept_dim) -> (batch_size, sequence_length/1, concept_dim)
+    gated_concept_token = gate * layer_concept_token # (batch_size, sequence_length/1, concept_dim) -> (batch_size, sequence_length/1, concept_dim)
 
     # Add the modified concept token to the hidden token
-    hidden_token_out = hidden_token_up + gated_concept_token # (batch_size, concept_dim) -> (batch_size, concept_dim)
+    hidden_token_out = hidden_token_up + gated_concept_token # (batch_size, sequence_length/1, concept_dim) -> (batch_size, sequence_length/1, hidden_dim)
 
     # Project the modified hidden token back to the hidden dimension
-    hidden_token_out = self.hidden_down(hidden_token_out) # (batch_size, concept_dim) -> (batch_size, hidden_dim)
+    hidden_token_out = self.hidden_down(hidden_token_out) # (batch_size, sequence_length/1, concept_dim) -> (batch_size, sequence_length/1, hidden_dim)
     
     return hidden_token_out
