@@ -108,7 +108,7 @@ class DecoderLayer(nn.Module):
 
   def allocate_inference_cache(self, batch_size, max_seqlen, dtype=None, **kwargs):
     return self.ssm.allocate_inference_cache(batch_size, max_seqlen, dtype=dtype, **kwargs)
-  
+
 class Decoder(nn.Module):
   """
     Adapted from: https://github.com/state-spaces/mamba/blob/main/mamba_ssm/models/mixer_seq_simple.py
@@ -157,7 +157,7 @@ class Decoder(nn.Module):
         n_residuals_per_layer=1 if mlp_inner_dim == 0 else 2,  # 2 if we have MLP
         )
       )
-    
+
   def allocate_inference_cache(self, batch_size, max_seqlen, dtype=None, **kwargs):
     return {
       i: layer.allocate_inference_cache(batch_size, max_seqlen, dtype=dtype, **kwargs)

@@ -125,8 +125,6 @@ class ScaleVAE(nn.Module):
     q_dist = self.qnet(x_hat)
 
     return q_dist
-  
-  
 
   def compute_vmi(self,
                   z_samples: Tensor,
