@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torch import Tensor
-from typing import Tuple
+from typing import Tuple, Callable
 from torch.nn import functional as F
 from modules.tied_linear import TiedLinear
 from modules.encoder import Encoder
@@ -137,21 +137,47 @@ class SerpentVAE(nn.Module):
     
     return sampled_latents
   
-  def segment(self, concept_tokens: Tensor) -> Tensor:
+  def segment(self,
+              concept_tokens: Tensor,
+              boundary_function: Callable,
+              replacement_function: Callable
+             ) -> Tuple[Tensor, Tensor]:
     """
     Decides how to segment a sequence of input tokens based on the concept tokens
 
     Args:
       concept_tokens (Tensor): (batch_size, seq_len, concept_dim)
+      boundary_function (Callable): Function that decides whether to segment or not
+      replacement_function (Callable): Function that decides how to replace the concept tokens for decoding
     
     Returns: 
       segmented_concept_tokens (Tensor): (batch_size, seq_len, concept_dim)
+      segment_indices (Tensor): (batch_size, seq_len, 1)
     """
     # TODO: Wait for confirmation on NetCRP implementation
     
     raise NotImplementedError
   
-  def confidence(self,):
+  def confidence(self,
+                 enc_hidden_states: Tensor,
+                 z_samples: Tensor
+                ) -> Tensor:
+    """
+    Predicts the reconstruction error of a given subseqeuence given the encoder hidden states and the sampled latents
+
+    Args:
+      enc_hidden_states (Tensor): (batch_size, seq_len, hidden_dim)
+      z_samples (Tensor): (batch_size, seq_len, hidden_dim)
+
+    Returns:
+      confidence_estimates (Tensor): (batch_size, seq_len, 1)
+    """
+
+    confidence_estimates = self.confidence_module(encoder_last_hidden_states = enc_hidden_states,
+                                                  concept_tokens = z_samples)
+
+    return confidence_estimates
+
     raise NotImplementedError
 
   def decode(self,
@@ -182,7 +208,12 @@ class SerpentVAE(nn.Module):
 
     return hidden_states
 
-  def maximize_mi_regularizer(self, mu: Tensor, logvar: Tensor, z: Tensor, decoder_output: Tensor) -> Tensor:
+  def maximize_mi_regularizer(self,
+                              mu: Tensor,
+                              logvar: Tensor,
+                              z: Tensor,
+                              decoder_output: Tensor
+                             ) -> Tensor:
     """
     Maximizes the MI Regularizer term in SerpentVAE's loss objective 
 
@@ -268,7 +299,26 @@ class SerpentVAE(nn.Module):
     loss_objective = reconstruction_loss + alpha * vmi_loss_term + beta * kl_loss 
     return loss_objective
   
-  def confidence_loss(self,):
+  def confidence_loss(self,
+                      confidence_estimates: Tensor,
+                      segmentation_indices: Tensor,
+                      ground_truth_reconstruction_errors: Tensor
+                     ) -> Tensor:
+    """
+    Calculate the loss for the confidence module using Mean Squared Error (MSE)
+
+    NOTE: seq_len and sub_seq_len are not the same,
+    confidence_estimates has to be modified to so that only the estimates for which we have ground truth remain.
+    This is done using segmentation indices which are returned by the segment method.
+
+    Args:
+      confidence_estimates (Tensor): (batch_size, seq_len, 1)
+      segmentation_indices (Tensor): (batch_size, seq_len, 1)
+      ground_truth_reconstruction_errors (Tensor): (batch_size, sub_seq_len, 1)
+
+    Returns:
+      loss (Tensor): Scalar confidence module loss
+    """
     raise NotImplementedError
   
   def forward(self, input_ids: Tensor):
