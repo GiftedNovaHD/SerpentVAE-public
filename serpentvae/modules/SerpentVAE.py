@@ -232,6 +232,8 @@ class SerpentVAE(nn.Module):
     # Get Q's predictions from the decoder output
     mu_q, logvar_q = self.qnet(decoder_output) # (batch_size, latent_dim) 
 
+    # TODO: Refactor to use distributions log-likelihood method
+
     # Compute log probability of z under Q's predicted Gaussian 
     log_prob = -0.5 * ((
       (z - mu_q) ** 2 / torch.exp(logvar_q)
