@@ -158,7 +158,7 @@ class QNet(nn.Module):
       segmented_decoder_embedings = torch.cat((segmented_decoder_embedings, batch_segment_decoder_embeddings.unsqueeze(0)), dim=0) # (batch_size, num_subseq, subseq_len, latent_dim)
       segmented_correct_embeddings = torch.cat((segmented_correct_embeddings, batch_segment_correct_embeddings.unsqueeze(0)), dim=0) # (batch_size, num_subseq, subseq_len, latent_dim)
     
-
+    # TODO: To review
     """
     Step 3: Construct the correct context for each subsequence
     """
