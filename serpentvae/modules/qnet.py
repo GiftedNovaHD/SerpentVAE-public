@@ -161,18 +161,45 @@ class QNet(nn.Module):
     # TODO: To review
     """
     Step 3: Construct the correct context for each subsequence
+    Step 4: Concatenate context and subsequence embeddings
     """
 
+    full_embeddings = torch.Tensor([]) # (batch_size, num_subseq, subseq_len, latent_dim)
+
+    for b in range(B):
+      batch_segmented_decoder_embedings = segmented_decoder_embedings[b] # (num_subseq, subseq_len, latent_dim)
+      batch_segmented_correct_embeddings = segmented_correct_embeddings[b] # (num_subseq, subseq_len, latent_dim)
+
+      batch_full_embeddings = torch.Tensor([]) 
+
+      for index in range(batch_segment_decoder_embeddings.size(0)): # Iterate over each subsequence
+        # NOTE: We are using the correct embeddings as the context for the decoder embeddings
+        context_embedding = torch.Tensor([])
+
+        for num_context in range(index): # Number of context to add is equal to the index of the subsequence
+          context_embedding = torch.cat((context_embedding, batch_segmented_correct_embeddings[num_context]), dim=0) # (context_len, latent_dim)
+
+        subsequence_full_embedding = torch.cat((context_embedding, batch_segmented_decoder_embedings[index]), dim=0) # (context_len + subseq_len, latent_dim)
+        
+        batch_full_embeddings = torch.cat((batch_full_embeddings, subsequence_full_embedding.unsqueeze(0)), dim=0) # (num_subseq, context_len + subseq_len, latent_dim)
+      
+      full_embeddings = torch.cat((full_embeddings, batch_full_embeddings.unsqueeze(0)), dim=0) # (batch_size, num_subseq, context_len + subseq_len, latent_dim)
 
     """
-    Step 4: Concatenate context and subsequence and pass through encoder module to obtain hidden state
+    Step 5: Pass through the sequence mixer and obtain the correct hidden states
     """
 
+    hidden_states = self.seq_mixer(full_embeddings) # (batch_size, num_subseq, context_len + subseq_len, latent_dim)
+
+    hidden_states = hidden_states[ : , : , -1, : ] # (batch_size, num_subseq, context_len + subseq_len, latent_dim) -> (batch_size, num_subseq, 1, latent_dim)
+
+    hidden_states = hidden_states.squeeze(2) # (batch_size, num_subseq, 1, latent_dim) -> (batch_size, num_subseq, latent_dim)
     
     """
-    Step 5: Predict auxiliary Gaussian parameters mu_q and logvar_q given hidden state 
+    Step 6: Predict auxiliary Gaussian parameters mu_q and logvar_q given hidden state 
     """
-    mu_q = self.mu_head() # (batch_size, max_segments, latent_dim)
-    logvar_q = self.logvar_head() # (batch_size, max_segments, latent_dim)
+    
+    mu_q = self.mu_head(hidden_states) # (batch_size, num_subseq, latent_dim)
+    logvar_q = self.logvar_head(hidden_states) # (batch_size, num_subseq, latent_dim)
 
     return mu_q, logvar_q
