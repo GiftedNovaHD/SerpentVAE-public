@@ -57,9 +57,9 @@ class ScaleVAE(nn.Module):
     )
 
     # Residual QNet block 
-    self.qnet = QNet(self.input_dim,
-                     self.latent_dim,
-                     self.hidden_dim)
+    self.qnet = QNet(x_dim=self.input_dim,
+                     z_dim=self.latent_dim,
+                     hidden_dim=self.hidden_dim)
     
     self.vae_optimizer = torch.optim.Adam( 
       list(self.encoder.parameters()) 
