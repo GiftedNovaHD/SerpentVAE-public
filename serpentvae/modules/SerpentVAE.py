@@ -69,7 +69,7 @@ class SerpentVAE(nn.Module):
     
     self.decoder = Decoder(num_layers = num_decoder_layers,
                            hidden_dim = hidden_dim,
-                           concept_dim = concept_dim, # We assume that the concept dimension is the same as the hidden dimension 
+                           concept_dim = concept_dim, 
                            state_dim = state_dim,
                            conv_length = conv_length,
                            mamba_expand = mamba_expand,
@@ -79,10 +79,10 @@ class SerpentVAE(nn.Module):
                            )
     
     self.confidence_module = ConfidenceModule(hidden_dim = hidden_dim,
-                                       concept_dim = hidden_dim,
-                                       expand = confidence_module_expand,
-                                       **factory_kwargs
-                                       )
+                                              concept_dim = hidden_dim,
+                                              expand = confidence_module_expand,
+                                              **factory_kwargs
+                                              )
 
     # Instantiate the auxiliary network Q 
     self.qnet = QNet(decoder_hidden_dim=hidden_dim, latent_dim=concept_dim)
@@ -105,8 +105,8 @@ class SerpentVAE(nn.Module):
       **kwargs: Additional keyword arguments
 
     Returns:
-      mu (Tensor): (batch_size, seq_len, hidden_dim)
-      logvar (Tensor): (batch_size, seq_len, hidden_dim)
+      mu (Tensor): (batch_size, seq_len, concept_dim)
+      logvar (Tensor): (batch_size, seq_len, concept_dim)
     """
     
     hidden_states = self.encoder(hidden_states, inference_params=inference_params, **kwargs)
@@ -124,14 +124,14 @@ class SerpentVAE(nn.Module):
     Samples the latent state 
     
     Args: 
-      mu (Tensor): (batch_size, seq_len, hidden_dim) 
-      logvar (Tensor): (batch_size, seq_len, hidden_dim)
+      mu (Tensor): (batch_size, seq_len, concept_dim) 
+      logvar (Tensor): (batch_size, seq_len, concept_dim)
       infer (bool): Whether to use the inference mode or not
         If infer is False, then training mode is being used
         If infer is True, then inference mode is being used
     
     Returns:
-      sampled_latents (Tensor): (batch_size, seq_len, hidden_dim)
+      sampled_latents (Tensor): (batch_size, seq_len, concept_dim)
     """
     sampled_latents = self.distribution.sample(mu = mu, logvar = logvar, infer = infer)
     
@@ -167,7 +167,7 @@ class SerpentVAE(nn.Module):
 
     Args:
       enc_hidden_states (Tensor): (batch_size, seq_len, hidden_dim)
-      z_samples (Tensor): (batch_size, seq_len, hidden_dim)
+      z_samples (Tensor): (batch_size, seq_len, concept_dim)
 
     Returns:
       confidence_estimates (Tensor): (batch_size, seq_len, 1)
@@ -220,13 +220,13 @@ class SerpentVAE(nn.Module):
     Here, we use an auxiliary network, QNet, that takes in the decoder output and predicts the Gaussian parameters (mu_q, logvar_q) for z. 
 
     Args: 
-      mu (Tensor): (batch_size, seq_len, hidden_dim)
-      logvar (Tensor): (batch_size, seq_len, hidden_dim)
-      z (Tensor): (batch_size, seq_len, hidden_dim) 
-      decoder_output (Tensor): (batch_size, seq_len, hidden_dim)
+      mu (Tensor): (batch_size, seq_len, concept_dim)
+      logvar (Tensor): (batch_size, seq_len, concept_dim)
+      z (Tensor): (batch_size, seq_len, concept_dim) 
+      decoder_output (Tensor): (batch_size, seq_len, concept_dim)
     
     Returns: 
-      vmi_loss (Tensor): (batch_size, seq_len, hidden_dim)
+      vmi_loss (Scalar)
     """
 
     # Get Q's predictions from the decoder output
