@@ -3,6 +3,7 @@ import torch.nn as nn
 from torch import Tensor
 from typing import Tuple, Callable
 from torch.nn import functional as F
+from einops import rearrange
 from modules.tied_linear import TiedLinear
 from modules.encoder import Encoder
 from modules.decoder import Decoder
@@ -178,8 +179,6 @@ class SerpentVAE(nn.Module):
 
     return confidence_estimates
 
-    raise NotImplementedError
-
   def decode(self,
              hidden_states: Tensor,
              concept_tokens: Tensor,
@@ -299,6 +298,7 @@ class SerpentVAE(nn.Module):
     vmi_loss_term = self.maximum_mi_regularizer(mu = mu, logvar = logvar, z=z, decoder_output=decoder_output)
 
     loss_objective = reconstruction_loss + alpha * vmi_loss_term + beta * kl_loss 
+    
     return loss_objective
   
   def confidence_loss(self,
@@ -366,8 +366,55 @@ class SerpentVAE(nn.Module):
     return decoded_logits # (batch_size, seq_len, vocab_size)
   
   def metrics(self,):
+    """
+    Output the current metrics at this training step
+
+    Metrics used:
+      - Number of Active Units (AU)
+      - Entropy of Q(x)/ Variational Mutual Information
+      - Full Mutual Information
+      - KL-Divergence
+      - Reconstruction Error
+
+    Args:
+    
+    Returns:
+    
+    """
     raise NotImplementedError
   
+  def num_active_units(self,
+                       mu: Tensor,
+                       threshold: float = 1e-2
+                      ) -> int:
+    """
+      Calculate number of active units in latent variables
+      We basically calculate the covariance between the latent variables and see if they are above a threshold 
+
+      A_u = Cov_x(E_u~q(u|x)[u])
+
+      Args:
+        mu (batch, num_subsequences, concept_dim): Mean of the approximate posterior distribution
+        threshold (float): Threshold for considering a unit active
+
+      Returns:
+          num_active_units: Number of active units
+    """
+    # Center the means
+    mu = rearrange(mu, 'batch num_subseq concept_dim -> (batch num_subseq) concept_dim')
+    centered_mu = mu - mu.mean(dim=0, keepdim=True)
+
+    # Compute covariance matrix
+    cov = torch.matmul(centered_mu.T, centered_mu) / (mu.size(0) - 1)
+
+    # Compute the variance of each latent variable
+    variances = torch.diag(cov)
+
+    # Compute the number of active units
+    num_active_units = torch.sum(variances > threshold)
+
+    return num_active_units
+
   def train(self,):
     raise NotImplementedError
   
