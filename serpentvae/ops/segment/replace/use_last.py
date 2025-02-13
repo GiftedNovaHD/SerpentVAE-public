@@ -3,11 +3,11 @@ This is an example of a replacement function used in segmentation
 """
 import torch
 from torch import Tensor
-from modules.utils.bitmask_to_indices import bitmask_to_indices
+from helper_function import helper_function
 
 def use_last_replacement(concept_tokens: Tensor,
-                     segment_indices: Tensor
-                    ) -> Tensor:
+                         segment_indices: Tensor
+                        ) -> Tensor:
   """
   Replaces each subsequence of concept tokens with the last element of the subsequence
   NOTE: segment_indices is a bitmask where 1 represents the start of a subsequence
@@ -19,38 +19,38 @@ def use_last_replacement(concept_tokens: Tensor,
   Returns:
     replaced_concept_tokens (Tensor): (batch_size, seq_len, concept_dim)
   """
-  batch_size = concept_tokens.size(0)
-  seq_len = concept_tokens.size(1)
-  segment_indices = segment_indices.bool()
+  def use_last(subseq: Tensor) -> Tensor:
+    subseq_len = subseq.size(0)
+    last_token = subseq[-1]
 
-  # Obtain each subsequence of concept tokens
-  # Find the start of each subsequence
-  start_indices = bitmask_to_indices(segment_indices) # List of tensors of shape (num_subseqs,)
+    repeated_last_token = last_token.repeat(subseq_len, 1)
 
-  # Find the end of each subsequence and replace concept tokens with mean of subsequence
-  end_indices = []
+    return repeated_last_token
   
-  replace_concept_tokens = torch.tensor([])
-
-  for batch_idx in range(batch_size):
-    batch_start_indices = start_indices[batch_idx]
-    batch_concept_tokens = concept_tokens[batch_idx] # Shape is (seq_len, concept_dim)
-    batch_replace_concept_tokens = torch.tensor([])
-
-    batch_end_indices = torch.cat(
-                          (batch_start_indices[1:],
-                                   torch.tensor([seq_len], dtype=torch.int32)
-                                  )
-                                 ) # Shape: (num_subseqs,)
-
-    # NOTE: end_idx is non-inclusive
-    for start_idx, end_idx in zip(batch_start_indices, batch_end_indices):
-      last_token = batch_concept_tokens[end_idx - 1] # Get the last token of the subsequence shape: (concept_dim)
-
-      to_add = last_token.repeat(end_idx - start_idx, 1) # Repeat mean to match the shape of subsequence
-
-      batch_replace_concept_tokens = torch.cat((batch_replace_concept_tokens, to_add))
-
-    replace_concept_tokens = torch.cat((replace_concept_tokens, batch_replace_concept_tokens.unsqueeze(0)))
+  replace_concept_tokens = helper_function(concept_tokens, segment_indices, use_last)
     
   return replace_concept_tokens # Shape: (batch_size, seq_len, concept_dim)
+
+# Example usage
+if __name__ == "__main__":
+  concept_tokens = torch.tensor([
+    [[1, 1, 1],
+     [2, 2, 2],
+     [3, 3, 3],
+     [4, 4, 4],
+     [5, 5, 5]],
+    [[2, 2, 2],
+     [4, 4, 4],
+     [6, 6, 6],
+     [8, 8, 8],
+     [10, 10, 10]]
+  ])
+
+  segment_indices = torch.tensor([
+    [[1],[0],[1],[0],[0]],
+    [[1],[0],[0],[0],[0]]
+  ])
+
+  replaced_concept_tokens = use_last_replacement(concept_tokens, segment_indices)
+
+  print(replaced_concept_tokens)

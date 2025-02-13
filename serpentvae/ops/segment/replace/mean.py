@@ -3,7 +3,7 @@ This is an example of a replacement function used in segmentation
 """
 import torch
 from torch import Tensor
-from modules.utils.bitmask_to_indices import bitmask_to_indices
+from helper_function import helper_function
 
 def mean_replacement(concept_tokens: Tensor,
                      segment_indices: Tensor
@@ -19,35 +19,41 @@ def mean_replacement(concept_tokens: Tensor,
   Returns:
     replaced_concept_tokens (Tensor): (batch_size, seq_len, concept_dim)
   """
-  batch_size = concept_tokens.size(0)
-  segment_indices = segment_indices.bool()
+  def mean(subseq: Tensor) -> Tensor:
+    subseq_len = subseq.size(0)
+    subseq = subseq.float() # Convert to float for mean calculation
 
-  # Obtain each subsequence of concept tokens
-  # Find the start of each subsequence
-  start_indices = bitmask_to_indices(segment_indices) # List of tensors of shape (num_subseqs,)
+    # Calculate the mean of the subsequence along the subseq_len dimension
+    mean_token = torch.mean(subseq, dim=0) # Shape: (concept_dim,)
 
-  # Find the end of each subsequence and replace concept tokens with mean of subsequence
-  end_indices = []
+    repeated_mean_token = mean_token.repeat(subseq_len, 1)
+
+    return repeated_mean_token
   
-  replace_concept_tokens = torch.tensor([])
-
-  for batch_idx in range(batch_size):
-    batch_start_indices = start_indices[batch_idx]
-    batch_concept_tokens = concept_tokens[batch_idx] # Shape is (seq_len, concept_dim)
-    batch_replace_concept_tokens = torch.tensor([])
-
-    batch_end_indices = [batch_start_indices[1:]] + [concept_tokens.size(1)]
-    batch_end_indices = torch.tensor(end_indices, device=concept_tokens.device)
-
-    for start_idx, end_idx in zip(batch_start_indices, batch_end_indices):
-      subseq = batch_concept_tokens[start_idx:end_idx]
-      
-      mean = subseq.mean(dim=0) # Calculate mean of subsequence along sequence length dimension shape: (concept_dim)
-
-      to_add = mean.repeat(end_idx - start_idx, 1) # Repeat mean to match the shape of subsequence
-
-      batch_replace_concept_tokens = torch.cat((batch_replace_concept_tokens, to_add))
-
-    replace_concept_tokens = torch.cat((replace_concept_tokens, batch_replace_concept_tokens.unsqueeze(0)))
+  replace_concept_tokens = helper_function(concept_tokens, segment_indices, mean)
     
   return replace_concept_tokens # Shape: (batch_size, seq_len, concept_dim)
+
+# Example usage
+if __name__ == "__main__":
+  concept_tokens = torch.tensor([
+    [[1, 1, 1],
+     [2, 2, 2],
+     [3, 3, 3],
+     [4, 4, 4],
+     [5, 5, 5]],
+    [[2, 2, 2],
+     [4, 4, 4],
+     [6, 6, 6],
+     [8, 8, 8],
+     [10, 10, 10]]
+  ])
+
+  segment_indices = torch.tensor([
+    [[1],[0],[1],[0],[0]],
+    [[1],[0],[0],[0],[0]]
+  ])
+
+  replaced_concept_tokens = mean_replacement(concept_tokens, segment_indices)
+
+  print(replaced_concept_tokens)
