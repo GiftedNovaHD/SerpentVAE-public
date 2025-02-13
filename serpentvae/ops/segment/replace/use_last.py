@@ -5,11 +5,11 @@ import torch
 from torch import Tensor
 from modules.utils.bitmask_to_indices import bitmask_to_indices
 
-def mean_replacement(concept_tokens: Tensor,
+def use_last_replacement(concept_tokens: Tensor,
                      segment_indices: Tensor
                     ) -> Tensor:
   """
-  Replaces each subsequence of concept tokens with the mean of the subsequence
+  Replaces each subsequence of concept tokens with the last element of the subsequence
   NOTE: segment_indices is a bitmask where 1 represents the start of a subsequence
 
   Args:
@@ -20,6 +20,7 @@ def mean_replacement(concept_tokens: Tensor,
     replaced_concept_tokens (Tensor): (batch_size, seq_len, concept_dim)
   """
   batch_size = concept_tokens.size(0)
+  seq_len = concept_tokens.size(1)
   segment_indices = segment_indices.bool()
 
   # Obtain each subsequence of concept tokens
@@ -36,15 +37,17 @@ def mean_replacement(concept_tokens: Tensor,
     batch_concept_tokens = concept_tokens[batch_idx] # Shape is (seq_len, concept_dim)
     batch_replace_concept_tokens = torch.tensor([])
 
-    batch_end_indices = [batch_start_indices[1:]] + [concept_tokens.size(1)]
-    batch_end_indices = torch.tensor(end_indices, device=concept_tokens.device)
+    batch_end_indices = torch.cat(
+                          (batch_start_indices[1:],
+                                   torch.tensor([seq_len], dtype=torch.int32)
+                                  )
+                                 ) # Shape: (num_subseqs,)
 
+    # NOTE: end_idx is non-inclusive
     for start_idx, end_idx in zip(batch_start_indices, batch_end_indices):
-      subseq = batch_concept_tokens[start_idx:end_idx]
-      
-      mean = subseq.mean(dim=0) # Calculate mean of subsequence along sequence length dimension shape: (concept_dim)
+      last_token = batch_concept_tokens[end_idx - 1] # Get the last token of the subsequence shape: (concept_dim)
 
-      to_add = mean.repeat(end_idx - start_idx, 1) # Repeat mean to match the shape of subsequence
+      to_add = last_token.repeat(end_idx - start_idx, 1) # Repeat mean to match the shape of subsequence
 
       batch_replace_concept_tokens = torch.cat((batch_replace_concept_tokens, to_add))
 

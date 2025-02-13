@@ -311,6 +311,7 @@ class SerpentVAE(nn.Module):
     Calculate the loss for the confidence module using Mean Squared Error (MSE)
 
     NOTE: seq_len and sub_seq_len are not the same,
+    segmentation_indices is a bitmask where 1 represents the start of a subsequence
     confidence_estimates has to be modified to so that only the estimates for which we have ground truth remain.
     This is done using segmentation indices which are returned by the segment method.
 
