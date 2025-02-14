@@ -40,8 +40,8 @@ if __name__ == "__main__":
                          ]) # Dimension is (batch, seq_len, 1)
   dim = 1
   value_to_index = True
-  indices = bitmask_to_start_indices(bitmask, value_to_index)
+  start_indices = bitmask_to_start_indices(bitmask, value_to_index)
 
   print(bitmask)
   print()
-  print(indices)
+  print(start_indices)
