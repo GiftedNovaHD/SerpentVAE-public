@@ -2,8 +2,8 @@ import torch
 from torch import Tensor
 
 def bitmask_to_start_indices(bitmask:Tensor,
-                       value_to_index: bool = True
-                      ) -> torch.Tensor:
+                             value_to_index: bool = True
+                            ) -> torch.Tensor:
     """
     Convert the bitmask of segmentation methods of shape (batch_size, seq_len, 1) to indices of the start of subsequences
     
