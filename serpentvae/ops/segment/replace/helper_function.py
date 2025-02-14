@@ -7,9 +7,9 @@ from typing import Callable
 from utils.bitmask_to_indices import bitmask_to_indices
 
 def helper_function(concept_tokens: Tensor,
-                     segment_indices: Tensor,
-                     modifying_function: Callable
-                    ) -> Tensor:
+                    segment_indices: Tensor,
+                    modifying_function: Callable
+                   ) -> Tensor:
   """
   Helper function that allows for different modifying functions to be used in segmentation
   NOTE: segment_indices is a bitmask where 1 represents the start of a subsequence

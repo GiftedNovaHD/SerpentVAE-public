@@ -4,7 +4,7 @@ from torch import Tensor
 from typing import Tuple, Callable
 from torch.nn import functional as F
 from einops import rearrange
-from modules.utils.deduplicate import deduplicate
+from utils.deduplicate import deduplicate
 from modules.tied_linear import TiedLinear
 from modules.encoder import Encoder
 from modules.decoder import Decoder
