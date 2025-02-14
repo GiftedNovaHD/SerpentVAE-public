@@ -8,12 +8,11 @@ def bitmask_to_indices(bitmask:Tensor,
     Convert the bitmask of segmentation methods of shape (batch_size, seq_len, 1) to indices of the start of subsequences
     
     Args:
-      bitmask: Tensor of shape (batch_size, seq_len, 1)
-      dim: Dimension along which to get indices default is 1 for seq_len
-      value_to_index: If True, returns indices of True values. If False, returns indices of False values.
+      bitmask (Tensor): Tensor of shape (batch_size, seq_len, 1)
+      value_to_index (bool): If True, returns indices of True values. If False, returns indices of False values.
         
     Returns:
-      A list tensors that has length num_subseqs where the values are the indices of the start of each subsequence
+      batch_indices (List[Tensor]): A list tensors that has length num_subseqs where the values are the indices of the start of each subsequence
     """
     batch_size = bitmask.size(0)
     bitmask = bitmask.squeeze(-1)
