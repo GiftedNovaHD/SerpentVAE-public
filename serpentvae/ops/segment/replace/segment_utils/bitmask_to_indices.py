@@ -1,7 +1,7 @@
 import torch
 from torch import Tensor
 
-def bitmask_to_indices(bitmask:Tensor,
+def bitmask_to_start_indices(bitmask:Tensor,
                        value_to_index: bool = True
                       ) -> torch.Tensor:
     """
@@ -40,7 +40,7 @@ if __name__ == "__main__":
                          ]) # Dimension is (batch, seq_len, 1)
   dim = 1
   value_to_index = True
-  indices = bitmask_to_indices(bitmask, value_to_index)
+  indices = bitmask_to_start_indices(bitmask, value_to_index)
 
   print(bitmask)
   print()

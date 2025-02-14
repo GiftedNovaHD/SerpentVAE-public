@@ -4,7 +4,7 @@ This is a helper function used for segmentation
 import torch
 from torch import Tensor
 from typing import Callable
-from segment_utils.bitmask_to_indices import bitmask_to_indices
+from segment_utils.bitmask_to_indices import bitmask_to_start_indices
 
 def helper_function(concept_tokens: Tensor,
                     segment_indices: Tensor,
@@ -30,7 +30,7 @@ def helper_function(concept_tokens: Tensor,
 
   # Obtain each subsequence of concept tokens
   # Find the start of each subsequence
-  start_indices = bitmask_to_indices(segment_indices) # List of tensors of shape (num_subseqs,)
+  start_indices = bitmask_to_start_indices(segment_indices) # List of tensors of shape (num_subseqs,)
   
   replace_concept_tokens = torch.tensor([])
 
