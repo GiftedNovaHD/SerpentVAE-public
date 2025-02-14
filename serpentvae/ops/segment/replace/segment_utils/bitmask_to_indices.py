@@ -13,7 +13,7 @@ def bitmask_to_indices(bitmask:Tensor,
       value_to_index: If True, returns indices of True values. If False, returns indices of False values.
         
     Returns:
-      A list tensors that has length num_subseqs
+      A list tensors that has length num_subseqs where the values are the indices of the start of each subsequence
     """
     batch_size = bitmask.size(0)
     bitmask = bitmask.squeeze(-1)
