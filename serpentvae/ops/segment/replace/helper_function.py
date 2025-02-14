@@ -4,7 +4,7 @@ This is a helper function used for segmentation
 import torch
 from torch import Tensor
 from typing import Callable
-from serpentvae.utils.bitmask_to_indices import bitmask_to_indices
+from segment_utils.bitmask_to_indices import bitmask_to_indices
 
 def helper_function(concept_tokens: Tensor,
                     segment_indices: Tensor,
