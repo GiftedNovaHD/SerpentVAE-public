@@ -5,6 +5,7 @@ from typing import Tuple, Callable
 from torch.nn import functional as F
 from einops import rearrange
 from utils.deduplicate import deduplicate
+from ops.segment.replace.segment_utils.bitmask_to_indices import bitmask_to_start_indices, bitmask_to_end_indices
 from modules.tied_linear import TiedLinear
 from modules.encoder import Encoder
 from modules.decoder import Decoder
@@ -250,7 +251,6 @@ class SerpentVAE(nn.Module):
     mi_term = log_prob_mean + entropy_mean
     return mi_term 
 
-
   def vae_loss(self, 
                input_ids: Tensor, 
                logits: Tensor, 
@@ -259,7 +259,8 @@ class SerpentVAE(nn.Module):
                z: Tensor,
                decoder_output: Tensor,
                alpha=1.0,
-               beta=1.0):
+               beta=1.0
+              ) -> Tensor:
     """
     Takes in logits, input_ids, mu, and logvar, in order to compute the reconstruction loss
 
@@ -305,7 +306,8 @@ class SerpentVAE(nn.Module):
   def confidence_loss(self,
                       confidence_estimates: Tensor,
                       segmentation_indices: Tensor,
-                      ground_truth_reconstruction_errors: Tensor
+                      input_ids: Tensor,
+                      logits: Tensor,
                      ) -> Tensor:
     """
     Calculate the loss for the confidence module using Mean Squared Error (MSE)
@@ -318,12 +320,52 @@ class SerpentVAE(nn.Module):
     Args:
       confidence_estimates (Tensor): (batch_size, seq_len, 1)
       segmentation_indices (Tensor): (batch_size, seq_len, 1)
-      ground_truth_reconstruction_errors (Tensor): (batch_size, sub_seq_len, 1)
+      input_ids (Tensor): (batch_size, seq_len)
+      logits (Tensor): (batch_size, seq_len, vocab_size)
 
     Returns:
       loss (Tensor): Scalar confidence module loss
     """
-    raise NotImplementedError
+    batch_size = confidence_estimates.size(0)
+    seq_len = confidence_estimates.size(1)
+
+    start_indices = bitmask_to_start_indices(segmentation_indices) # List of tensors of shape (num_subseqs,) 
+    end_indices = bitmask_to_end_indices(segmentation_indices, inclusive = True) # List of tensors of shape (num_subseqs,)
+
+    total_subseqs = 0
+    total_confidence_loss = 0.0
+
+    # Iterate over the batch
+    for batch_idx in range(batch_size):
+      batch_start_indices = start_indices[batch_idx]
+      batch_end_indices = end_indices[batch_idx]
+      batch_confidence_estimates = confidence_estimates[batch_idx]
+      batch_logits = logits[batch_idx]
+      batch_input_ids = input_ids[batch_idx]
+      
+      # Iterate over the sub-sequences
+      for start, end in zip(batch_start_indices, batch_end_indices):
+        # Get confidence estimate for subsequence
+        subseq_confidence_estimates = batch_confidence_estimates[end] # Shape: (1,)
+
+        subseq_recon_loss = F.cross_entropy(
+          batch_logits[start:end + 1], # Shape: (subseq_len, vocab_size)
+          batch_input_ids[start:end + 1].view(-1), # Shape: (subseq_len,)
+          reduction='mean'
+        ) # Shape: (1,)
+
+        # Compute the confidence loss
+        sub_seq_confidence_loss = F.mse_loss(subseq_confidence_estimates,
+                                             subseq_recon_loss
+                                            )
+        
+        total_confidence_loss += sub_seq_confidence_loss
+        total_subseqs += 1
+    
+    # Compute the average confidence loss
+    avg_confidence_loss = total_confidence_loss / total_subseqs
+
+    return avg_confidence_loss
   
   def forward(self, input_ids: Tensor):
     """
@@ -377,6 +419,7 @@ class SerpentVAE(nn.Module):
       - Full Mutual Information
       - KL-Divergence
       - Reconstruction Error
+      - Confidence Error
 
     Args:
     
