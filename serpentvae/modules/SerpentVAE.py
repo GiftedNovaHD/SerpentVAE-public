@@ -89,8 +89,6 @@ class SerpentVAE(nn.Module):
 
     # Instantiate the auxiliary network Q 
     self.qnet = QNet(decoder_hidden_dim=hidden_dim, latent_dim=concept_dim)
-
-    raise NotImplementedError
   
   def encode(self,
              hidden_states: Tensor,
@@ -249,6 +247,7 @@ class SerpentVAE(nn.Module):
     entropy_mean = entropy.mean()
 
     mi_term = log_prob_mean + entropy_mean
+
     return mi_term 
 
   def vae_loss(self, 
