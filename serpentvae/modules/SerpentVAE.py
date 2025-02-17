@@ -155,7 +155,12 @@ class SerpentVAE(nn.Module):
       segmented_concept_tokens (Tensor): (batch_size, seq_len, concept_dim)
       segment_indices (Tensor): (batch_size, seq_len, 1)
     """
+    batch_size = concept_tokens.size(0)
+    seq_len = concept_tokens.size(1)
     # TODO: Wait for confirmation on NetCRP implementation
+
+    # NOTE: This direct return is for testing purposes only
+    return concept_tokens, torch.ones(batch_size, seq_len, 1, device=concept_tokens.device)
     
     raise NotImplementedError
   
