@@ -234,7 +234,7 @@ class SerpentVAE(nn.Module):
     """
 
     # Get Q's predictions from the decoder output
-    mu_q, logvar_q = self.qnet(decoder_output) # (batch_size, latent_dim) 
+    mu_q, logvar_q = self.qnet(decoder_output) # # (batch_size, num_subseq, concept_dim)
 
     # TODO: Refactor to use distributions log-likelihood method
 
