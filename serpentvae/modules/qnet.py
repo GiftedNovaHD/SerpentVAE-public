@@ -100,8 +100,8 @@ class QNet(nn.Module):
       segmentation_indices (Tensor): (batch_size, seq_len, 1) Binary mask indicating segment start positions
     
     Returns: 
-      mu_q (Tensor): (batch_size, num_subseq, latent_dim) Predicted mean of the Gaussian over z
-      logvar_q (Tensor): (batch_size, num_subseq, latent_dim) Predicted log-variance for the Gaussian over z 
+      mu_q (List[Tensor]): (batch_size, num_subseq, latent_dim) Predicted mean of the Gaussian over z
+      logvar_q (List[Tensor]): (batch_size, num_subseq, latent_dim) Predicted log-variance for the Gaussian over z 
     """
     B, L, _ = input_ids.shape
 
@@ -221,8 +221,8 @@ class QNet(nn.Module):
     """
     Step 6: Predict auxiliary Gaussian parameters mu_q and logvar_q given hidden state 
     """
-    mu_q = []
-    logvar_q = []
+    mu_q = [] # (batch_size, num_subseq, latent_dim)
+    logvar_q = [] # (batch_size, num_subseq, latent_dim)
 
     for b in range(B): # Iterate over each batch
       # NOTE: These are all tensor dimensions
