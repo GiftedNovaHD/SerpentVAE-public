@@ -222,8 +222,11 @@ class SerpentVAE(nn.Module):
     The computation is conditioned on the context (obtained from mu and logvar) with the aggregated posterior given by: 
     P(Z | context). Note that P(Z | context) follows a Gaussian distribution. 
 
-    We first compute KL-divergence for each subsequence between KL(Q(Z | X, context) || P(Z | context))
+    We first compute KL-divergence for each subsequence between KL(Q(Z | X, context) || P(Z | X, context))
     then average over the batch dimension. 
+
+    NOTE: z is not needed because mu and logvar correspond to the parameters of Q(Z | X, context). 
+    Here, we can compute the KL-divergence without using Monte-Carlo sampling
 
     Args:
       mu (List[Tensor]): (batch_size, num_subseq, concept_dim)
