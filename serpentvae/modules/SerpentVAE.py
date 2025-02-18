@@ -214,8 +214,7 @@ class SerpentVAE(nn.Module):
 
   def statistical_mi(self, 
                      mu: List[Tensor], 
-                     logvar: List[Tensor], 
-                     z: List[Tensor]
+                     logvar: List[Tensor]
                      ) -> Tensor:
     """
     Compute the statistical conditional mutual information between the encoder and decoder
@@ -229,7 +228,6 @@ class SerpentVAE(nn.Module):
     Args:
       mu (List[Tensor]): (batch_size, num_subseq, concept_dim)
       logvar (List[Tensor]): (batch_size, num_subseq, concept_dim)
-      z (List[Tensor]): (batch_size, num_subseq, concept_dim)
 
     Note: For mu, logvar and z batch_size dimension is a list and num_subseq and concept_dim are tensors
 
@@ -240,7 +238,7 @@ class SerpentVAE(nn.Module):
     """    
     all_kl = torch.tensor([])
 
-    for mu_i, logvar_i, z_i in zip(mu, logvar, z): 
+    for mu_i, logvar_i in zip(mu, logvar): 
       var_i = torch.exp(logvar_i) # (num_subseq, concept_dim)
 
       # Averaged across the num_subseq, i.e. subsequence dimension, not within subsequences
