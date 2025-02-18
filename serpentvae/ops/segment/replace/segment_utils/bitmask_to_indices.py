@@ -31,7 +31,7 @@ def bitmask_to_start_indices(bitmask:Tensor,
 
     batch_indices.append(seq_indices)
   
-  return batch_indices
+  return batch_indices # List of tensors of shape (num_subseqs,) where the length of the list is batch_size
 
 def bitmask_to_end_indices(bitmask: Tensor,
                            value_to_index: bool = True,

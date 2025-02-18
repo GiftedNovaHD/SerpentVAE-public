@@ -5,6 +5,7 @@ from typing import Optional, Tuple, List
 
 from modules.encoder import Encoder
 from modules.tied_linear import TiedLinear
+from ops.segment.replace.segment_utils.bitmask_to_indices import bitmask_to_start_indices, bitmask_to_end_indices
 
 class QNet(nn.Module):
   def __init__(self,
@@ -97,11 +98,11 @@ class QNet(nn.Module):
     Args: 
       decoder_output (Tensor): (batch_size, seq_len, vocab_size) Logits that decoder (not directly used here)
       input_ids (Tensor): (batch_size, seq_len, 1) Input ground truth token IDs
-      segmentation_indices (Tensor): (batch_size, seq_len, 1) BInary mask indicating segment start positions
+      segmentation_indices (Tensor): (batch_size, seq_len, 1) Binary mask indicating segment start positions
     
     Returns: 
-      mu_q (Tensor): (batch_size, num_subsed, latent_dim) Predicted mean of the Gaussian over z
-      logvar_q (Tensor): (batch_size, num_subseq, latent_dim) Predicted log-variance for the Gaussian over z 
+      mu_q (List[Tensor]): (batch_size, num_subseq, latent_dim) Predicted mean of the Gaussian over z
+      logvar_q (List[Tensor]): (batch_size, num_subseq, latent_dim) Predicted log-variance for the Gaussian over z 
     """
     B, L, _ = input_ids.shape
 
@@ -130,50 +131,58 @@ class QNet(nn.Module):
     # Obtaining the segmentation indices from the segmentation mask
     
     # Convert segmentation indices (B, L, 1) to a boolean mask of shape (B, L,)
-    seg_mask = segmentation_indices.squeeze(-1).bool() # (B, L, 1) -> (B, L,)
-    # Create a tensor of positions [0, 1, 2, ..., L - 1] and expand to (B, L)
-    positions = torch.arange(L, device=seg_mask.device).unsqueeze(0).expand(B, L)
-    # Where seg_mask is false, set the positions to L (an out-of-bound placeholder)
-    # NOTE: We use L as L - 1 could be the start of the segment where only the last element is in the segment
-    positions_masked = positions_masked(~seg_mask, L)
+    segmentation_indices = segmentation_indices.bool()
+    
+    # Get start and end indices of each subsequence
+    start_indices = bitmask_to_start_indices(segmentation_indices) # List of tensors of shape (num_subseqs,)
+    # NOTE: We set inclusive to be False as we are slicing subsequences from the tensor
+    end_indices = bitmask_to_end_indices(segmentation_indices, inclusive=False) # List of tensors of shape (num_subseqs,)
 
-    # Sort positions along sequence_ dimension; valid positions (lower numbers) will come first
-    positions_sorted, _ = torch.sort(positions_masked, dim=1) # (B, L)
-
-    segmented_decoder_embedings = torch.Tensor([])
-    segmented_correct_embeddings = torch.Tensor([])
+    # NOTE: We need to use a list here since we cannot be sure that all sequences have the same number of subsequences
+    segmented_decoder_embedings = []
+    segmented_correct_embeddings = []
 
     for b in range(B):
-      batch_segment_decoder_embeddings = torch.Tensor([])
-      batch_segment_correct_embeddings = torch.Tensor([])
-
-      batch_segmentation_indices = positions_sorted[b]
-
-      for i in range(len(batch_segmentation_indices)): 
-        start_index = batch_segmentation_indices[i] 
-        end_index = batch_segmentation_indices[i + 1] if i < len(batch_segmentation_indices) - 1 else L
-        
-        batch_segment_decoder_embeddings = torch.cat((batch_segment_decoder_embeddings, decoder_embeddings[b, start_index:end_index, :]), dim=0) # (num_subseq, subseq_len, latent_dim)
-        batch_segment_correct_embeddings = torch.cat((batch_segment_correct_embeddings, correct_embeddings[b, start_index:end_index, :]), dim=0) # (num_subseq, subseq_len, latent_dim)
+      # NOTE: We have to use a list here as we cannot be certain that all subsequences have the same length
+      batch_segment_decoder_embeddings = []
+      batch_segment_correct_embeddings = []
       
-      segmented_decoder_embedings = torch.cat((segmented_decoder_embedings, batch_segment_decoder_embeddings.unsqueeze(0)), dim=0) # (batch_size, num_subseq, subseq_len, latent_dim)
-      segmented_correct_embeddings = torch.cat((segmented_correct_embeddings, batch_segment_correct_embeddings.unsqueeze(0)), dim=0) # (batch_size, num_subseq, subseq_len, latent_dim)
+      # NOTE: Both of these are tensors of shape (num_subseq,)
+      batch_start_indices = start_indices[b] # (num_subseq,)
+      batch_end_indices = end_indices[b] # (num_subseq,) 
+
+      num_subseq = batch_start_indices.shape(0)
+
+      for i in range(num_subseq): 
+        start_index = batch_start_indices[i]
+        end_index = batch_end_indices[i]
+        
+        # NOTE: The first dimension is a list but subseq_len and latent_dim are tensor dimensions
+        batch_segment_decoder_embeddings.append(decoder_embeddings[b, start_index:end_index, :]) # (num_subseq, subseq_len, latent_dim)
+        batch_segment_correct_embeddings.append(correct_embeddings[b, start_index:end_index, :]) # (num_subseq, subseq_len, latent_dim)
+      
+      # NOTE: The first 2 dimensions are lists but subseq_len and latent_dim are tensor dimensions
+      segmented_decoder_embedings.append(batch_segment_decoder_embeddings) # (batch_size, num_subseq, subseq_len, latent_dim)
+      segmented_correct_embeddings.append(batch_segment_correct_embeddings) # (batch_size, num_subseq, subseq_len, latent_dim)
     
-    # TODO: To review
     """
     Step 3: Construct the correct context for each subsequence
     Step 4: Concatenate context and subsequence embeddings
     """
-
-    full_embeddings = torch.Tensor([]) # (batch_size, num_subseq, subseq_len, latent_dim)
+    # NOTE: A list needs to be used as num_subseq and subseq_len can vary
+    full_embeddings = [] # (batch_size, num_subseq, subseq_len, latent_dim)
 
     for b in range(B):
+      # Both of these are lists in the first dimension
       batch_segmented_decoder_embedings = segmented_decoder_embedings[b] # (num_subseq, subseq_len, latent_dim)
       batch_segmented_correct_embeddings = segmented_correct_embeddings[b] # (num_subseq, subseq_len, latent_dim)
 
-      batch_full_embeddings = torch.Tensor([]) 
+      num_subseq = len(batch_segmented_decoder_embedings)
 
-      for index in range(batch_segment_decoder_embeddings.size(0)): # Iterate over each subsequence
+      # NOTE: We need to use a list here as all context_len + subseq_len do not have the same length
+      batch_full_embeddings = [] # (num_subseq, context_len + subseq_len, latent_dim)
+
+      for index in range(num_subseq): # Iterate over each subsequence
         # NOTE: We are using the correct embeddings as the context for the decoder embeddings
         context_embedding = torch.Tensor([])
 
@@ -182,25 +191,48 @@ class QNet(nn.Module):
 
         subsequence_full_embedding = torch.cat((context_embedding, batch_segmented_decoder_embedings[index]), dim=0) # (context_len + subseq_len, latent_dim)
         
-        batch_full_embeddings = torch.cat((batch_full_embeddings, subsequence_full_embedding.unsqueeze(0)), dim=0) # (num_subseq, context_len + subseq_len, latent_dim)
+        batch_full_embeddings.append(subsequence_full_embedding) # (num_subseq, context_len + subseq_len, latent_dim)
       
-      full_embeddings = torch.cat((full_embeddings, batch_full_embeddings.unsqueeze(0)), dim=0) # (batch_size, num_subseq, context_len + subseq_len, latent_dim)
+      # NOTE: The first 2 dimensions are lists but context_len + subseq_len and latent_dim are tensor dimensions
+      full_embeddings.append(batch_full_embeddings) # (batch_size, num_subseq, context_len + subseq_len, latent_dim)
 
     """
     Step 5: Pass through the sequence mixer and obtain the correct hidden states
     """
+    # NOTE: We have to use a list here as num_subseq can vary
+    last_hidden_states = []
 
-    hidden_states = self.seq_mixer(full_embeddings) # (batch_size, num_subseq, context_len + subseq_len, latent_dim)
+    for b in range(B): # Iterate over each batch
+      batch_full_embeddings = full_embeddings[b] # (num_subseq, context_len + subseq_len, latent_dim)
 
-    hidden_states = hidden_states[ : , : , -1, : ] # (batch_size, num_subseq, context_len + subseq_len, latent_dim) -> (batch_size, num_subseq, 1, latent_dim)
+      num_subseq = len(batch_full_embeddings)
 
-    hidden_states = hidden_states.squeeze(2) # (batch_size, num_subseq, 1, latent_dim) -> (batch_size, num_subseq, latent_dim)
+      batch_last_hidden_states = torch.Tensor([])
+
+      for index in range(num_subseq): # Iterate over each subsequence
+        hidden_states = self.seq_mixer(batch_full_embeddings[index]) # (context_len + subseq_len, latent_dim)
+
+        # Get the last hidden state
+        hidden_states = hidden_states[-1, : ] # (context_len + subseq_len, latent_dim) -> (1, latent_dim)
+
+        batch_last_hidden_states = torch.cat((batch_last_hidden_states, hidden_states.unsqueeze(0)), dim=0) # (num_subseq, latent_dim)
+
+      last_hidden_states.append(batch_last_hidden_states) # (batch_size, num_subseq, latent_dim)
     
     """
     Step 6: Predict auxiliary Gaussian parameters mu_q and logvar_q given hidden state 
     """
-    
-    mu_q = self.mu_head(hidden_states) # (batch_size, num_subseq, latent_dim)
-    logvar_q = self.logvar_head(hidden_states) # (batch_size, num_subseq, latent_dim)
+    mu_q = [] # (batch_size, num_subseq, latent_dim)
+    logvar_q = [] # (batch_size, num_subseq, latent_dim)
 
-    return mu_q, logvar_q
+    for b in range(B): # Iterate over each batch
+      # NOTE: These are all tensor dimensions
+      batch_hidden_states = last_hidden_states[b] # (num_subseq, latent_dim)
+
+      batch_mu = self.mu_head(batch_hidden_states)
+      batch_logvar = self.logvar_head(batch_hidden_states)
+
+      mu_q.append(batch_mu)
+      logvar_q.append(batch_logvar)
+    
+    return mu_q, logvar_q # NOTE: First dimension is a list but num_subseq and latent_dim are tensor dimensions
