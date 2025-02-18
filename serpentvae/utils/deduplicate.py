@@ -24,16 +24,16 @@ def deduplicate(tensor: Tensor,
 
   # Handling output cases based on keyword arguments
   if return_indices and return_subseq_lens:
-      dedup_tensor, indices, subseq_lens = dedup_tensor_outputs
-      return dedup_tensor, indices, subseq_lens
+    dedup_tensor, indices, subseq_lens = dedup_tensor_outputs
+    return dedup_tensor, indices, subseq_lens
   
   elif return_indices:
-      dedup_tensor, indices = dedup_tensor_outputs
-      return dedup_tensor, indices
+    dedup_tensor, indices = dedup_tensor_outputs
+    return dedup_tensor, indices
   
   elif return_subseq_lens:
-      dedup_tensor, subseq_lens = dedup_tensor_outputs
-      return dedup_tensor, subseq_lens
+    dedup_tensor, subseq_lens = dedup_tensor_outputs
+    return dedup_tensor, subseq_lens
   
   else:
-      return dedup_tensor
+    return dedup_tensor

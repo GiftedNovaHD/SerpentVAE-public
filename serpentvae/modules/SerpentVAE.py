@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torch import Tensor
-from typing import Tuple, Callable
+from typing import Tuple, Callable, List
 from torch.nn import functional as F
 from einops import rearrange
 from utils.deduplicate import deduplicate
@@ -212,29 +212,42 @@ class SerpentVAE(nn.Module):
 
     return hidden_states
 
-  def maximize_mi_regularizer(self,
-                              mu: Tensor,
-                              logvar: Tensor,
-                              z: Tensor,
-                              decoder_output: Tensor
+  def statistical_mi(self, 
+                     mu: Tensor, 
+                     logvar: Tensor, 
+                     z: Tensor):
+    """
+    Compute the statistical conditional mutual information between the encoder and decoder
+
+    Condition on the context (obtained from mu and logvar)
+
+    """
+    raise NotImplementedError
+
+  def maximize_vmi_regularizer(self,
+                              z: List[Tensor],
+                              decoder_output: Tensor, 
+                              segmentation_indices: Tensor,
+                              input_ids: Tensor
                              ) -> Tensor:
     """
     Maximizes the MI Regularizer term in SerpentVAE's loss objective 
 
     Here, we use an auxiliary network, QNet, that takes in the decoder output and predicts the Gaussian parameters (mu_q, logvar_q) for z. 
 
-    Args: 
-      mu (Tensor): (batch_size, seq_len, concept_dim)
-      logvar (Tensor): (batch_size, seq_len, concept_dim)
-      z (Tensor): (batch_size, seq_len, concept_dim) 
-      decoder_output (Tensor): (batch_size, seq_len, concept_dim)
+    Args:
+      z (Tensor): (batch_size, num_subseq, concept_dim) Encoded latent variable
+      decoder_output (Tensor): (batch_size, seq_len, concept_dim) 
+      segmentation_indices (Tensor): (batch_size, seq_len, 1) 
+      input_ids (Tensor): (batch_size, seq_len, 1)
+
+    NOTE: Avg over batch_size and num_subseq; batch_size is a list, num_subseq is a tensor
     
     Returns: 
       vmi_loss (Scalar)
     """
-
     # Get Q's predictions from the decoder output
-    mu_q, logvar_q = self.qnet(decoder_output) # # (batch_size, num_subseq, concept_dim)
+    mu_q, logvar_q = self.qnet(decoder_output) # (batch_size, latent_dim) 
 
     # TODO: Refactor to use distributions log-likelihood method
 
@@ -248,10 +261,9 @@ class SerpentVAE(nn.Module):
     log_prob_mean =  log_prob.mean() # Average over the batch
     
     # Compute the entropy H(z) of the encoder's distribution
-    entropy = 0.5 * (logvar + torch.log(2 * torch.pi * torch.e)).sum(dim=-1) # (batch_size) 
-    entropy_mean = entropy.mean()
-
-    mi_term = log_prob_mean + entropy_mean
+    # entropy = 0.5 * (logvar + torch.log(2 * torch.pi * torch.e)).sum(dim=-1) # (batch_size) 
+    # entropy_mean = entropy.mean()
+    mi_term = log_prob_mean
 
     return mi_term 
 

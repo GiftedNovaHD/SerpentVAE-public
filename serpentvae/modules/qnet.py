@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torch import Tensor
-from typing import Optional
+from typing import Optional, Tuple, List
 
 from modules.encoder import Encoder
 from modules.tied_linear import TiedLinear
@@ -73,7 +73,8 @@ class QNet(nn.Module):
   def forward(self, 
               decoder_output: Tensor, 
               input_ids: Tensor,
-              segmentation_indices: Tensor):
+              segmentation_indices: Tensor
+             ) -> Tuple[List[Tensor], List[Tensor]]:
     """
     Predict Q(z | x, context) 
     We make sure that the context is correct by passing in the correct input_ids,

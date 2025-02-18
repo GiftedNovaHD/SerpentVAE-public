@@ -456,24 +456,7 @@ class ScaleVAE(nn.Module):
     Returns 
       mi_per_sample = mi_per_sample.mean(dim=0) # averaged over batch dimension
     """
-    batch_size, hidden_dim = z.shape
-    var = torch.exp(logvar) # [B, D] 
-
-    # log q_phi (z | x)
-    log_q = -0.5 * ( 
-      hidden_dim * torch.log(torch.tensor(2 * torch.pi, device=z.device)) 
-      + torch.sum(logvar, dim=1)
-      + torch.sum((z - mu)**2 / (var + 1e-8), dim=1)
-    )
-
-    # log p(z), standard normal prior
-    log_p = - 0.5 * ( 
-      hidden_dim * torch.log(torch.tensor(2 * torch.pi, device=z.device))
-      + torch.sum(z**2, dim=1)
-    )
-
-    mi_per_sample = log_q - log_p
-    return mi_per_sample.mean(dim=0) # average over batch  
+    raise NotImplementedError
 
   def num_active_units(self,
                        mu: Tensor,
