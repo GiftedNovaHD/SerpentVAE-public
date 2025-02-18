@@ -1,8 +1,4 @@
 """
-This file contains the implementation of the non-parametric clustering model that we use to cluster concept tokens.
-
-It is based on the network chinese restaurant process (NetCRP), 
-which allows the use of a graph to constrain how data is clustered
 
 Consider a token sequence x_1, x_2, ..., x_n, where each x_i is a token, and define a binary indicator (random variable) b_i for each position i. To enforce contiguity,
 we adopt the following convention: 
@@ -34,9 +30,8 @@ from typing import Optional, Tuple
 
 class ChainCRP(PyroModule): 
   def __init__(self, 
-               input_dim, 
-               hidden_dim, 
-               use_hard_segmentation=False): 
+               concept_dim: int,
+               use_hard_segmentation: bool = False): 
     """
     Args: 
       input_dim (int): The dimension D of each input token's embedding
@@ -44,10 +39,9 @@ class ChainCRP(PyroModule):
       use_hard_segmentation (bool): If True, the module outputs a hard segmentation mask (0 or 1) using a threshold (e.g. 0.5). Otherwise, it outputs soft probabilities.
     """
     super().__init__() 
-    self.use_hard_segmentation = use_hard_segmentation
-
-    self.encoder = Encoder()
     
+    self.concept_dim = concept_dim
+    self.use_hard_segmentation = use_hard_segmentation
 
     # The segmentation decision is defined for tokens 2...L. For token 1, we fix it as a segment start.
     self.theta = PyroSample(lambda self: dist.Gamma(1.0, 1.0))
@@ -58,7 +52,7 @@ class ChainCRP(PyroModule):
     Args: 
       x (Tensor): (batch_size, seq_len, hi) Input sequence of tokens 
     """
-    batch_size, seq_len, hidden_dim = x.shape 
+    batch_size, seq_len, concept_dim = x.shape 
 
     with pyro.plate("batch", batch_size): 
       # Variational parameters for theta 
@@ -66,13 +60,7 @@ class ChainCRP(PyroModule):
       theta_scale = pyro.param("theta_scale", torch.tensor(0.1, device=x.device), constraint=dist.constraints.positive) 
       theta = pyro.sample("theta", dist.Gamma(theta_loc, theta_scale))
 
-      # Each token is encoded using the encoder network 
-      x_flat = x.view(-1, hidden_dim) # (batch_size, seq_len, hidden_dim) -> (batch_size * seq_len, hidden_dim)
-      logits_flat = self.encoder(x_flat) # (batch_size * seq_len, 1)
-      logits = logits_flat.view(batch_size, seq_len) # (batch_size, seq_len)
-
-      # We set a large logit so that the first token is always a segment start
-      logits = torch.cat([torch.full((B, 1), 100.0, device=x.device), logits[:, 1:]], dim=1) # (batch_size, seq_len, 1)
+      # NOTE: Directly operates on concept tokens 
 
       # The variational distribution for the segmentation decisions is a Bernoulli distribution
       q_segmentation = dist.Bernoulli(logits=logits).to_event(1) 

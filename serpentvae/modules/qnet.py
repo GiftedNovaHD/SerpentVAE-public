@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torch import Tensor
-from typing import Optional
+from typing import Optional, Tuple, List
 
 from modules.encoder import Encoder
 from modules.tied_linear import TiedLinear
@@ -72,7 +72,8 @@ class QNet(nn.Module):
   def forward(self, 
               decoder_output: Tensor, 
               input_ids: Tensor,
-              segmentation_indices: Tensor):
+              segmentation_indices: Tensor
+             ) -> Tuple[List[Tensor], List[Tensor]]:
     """
     Predict Q(z | x, context) 
     We make sure that the context is correct by passing in the correct input_ids,
@@ -99,8 +100,8 @@ class QNet(nn.Module):
       segmentation_indices (Tensor): (batch_size, seq_len, 1) BInary mask indicating segment start positions
     
     Returns: 
-      mu_q (Tensor): (batch_size, subseq_len, latent_dim) Predicted mean of the Gaussian over z
-      logvar_q (Tensor): (batch_size, subseq_len, latent_dim) Predicted log-variance for the Gaussian over z 
+      mu_q (Tensor): (batch_size, num_subsed, latent_dim) Predicted mean of the Gaussian over z
+      logvar_q (Tensor): (batch_size, num_subseq, latent_dim) Predicted log-variance for the Gaussian over z 
     """
     B, L, _ = input_ids.shape
 
