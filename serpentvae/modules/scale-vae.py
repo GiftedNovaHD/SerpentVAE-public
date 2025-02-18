@@ -437,26 +437,44 @@ class ScaleVAE(nn.Module):
                 recon_err = reconstruction_error)
 
     
-  def compute_full_mi( 
+  def compute_full_mi(
       self,
-      z: Tensor, 
-      mu: Tensor, 
+      z: Tensor,
+      mu: Tensor,
       logvar: Tensor
-    ) -> Tensor: 
+    ) -> Tensor:
     """
     Full MI estimate for diagonal Gaussian posterior and standard normal prior.
-    Note that this differs from compute_mi() because we focus on the difference between the approximate posterior and the prior. 
+    Note that this differs from compute_mi() because we focus on the difference between the approximate posterior and the prior.
     In contrast, compute_mi() (see below) computes the difference between the posterior to the empirical marginal
 
-    Args: 
+    Args:
       z (batch_size, hidden_dim)
-      mu (batch_size, hidden_dim)
+      mu (batch_size, hidden_di`m)
       logvar (batch_size, hidden_dim)
 
-    Returns 
+    Returns
       mi_per_sample = mi_per_sample.mean(dim=0) # averaged over batch dimension
     """
-    raise NotImplementedError
+    batch_size, hidden_dim = z.shape
+    var = torch.exp(logvar) # [B, D]
+
+    # log q_phi (z | x)
+    log_q = -0.5 * (
+      hidden_dim * torch.log(torch.tensor(2 * torch.pi, device=z.device))
+      + torch.sum(logvar, dim=1)
+      + torch.sum((z - mu)**2 / (var + 1e-8), dim=1)
+    )
+
+    # log p(z), standard normal prior
+    log_p = - 0.5 * (
+      hidden_dim * torch.log(torch.tensor(2 * torch.pi, device=z.device))
+      + torch.sum(z**2, dim=1)
+    )
+
+    mi_per_sample = log_q - log_p
+    
+    return mi_per_sample.mean(dim=0) # average over batch  
 
   def num_active_units(self,
                        mu: Tensor,

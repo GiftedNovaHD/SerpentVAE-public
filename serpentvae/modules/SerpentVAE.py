@@ -213,16 +213,62 @@ class SerpentVAE(nn.Module):
     return hidden_states
 
   def statistical_mi(self, 
-                     mu: Tensor, 
-                     logvar: Tensor, 
-                     z: Tensor):
+                     mu: List[Tensor], 
+                     logvar: List[Tensor], 
+                     z: List[Tensor]
+                     ) -> Tensor:
     """
     Compute the statistical conditional mutual information between the encoder and decoder
 
-    Condition on the context (obtained from mu and logvar)
+    The computation is conditioned on the context (obtained from mu and logvar) with the aggregated posterior given by: 
+    P(Z | context). Note that P(Z | context) follows a Gaussian distribution. 
 
-    """
-    raise NotImplementedError
+    We first compute KL-divergence for each subsequence between KL(Q(Z | X, context) || P(Z | context))
+    then average over the batch dimension. 
+
+    Args:
+      mu (List[Tensor]): (batch_size, num_subseq, concept_dim)
+      logvar (List[Tensor]): (batch_size, num_subseq, concept_dim)
+      z (List[Tensor]): (batch_size, num_subseq, concept_dim)
+
+    Note: For mu, logvar and z batch_size dimension is a list and num_subseq and concept_dim are tensors
+
+    Return: 
+      mi_per_batch (Scalar): (1,)
+
+    Note: This uses a Monte Carlo approximation that is averaged across the batch and num_subseq dimensions
+    """    
+    all_kl = torch.tensor([])
+
+    for mu_i, logvar_i, z_i in zip(mu, logvar, z): 
+      var_i = torch.exp(logvar_i) # (num_subseq, concept_dim)
+
+      # Averaged across the num_subseq, i.e. subsequence dimension, not within subsequences
+      aggregated_mu = mu_i.mean(dim=0) # (concept_dim,)
+      
+      # Compute the aggregated second moment, then subtract the squared mean to obtain the aggregated variance
+      aggregated_second_moment = (mu_i ** 2 + var_i).mean(dim=0) # (concept_dim,) 
+      aggregated_variance = aggregated_second_moment - aggregated_mu ** 2 # (concept_dim,) 
+
+      # Clamp to avoid numerical instability issues
+      aggregated_variance = torch.clamp(aggregated_variance, min=1e-8) # (concept_dim,)
+      
+      # Compute KL divergence for each subsequence sample 
+      # Sum over concept_dim and compute per-sample KL
+      kl_divergence = 0.5 * torch.sum(
+        torch.log(aggregated_variance) - logvar_i - 1.0 + (var_i + (mu_i - aggregated_mu) ** 2) / aggregated_variance,
+        dim=1
+      ) # (num_subseq, )
+
+      # Average across the num_subseq, i.e. subsequence dimension
+      average_kl_divergence = kl_divergence.mean(dim=0) # (1,)
+      
+      all_kl = torch.cat((all_kl, average_kl_divergence.unsqueeze(0)), dim=0) # (batch_size, ) 
+      
+    # Stack over batch dimension and average over the batch
+    mi_per_batch = all_kl.mean() # Scalar
+    
+    return mi_per_batch # Scalar
 
   def maximize_vmi_regularizer(self,
                               z: List[Tensor],
@@ -236,7 +282,7 @@ class SerpentVAE(nn.Module):
     Here, we use an auxiliary network, QNet, that takes in the decoder output and predicts the Gaussian parameters (mu_q, logvar_q) for z. 
 
     Args:
-      z (Tensor): (batch_size, num_subseq, concept_dim) Encoded latent variable
+      z (List[Tensor]): (batch_size, num_subseq, concept_dim) Encoded latent variable
       decoder_output (Tensor): (batch_size, seq_len, concept_dim) 
       segmentation_indices (Tensor): (batch_size, seq_len, 1) 
       input_ids (Tensor): (batch_size, seq_len, 1)
@@ -247,25 +293,31 @@ class SerpentVAE(nn.Module):
       vmi_loss (Scalar)
     """
     # Get Q's predictions from the decoder output
-    mu_q, logvar_q = self.qnet(decoder_output) # (batch_size, latent_dim) 
+    mu_q, logvar_q = self.qnet(decoder_output,
+                               input_ids,
+                               segmentation_indices) # (batch_size, num_subseq, concept_dim)
 
     # TODO: Refactor to use distributions log-likelihood method
 
-    # Compute log probability of z under Q's predicted Gaussian 
-    log_prob = -0.5 * ((
-      (z - mu_q) ** 2 / torch.exp(logvar_q)
-      + logvar_q
-      + torch.log(2 * torch.pi)
-      ))
-    log_prob = log_prob.sum(dim=-1) # (batch_size)
-    log_prob_mean =  log_prob.mean() # Average over the batch
-    
-    # Compute the entropy H(z) of the encoder's distribution
-    # entropy = 0.5 * (logvar + torch.log(2 * torch.pi * torch.e)).sum(dim=-1) # (batch_size) 
-    # entropy_mean = entropy.mean()
-    mi_term = log_prob_mean
+    all_log_probs = torch.tensor([])
 
-    return mi_term 
+    for mu_q_i, logvar_q_i, z_i in zip(mu_q, logvar_q, z):
+      
+      # Computes the log-likelihood of z under Q's distribution
+      sequence_log_prob = self.distribution.log_likelihood(latent_samples = z_i.unsqueeze(0),
+                                                           q_dist_mu = mu_q_i.unsqueeze(0),
+                                                           q_dist_logvar = logvar_q_i.unsqueeze(0)
+                                                          )  # (1, num_subseq, )
+
+      sequence_log_prob = sequence_log_prob.squeeze(0) # (1, num_subseq, ) -> (num_subseq,)
+      sequence_log_prob = sequence_log_prob.mean(dim = 0) # (num_subseq, ) -> (1,)
+      all_log_probs = torch.cat((all_log_probs, sequence_log_prob), dim=0) # (batch_size, )
+
+    # Average over the batch
+    batch_log_probs = all_log_probs.mean() # (batch_size, ) -> Scalar
+    vmi_loss = - batch_log_probs # Scalar 
+    
+    return vmi_loss # Scalar
 
   def vae_loss(self, 
                input_ids: Tensor, 

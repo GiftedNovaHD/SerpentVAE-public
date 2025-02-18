@@ -1,12 +1,4 @@
 """
-<<<<<<< HEAD
-=======
-This file contains the implementation of the non-parametric clustering model that we use to cluster concept tokens.
-
-It is based on the network chinese restaurant process (NetCRP), 
-which allows the use of a graph to constrain how data is clustered
->>>>>>> 2f0e143ad67acfec728eb4d5170882620cb9fac4
-
 Consider a token sequence x_1, x_2, ..., x_n, where each x_i is a token, and define a binary indicator (random variable) b_i for each position i. To enforce contiguity,
 we adopt the following convention: 
 - The first token is always a segment start, i.e. b_1 = 1.
