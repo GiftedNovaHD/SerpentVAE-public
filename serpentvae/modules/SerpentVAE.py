@@ -365,6 +365,7 @@ class SerpentVAE(nn.Module):
       reduction='mean' # Average over the batch
     )
 
+    # TODO: Change to adapt to new mu and logvar versions
     # Compute KL divergence by summing over the latent dimensions and averaging over the batch
     kl_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp()) 
     kl_loss = kl_loss / input_ids.size(0)
