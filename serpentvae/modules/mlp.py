@@ -1,4 +1,5 @@
 import torch.nn as nn
+from torch import Tensor
 
 class MLP(nn.Module):
   def __init__(self, hidden_dim, inner_dim):
@@ -10,7 +11,7 @@ class MLP(nn.Module):
 
     self.act = nn.SiLu()
 
-  def forward(self, x):
+  def forward(self, x: Tensor) -> Tensor:
     """
       Args:
         x: Input of shape (batch_size, hidden_dim)
