@@ -739,5 +739,3 @@ class SerpentVAE(nn.Module):
   def allocate_inference_cache(self,batch_size, max_seqlen, dtype=None, **kwargs):
     self.encoder.allocate_inference_cache(batch_size, max_seqlen, dtype=dtype, **kwargs)
     self.decoder.allocate_inference_cache(batch_size, max_seqlen, dtype=dtype, **kwargs)
-
-  raise NotImplementedError

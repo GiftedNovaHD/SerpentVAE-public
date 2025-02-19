@@ -2,7 +2,7 @@ import torch
 from torch import nn as nn
 from torch import Tensor
 import torch.nn.functional as F 
-from modules.mlp import MLP
+from serpentvae.modules.mlp import MLP
 
 class SegmentPredictor(nn.Module):
   def __init__(self,

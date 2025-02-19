@@ -6,7 +6,7 @@ from typing import Optional, Tuple
 from serpentvae.modules.conceptmixer import ConceptMixer
 from serpentvae.modules.mlp import MLP
 from mamba_ssm import Mamba, Mamba2
-from mamba_ssm.ops.triton.layer_norm import RMSNorm as RMSNorm, rmsnorm_fn
+from mamba_ssm.ops.triton.layer_norm import RMSNorm as RMSNorm, rms_norm_fn
 from serpentvae.modules.module_utils.init_weight import _init_weights
 
 class DecoderLayer(nn.Module):
@@ -61,7 +61,7 @@ class DecoderLayer(nn.Module):
     """ 
     # SSM Pass
     # Norm Pass
-    hidden_states, residual = rmsnorm_fn(
+    hidden_states, residual = rms_norm_fn(
     hidden_states,
     self.ssm_rms_norm.weight,
     self.ssm_rms_norm.bias,
@@ -76,7 +76,7 @@ class DecoderLayer(nn.Module):
     
     # Concept Mixer Pass
     # Norm Pass
-    hidden_states, residual = rmsnorm_fn(
+    hidden_states, residual = rms_norm_fn(
     hidden_states,
     self.concept_mixer_rms_norm.weight,
     self.concept_mixer_rms_norm.bias,
@@ -91,7 +91,7 @@ class DecoderLayer(nn.Module):
     
     # MLP Pass
     # Norm Pass
-    hidden_states, residual = rmsnorm_fn(
+    hidden_states, residual = rms_norm_fn(
     hidden_states,
     self.mlp_rms_norm.weight,
     self.mlp_rms_norm.bias,
@@ -190,7 +190,7 @@ class Decoder(nn.Module):
       
     # Final RMSNorm
     # Set prenorm=False here since we don't need the residual
-    hidden_states = rmsnorm_fn(
+    hidden_states = rms_norm_fn(
       hidden_states,
       self.final_rms_norm.weight,
       self.final_rms_norm.bias,

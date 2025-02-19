@@ -4,9 +4,8 @@ from torch import Tensor
 from typing import Optional, Tuple
 from serpentvae.modules.mlp import MLP
 from mamba_ssm import Mamba, Mamba2
-from mamba_ssm.ops.triton.layer_norm import RMSNorm as RMSNorm, rmsnorm_fn
+from mamba_ssm.ops.triton.layer_norm import RMSNorm as RMSNorm, rms_norm_fn
 from functools import partial
-from mamba_ssm.ops.triton.layer_norm import RMSNorm as RMSNorm, rmsnorm_fn
 from serpentvae.modules.module_utils.init_weight import _init_weights
 
 class EncoderLayer(nn.Module):
@@ -50,7 +49,7 @@ class EncoderLayer(nn.Module):
     """ 
     # SSM Pass
     # Norm Pass
-    hidden_states, residual = rmsnorm_fn(
+    hidden_states, residual = rms_norm_fn(
     hidden_states,
     self.ssm_rms_norm.weight,
     self.ssm_rms_norm.bias,
@@ -65,7 +64,7 @@ class EncoderLayer(nn.Module):
     
     # MLP Pass
     # Norm Pass
-    hidden_states, residual = rmsnorm_fn(
+    hidden_states, residual = rms_norm_fn(
     hidden_states,
     self.mlp_rms_norm.weight,
     self.mlp_rms_norm.bias,
@@ -159,7 +158,7 @@ class Encoder(nn.Module):
 
     # Final RMSNorm
     # Set prenorm=False here since we don't need the residual
-    hidden_states = rmsnorm_fn(
+    hidden_states = rms_norm_fn(
       hidden_states,
       self.last_hidden_rms_norm.weight,
       self.last_hidden_rms_norm.bias,
