@@ -322,10 +322,10 @@ class SerpentVAE(nn.Module):
 
   def vae_loss(self, 
                input_ids: Tensor, 
-               logits: Tensor, 
                mu: Tensor, 
                logvar: Tensor,
                z: Tensor,
+               segmentation_indices: Tensor,
                decoder_output: Tensor,
                alpha=1.0,
                beta=1.0
@@ -342,21 +342,25 @@ class SerpentVAE(nn.Module):
 
     Args: 
       input_ids (Tensor): Ground-truth token IDs (batch_size, seq_len)
-      logits (Tensor): Predicted logits from the decoder (batch_size, seq_len, vocab_size) 
-      mu (Tensor): (batch_size, seq_len, hidden_dim)
-      logvar (Tensor): (batch_size, seq_len, hidden_dim)
-      z (Tensor): (batch_size, seq_len, hidden_dim)
-      decoder_output (Tensor): (batch_size, seq_len, hidden_dim)
+      mu (Tensor): (batch_size, seq_len, concept_dim)
+      logvar (Tensor): (batch_size, seq_len, concept_dim)
+      z (Tensor): (batch_size, seq_len, concept_dim)
+      segmentation_indices (Tensor): (batch_size, seq_len, 1)
+      decoder_output (Tensor): (batch_size, seq_len, hidden_dim / vocab_size)
+      NOTE: Will be logits if using discrete tokens, else will be the hidden states of the decoder
       alpha (float): Weight for the MI regularizer term
       beta (float): Weight for the KL term
 
     Returns: 
       loss (Tensor): Scalar VAE loss
+      kl_divergence (Tensor): Scalar KL divergence
+      reconstruction_loss (Tensor): Scalar reconstruction loss
+      vmi_loss (Tensor): Scalar Variational Mutual Information loss
     """
 
     # Compute the reconstruction loss here using cross entropy 
     reconstruction_loss = F.cross_entropy(
-      logits.view(-1, logits.size(-1)), # logits (batch_size, seq_len, vocab_size) -> (batch_size * seq_len, vocab_size)
+      decoder_output.view(-1, decoder_output.size(-1)), # logits (batch_size, seq_len, vocab_size) -> (batch_size * seq_len, vocab_size)
       input_ids.view(-1), # input_ids (batch_size, seq_len, 1) -> (batch_size * seq_len, 1)
       reduction='mean' # Average over the batch
     )
@@ -366,17 +370,28 @@ class SerpentVAE(nn.Module):
     kl_loss = kl_loss / input_ids.size(0)
 
     # Compute the maximized MI regularizer term
-    vmi_loss_term = self.maximum_mi_regularizer(mu = mu, logvar = logvar, z=z, decoder_output=decoder_output)
+    # Format z for the MI regularizer
+    all_z = [] # NOTE: Need to use a list as num_subseq is not constant
+
+    for z_i in z:
+      formatted_z_i = deduplicate(z_i.unsqueeze(0))
+      all_z.append(formatted_z_i)
+
+    vmi_loss_term = self.maximize_vmi_regularizer(z = all_z,
+                                                  decoder_output = decoder_output,
+                                                  segmentation_indices = segmentation_indices,
+                                                  input_ids = input_ids
+                                                 )
 
     loss_objective = reconstruction_loss + alpha * vmi_loss_term + beta * kl_loss 
     
-    return loss_objective
+    return loss_objective, kl_loss, reconstruction_loss, vmi_loss_term
   
   def confidence_loss(self,
                       confidence_estimates: Tensor,
                       segmentation_indices: Tensor,
                       input_ids: Tensor,
-                      logits: Tensor,
+                      decoder_output: Tensor,
                      ) -> Tensor:
     """
     Calculate the loss for the confidence module using Mean Squared Error (MSE)
@@ -390,7 +405,8 @@ class SerpentVAE(nn.Module):
       confidence_estimates (Tensor): (batch_size, seq_len, 1)
       segmentation_indices (Tensor): (batch_size, seq_len, 1)
       input_ids (Tensor): (batch_size, seq_len)
-      logits (Tensor): (batch_size, seq_len, vocab_size)
+      decoder_output (Tensor): (batch_size, seq_len, hidden_dim / vocab_size)
+      NOTE: Will be logits if using discrete tokens, else will be the hidden states of the decoder
 
     Returns:
       loss (Tensor): Scalar confidence module loss
@@ -409,7 +425,7 @@ class SerpentVAE(nn.Module):
       batch_start_indices = start_indices[batch_idx]
       batch_end_indices = end_indices[batch_idx]
       batch_confidence_estimates = confidence_estimates[batch_idx]
-      batch_logits = logits[batch_idx]
+      batch_logits = decoder_output[batch_idx]
       batch_input_ids = input_ids[batch_idx]
       
       # Iterate over the sub-sequences
@@ -478,7 +494,16 @@ class SerpentVAE(nn.Module):
 
     return decoded_logits # (batch_size, seq_len, vocab_size)
   
-  def metrics(self,):
+  def metrics(self,
+              input_ids: Tensor,
+              z: Tensor,
+              mu: Tensor,
+              logvar: Tensor,
+              segmentation_indices: Tensor,
+              decoder_output: Tensor,
+              confidence_estimates: Tensor,
+              threshold: float = 1e-2
+             ):
     """
     Output the current metrics at this training step
 
@@ -491,11 +516,88 @@ class SerpentVAE(nn.Module):
       - Confidence Error
 
     Args:
-    
+      input_ids (Tensor): (batch_size, seq_len, 1)
+      z (Tensor): (batch_size, seq_len, concept_dim) Encoded latent variable
+      mu (Tensor): (batch_size, seq_len, hidden_dim)
+      logvar (Tensor): (batch_size, seq_len, hidden_dim)
+      segmentation_indices (Tensor): (batch_size, seq_len, 1)
+      decoder_output (Tensor): (batch_size, seq_len, vocab_size)
+      confidence_estimates (Tensor): (batch_size, seq_len, 1)
+      threshold (float): Threshold for considering a unit active
+
     Returns:
+      metrics (dict): Dictionary of metrics
 
     """
-    raise NotImplementedError
+    # NOTE: The batch_size diemnsion of all these are lists
+    dedup_z = [] # (batch_size, num_subseq, concept_dim)
+    dedup_mu = [] # (batch_size, num_subseq, concept_dim)
+    dedup_logvar = [] # (batch_size, num_subseq, concept_dim)
+
+    # Deduplicate z
+    for z_i in z:
+      dedup_z.append(deduplicate(z_i.unsqueeze(0)))
+
+    # Remove unnecessary elements in mu and logvar
+    start_indices = bitmask_to_start_indices(segmentation_indices)
+    # NOTE: Inclusive is set to True as we are directly indexing for the end index
+    end_indices = bitmask_to_end_indices(segmentation_indices, inclusive = True)
+
+    # NOTE: We assume that the replacement operation used is use_last for simpler math
+    batch_size = len(start_indices)
+
+    for i in range(batch_size):
+      seq_dedup_mu = torch.tensor([])
+      seq_dedup_logvar = torch.tensor([])
+
+      seq_start_indices = start_indices[i]
+      seq_end_indices = end_indices[i]
+
+      seq_mu = mu[i]
+      seq_logvar = logvar[i]
+
+      for start, end in zip(seq_start_indices, seq_end_indices):
+        seq_dedup_mu = torch.cat((seq_dedup_mu, seq_mu[end].unsqueeze(0)), dim = 0)
+        seq_dedup_logvar = torch.cat((seq_dedup_logvar, seq_logvar[end].unsqueeze(0)), dim = 0)
+
+      dedup_mu.append(seq_dedup_mu)
+      dedup_logvar.append(seq_dedup_logvar)
+        
+
+    # Calculate the number of active units
+    num_active_units = self.num_active_units(mu = dedup_mu, threshold = threshold)
+
+    # Calculate VMI, KL-Divergence and Reconstruction Error
+    total_loss, kl_divergence, reconstruction_error, vmi_loss = self.vae_loss(input_ids = input_ids,
+                                                                              mu = mu,
+                                                                              logvar = logvar,
+                                                                              z = z,
+                                                                              segmentation_indices = segmentation_indices,
+                                                                              decoder_output = decoder_output
+                                                                             )
+    
+    # Calculate the full mutual information
+    full_mutual_info = self.statistical_mi(mu = dedup_mu,
+                                           logvar = dedup_logvar
+                                          )
+    
+    # Calculate the confidence error
+    confidence_error = self.confidence_loss(confidence_estimates = confidence_estimates,
+                                            segmentation_indices = segmentation_indices,
+                                            input_ids = input_ids,
+                                            decoder_output = decoder_output
+                                           )
+    
+    # Initialize the metrics dictionary
+    metrics = {"num_active_units": num_active_units,
+               "vmi": vmi_loss,
+               "full_mi": full_mutual_info,
+               "kl_divergence": kl_divergence,
+               "recon_error": reconstruction_error,
+               "confidence_error": confidence_error
+              }
+    
+    return metrics
   
   def num_active_units(self,
                        mu: Tensor,
@@ -508,15 +610,19 @@ class SerpentVAE(nn.Module):
       A_u = Cov_x(E_u~q(u|x)[u])
 
       Args:
-        mu (batch, num_subsequences, concept_dim): Mean of the approximate posterior distribution
+        mu (List[Tensor]): (batch_size, num_subseq, concept_dim) Mean of the approximate posterior distribution 
         threshold (float): Threshold for considering a unit active
 
       Returns:
           num_active_units: Number of active units
     """
     # Center the means
-    mu = rearrange(mu, 'batch num_subseq concept_dim -> (batch num_subseq) concept_dim')
-    centered_mu = mu - mu.mean(dim=0, keepdim=True)
+    all_mu = torch.tensor([])
+
+    for mu_i in mu:
+      all_mu = torch.cat((all_mu, mu_i), dim=0) # (batch_size, num_subseq, concept_dim) ->  (batch_size * num_subseq, concept_dim)
+
+    centered_mu = all_mu - all_mu.mean(dim=0, keepdim=True)
 
     # Compute covariance matrix
     cov = torch.matmul(centered_mu.T, centered_mu) / (mu.size(0) - 1)

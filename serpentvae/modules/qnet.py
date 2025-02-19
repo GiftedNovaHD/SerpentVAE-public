@@ -96,7 +96,8 @@ class QNet(nn.Module):
     
 
     Args: 
-      decoder_output (Tensor): (batch_size, seq_len, vocab_size) Logits that decoder (not directly used here)
+      decoder_output (Tensor): (batch_size, seq_len, hidden_dim / vocab_size) Output of the decoder
+      NOTE: Will be logits if using discrete tokens, else will be the hidden states of the decoder
       input_ids (Tensor): (batch_size, seq_len, 1) Input ground truth token IDs
       segmentation_indices (Tensor): (batch_size, seq_len, 1) Binary mask indicating segment start positions
     
