@@ -3,9 +3,9 @@ import torch.nn as nn
 from torch import Tensor
 from typing import Optional, Tuple, List
 
-from modules.encoder import Encoder
-from modules.tied_linear import TiedLinear
-from ops.segment.replace.segment_utils.bitmask_to_indices import bitmask_to_start_indices, bitmask_to_end_indices
+from serpentvae.modules.encoder import Encoder
+from serpentvae.modules.tied_linear import TiedLinear
+from serpentvae.ops.segment.replace.segment_utils.bitmask_to_indices import bitmask_to_start_indices, bitmask_to_end_indices
 
 class QNet(nn.Module):
   def __init__(self,

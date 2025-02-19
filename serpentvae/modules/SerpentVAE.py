@@ -3,15 +3,22 @@ import torch.nn as nn
 from torch import Tensor
 from typing import Tuple, Callable, List
 from torch.nn import functional as F
+from torchvision.ops import sigmoid_focal_loss
+
 from einops import rearrange
-from utils.deduplicate import deduplicate
-from ops.segment.replace.segment_utils.bitmask_to_indices import bitmask_to_start_indices, bitmask_to_end_indices
-from modules.tied_linear import TiedLinear
-from modules.encoder import Encoder
-from modules.decoder import Decoder
-from modules.distributions.scaled_normal import ScaledNormal
-from modules.confidencemodule import ConfidenceModule
-from modules.qnet import QNet # Auxiliary Network 
+
+from serpentvae.utils.deduplicate import deduplicate
+from serpentvae.utils.convert_bitmask import convert_bitmask
+
+from serpentvae.ops.segment.replace.segment_utils.bitmask_to_indices import bitmask_to_start_indices, bitmask_to_end_indices
+
+from serpentvae.modules.tied_linear import TiedLinear
+from serpentvae.modules.encoder import Encoder
+from serpentvae.modules.decoder import Decoder
+from serpentvae.modules.distributions.scaled_normal import ScaledNormal
+from serpentvae.modules.confidencemodule import ConfidenceModule
+from serpentvae.modules.qnet import QNet # Auxiliary Network
+from serpentvae.modules.segment_predictor import SegmentPredictor
 
 class SerpentVAE(nn.Module):
   def __init__(self,
@@ -26,6 +33,7 @@ class SerpentVAE(nn.Module):
                mamba_expand: int,
                mlp_inner_dim: int,
                confidence_module_expand: int,
+               segment_predictor_expand: int,
                share_input_embeddings: bool = True,
                tie_embeddings: bool = True,
                residual_in_fp32: bool = False,
@@ -89,6 +97,11 @@ class SerpentVAE(nn.Module):
 
     # Instantiate the auxiliary network Q 
     self.qnet = QNet(decoder_hidden_dim=hidden_dim, latent_dim=concept_dim)
+
+    # Instatiate the segment predictor
+    self.segment_predictor = SegmentPredictor(hidden_dim = hidden_dim,
+                                              expand = segment_predictor_expand
+                                             )
   
   def encode(self,
              hidden_states: Tensor,
@@ -183,6 +196,23 @@ class SerpentVAE(nn.Module):
                                                   concept_tokens = z_samples)
 
     return confidence_estimates
+
+  def segmentation_predictions(self,
+                               hidden_states: Tensor
+                              ):
+    """
+    Predicts when the segment should end
+
+    Args:
+      hidden_states (Tensor): (batch_size, seq_len, hidden_dim)
+
+    Returns:
+      segment_preds (Tensor): (batch_size, seq_len, 1)
+    """
+    segment_preds = self.segment_predictor(hidden_states)
+
+    return segment_preds
+    
 
   def decode(self,
              hidden_states: Tensor,
@@ -311,7 +341,7 @@ class SerpentVAE(nn.Module):
                                                           )  # (1, num_subseq, )
 
       sequence_log_prob = sequence_log_prob.squeeze(0) # (1, num_subseq, ) -> (num_subseq,)
-      sequence_log_prob = sequence_log_prob.mean(dim = 0) # (num_subseq, ) -> (1,)
+      sequence_log_prob = sequence_log_prob.mean(dim=0) # (num_subseq, ) -> (1,)
       all_log_probs = torch.cat((all_log_probs, sequence_log_prob), dim=0) # (batch_size, )
 
     # Average over the batch
@@ -322,9 +352,9 @@ class SerpentVAE(nn.Module):
 
   def vae_loss(self, 
                input_ids: Tensor, 
-               mu: Tensor, 
-               logvar: Tensor,
-               z: Tensor,
+               mu: List[Tensor], 
+               logvar: List[Tensor],
+               z: List[Tensor],
                segmentation_indices: Tensor,
                decoder_output: Tensor,
                alpha=1.0,
@@ -342,9 +372,9 @@ class SerpentVAE(nn.Module):
 
     Args: 
       input_ids (Tensor): Ground-truth token IDs (batch_size, seq_len)
-      mu (Tensor): (batch_size, seq_len, concept_dim)
-      logvar (Tensor): (batch_size, seq_len, concept_dim)
-      z (Tensor): (batch_size, seq_len, concept_dim)
+      mu (List[Tensor]): (batch_size, num_subseq, concept_dim)
+      logvar (List[Tensor]): (batch_size, num_subseq, concept_dim)
+      z (List[Tensor]): (batch_size, num_subseq, concept_dim)
       segmentation_indices (Tensor): (batch_size, seq_len, 1)
       decoder_output (Tensor): (batch_size, seq_len, hidden_dim / vocab_size)
       NOTE: Will be logits if using discrete tokens, else will be the hidden states of the decoder
@@ -365,20 +395,33 @@ class SerpentVAE(nn.Module):
       reduction='mean' # Average over the batch
     )
 
-    # TODO: Change to adapt to new mu and logvar versions
-    # Compute KL divergence by summing over the latent dimensions and averaging over the batch
-    kl_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp()) 
-    kl_loss = kl_loss / input_ids.size(0)
+    # Compute KL divergence analytically:
+    # D_{KL}[ q(z | x) || p(z)] = -0.5 * sum_{i=1}^{d} (1 + log(sigma_i^2) - mu_i^2 - sigma_i^2)
+    all_kl = torch.tensor([])
+
+    for mu_i, logvar_i in zip(mu, logvar): 
+      var_i = torch.exp(logvar_i) # (num_subseq, concept_dim) 
+      
+      aggregated_mu = mu_i.mean(dim=0) # (concept_dim,) 
+      aggregated_second_moment = (mu_i ** 2 + var_i).mean(dim=0) # (concept_dim,)
+      aggregated_variance = aggregated_second_moment - aggregated_mu ** 2 # (concept_dim,) 
+
+      aggregated_variance = torch.clamp(aggregated_variance, min=1e-8) # (concept_dim,)
+
+      kl_divergence = 0.5 * torch.sum( 
+        torch.log(aggregated_variance) - logvar_i - 1.0 + (var_i + (mu_i - aggregated_mu) ** 2) / aggregated_variance,
+        dim=1
+      ) # (num_subseq, )
+      
+      average_kl_divergence = kl_divergence.mean() # (1, )
+      
+      all_kl = torch.cat((all_kl, average_kl_divergence.unsqueeze(0)), dim=0) # (batch_size, )#
+    
+    kl_loss = all_kl.mean() # Scalar
 
     # Compute the maximized MI regularizer term
-    # Format z for the MI regularizer
-    all_z = [] # NOTE: Need to use a list as num_subseq is not constant
 
-    for z_i in z:
-      formatted_z_i = deduplicate(z_i.unsqueeze(0))
-      all_z.append(formatted_z_i)
-
-    vmi_loss_term = self.maximize_vmi_regularizer(z = all_z,
+    vmi_loss_term = self.maximize_vmi_regularizer(z = z,
                                                   decoder_output = decoder_output,
                                                   segmentation_indices = segmentation_indices,
                                                   input_ids = input_ids
@@ -388,6 +431,56 @@ class SerpentVAE(nn.Module):
     
     return loss_objective, kl_loss, reconstruction_loss, vmi_loss_term
   
+  def segment_prediction_loss(self,
+                              segmentation_predictions: Tensor,
+                              segmentation_indices: Tensor,
+                             ):
+    """
+    Calculates the loss for the segmentation prediction module
+
+    Here, we use a binary focal loss with 2 classes 
+     -1 for staying on the current concept token(s) 
+     -1 for changing to the next concept token
+    Note that we assume that the higher level model decides when to stop generating concept tokens
+    So we just keep decoding as long as we have not run out of concept tokens
+    
+    Args:
+      segmentation_predictions (Tensor): (batch_size, seq_len, 1)
+      segmentation_indices (Tensor): (batch_size, seq_len, 1)
+
+    Returns:
+      segmentation_prediction_loss (Scalar): (1,)
+    """
+    batch_size, seq_len, _ = segmentation_indices.size()
+
+    # Convert segmentation indices from start indices to end indices
+    end_indices = convert_bitmask(segmentation_indices)
+
+    # Flatten 3D tensors to 1D so each prediction / target pair corresponds to a single element
+    segmentation_predictions = rearrange(segmentation_predictions, "batch_size seq_len 1 -> (batch_size seq_len)")
+    end_indices = rearrange(end_indices, "batch_size seq_len 1 -> (batch_size seq_len)")
+
+    # Calculate weighing factor alpha for each batch
+    count_ends = torch.count_nonzero(end_indices)
+
+    weighing_factor = count_ends / (batch_size * seq_len)
+    
+    # Replace 0 with -1 in segmentation indices as segmentation predictions are from -1 to 1 due to the sigmoid function
+    end_indices = torch.where(end_indices > 0.5, 1.0, -1.0)
+    
+    # Ensure targets are of float type for BCE 
+    end_indices = end_indices.float()
+
+    segment_prediction_loss = sigmoid_focal_loss(
+      inputs=segmentation_predictions,
+      targets=end_indices, 
+      alpha=weighing_factor, 
+      gamma=2.0,
+      reduction='mean'
+    )
+    
+    return segment_prediction_loss
+      
   def confidence_loss(self,
                       confidence_estimates: Tensor,
                       segmentation_indices: Tensor,
@@ -530,14 +623,12 @@ class SerpentVAE(nn.Module):
       metrics (dict): Dictionary of metrics
 
     """
-    # NOTE: The batch_size diemnsion of all these are lists
-    dedup_z = [] # (batch_size, num_subseq, concept_dim)
+    # NOTE: The batch_size dimension of all these are lists
     dedup_mu = [] # (batch_size, num_subseq, concept_dim)
     dedup_logvar = [] # (batch_size, num_subseq, concept_dim)
 
     # Deduplicate z
-    for z_i in z:
-      dedup_z.append(deduplicate(z_i.unsqueeze(0)))
+    dedup_z = deduplicate(z) # (batch_size, num_subseq, concept_dim)
 
     # Remove unnecessary elements in mu and logvar
     start_indices = bitmask_to_start_indices(segmentation_indices)
@@ -570,9 +661,9 @@ class SerpentVAE(nn.Module):
 
     # Calculate VMI, KL-Divergence and Reconstruction Error
     total_loss, kl_divergence, reconstruction_error, vmi_loss = self.vae_loss(input_ids = input_ids,
-                                                                              mu = mu,
-                                                                              logvar = logvar,
-                                                                              z = z,
+                                                                              mu = dedup_mu,
+                                                                              logvar = dedup_logvar,
+                                                                              z = dedup_z,
                                                                               segmentation_indices = segmentation_indices,
                                                                               decoder_output = decoder_output
                                                                              )

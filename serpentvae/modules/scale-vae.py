@@ -213,7 +213,7 @@ class ScaleVAE(nn.Module):
   def kl_divergence(self, 
                     mu: Tensor, 
                     logvar: Tensor
-                    ) -> Tensor:
+                   ) -> Tensor:
     """
     Computes the Kullback-Leibler Divergence between q(z|x) ~ N(mu, diag(sigma^{2})) 
     and the prior p(z) ~ N(0, I)

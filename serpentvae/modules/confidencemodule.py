@@ -1,7 +1,7 @@
 import torch
 from torch import Tensor
 from torch import nn
-from modules.mlp import MLP
+from serpentvae.modules.mlp import MLP
 import einx
 
 class ConfidenceModule(nn.Module):

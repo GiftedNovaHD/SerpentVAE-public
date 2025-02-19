@@ -3,11 +3,11 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 from typing import Optional, Tuple
-from modules.conceptmixer import ConceptMixer
-from modules.mlp import MLP
+from serpentvae.modules.conceptmixer import ConceptMixer
+from serpentvae.modules.mlp import MLP
 from mamba_ssm import Mamba, Mamba2
 from mamba_ssm.ops.triton.layer_norm import RMSNorm as RMSNorm, rmsnorm_fn
-from init_weight import _init_weights
+from serpentvae.modules.module_utils.init_weight import _init_weights
 
 class DecoderLayer(nn.Module):
   def __init__(self,
