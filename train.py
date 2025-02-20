@@ -36,4 +36,5 @@ endphrase_token_id = tokenizer.token_to_id("[ENDPHRASE]")
 
 # Create sequences for training and validation
 train_texts = train_dataset["text"] 
+test_texts = test_dataset["text"]
 val_texts = val_dataset["text"] 
