@@ -13,6 +13,7 @@ from transformers import AutoTokenizer
 from datasets import load_dataset_builder, load_dataset
 
 from serpentvae.modules.SerpentVAE import SerpentVAE
+from train_utils import load_yaml # For loading configs
 
 # NOTE: Using smallest possible version for testing
 dataset_builder = load_dataset_builder("salesforce/wikitext", "wikitext-2-raw-v1")
@@ -23,6 +24,7 @@ test_dataset = load_dataset("salesforce/wikitext", "wikitext-2-raw-v1", split="t
 val_dataset = load_dataset("salesforce/wikitext", "wikitext-2-raw-v1", split="validation")
 
 # Create tokenizer
+# NOTE: Vocab size is 129280
 tokenizer = AutoTokenizer.from_pretrained("configs/tokenizer_config")
 
 print(tokenizer.encode("This is a test", return_tensors = "pt"))
