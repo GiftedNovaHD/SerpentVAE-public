@@ -1,6 +1,5 @@
 
 import torch.nn as nn
-import einx
 
 class ConceptMixer(nn.Module):
   """
