@@ -1,8 +1,12 @@
 import os
 import argparse
+import itertools 
+from tqdm import tqdm 
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torch.optim as optim 
 
 from torch.utils.data import DataLoader
 from tokenizers import Tokenizer, decoders, normalizers, pre_tokenizers, processors, trainers
@@ -38,3 +42,12 @@ endphrase_token_id = tokenizer.token_to_id("[ENDPHRASE]")
 train_texts = train_dataset["text"] 
 test_texts = test_dataset["text"]
 val_texts = val_dataset["text"] 
+
+parser = argparse.ArgumentParser(description='SerpentVAE Model')
+parser.add_argument('--data', type=str, default='wikitext-103', help='Location of the data corpus') 
+
+def evaluate(): 
+  raise NotImplementedError
+
+def train(): 
+  raise NotImplementedError
