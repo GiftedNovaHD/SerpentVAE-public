@@ -8,7 +8,7 @@ class ConfidenceModule(nn.Module):
   def __init__(self,
                hidden_dim: int,
                concept_dim: int,
-               expand: int
+               inner_dim: int
               ):
     # Here we use both the last hidden state of the encoder and also the sampled concept token from the VAE
     # to compute the confidence score this allows us to pursue stuff like stochastic variational inference if desired
@@ -17,9 +17,9 @@ class ConfidenceModule(nn.Module):
     super().__init__()
     self.concept_dim = concept_dim
 
-    self.hidden_state_mlp = MLP(hidden_dim, expand * concept_dim)
+    self.hidden_state_mlp = MLP(hidden_dim,  inner_dim)
     self.hidden_state_up_proj = nn.Linear(hidden_dim, concept_dim)
-    self.concept_mlp = MLP(concept_dim, expand * concept_dim)
+    self.concept_mlp = MLP(concept_dim, inner_dim)
 
   def forward(self,
               encoder_last_hidden_states: Tensor,

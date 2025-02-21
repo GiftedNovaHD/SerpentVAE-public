@@ -32,8 +32,8 @@ class SerpentVAE(nn.Module):
                conv_length: int,
                mamba_expand: int,
                mlp_inner_dim: int,
-               confidence_module_expand: int,
-               segment_predictor_expand: int,
+               confidence_module_inner_dim: int,
+               segment_predictor_inner_dim: int,
                share_input_embeddings: bool = True,
                tie_embeddings: bool = True,
                residual_in_fp32: bool = False,
@@ -91,7 +91,7 @@ class SerpentVAE(nn.Module):
     
     self.confidence_module = ConfidenceModule(hidden_dim = hidden_dim,
                                               concept_dim = hidden_dim,
-                                              expand = confidence_module_expand,
+                                              inner_dim = confidence_module_inner_dim,
                                               **factory_kwargs
                                               )
 
@@ -100,7 +100,7 @@ class SerpentVAE(nn.Module):
 
     # Instatiate the segment predictor
     self.segment_predictor = SegmentPredictor(hidden_dim = hidden_dim,
-                                              expand = segment_predictor_expand
+                                              inner_dim = segment_predictor_inner_dim
                                              )
   
   def encode(self,

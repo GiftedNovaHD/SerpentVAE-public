@@ -7,12 +7,12 @@ from serpentvae.modules.mlp import MLP
 class SegmentPredictor(nn.Module):
   def __init__(self,
                hidden_dim: int,
-               expand: int
+               inner_dim: int
               ):
     super().__init__()
 
     self.mlp = MLP(hidden_dim = hidden_dim,
-                   inner_dim = hidden_dim * expand)
+                   inner_dim = inner_dim)
     
     self.out_project = nn.Linear(hidden_dim, 1)
 
