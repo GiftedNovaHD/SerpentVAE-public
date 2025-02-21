@@ -13,9 +13,9 @@ from transformers import AutoTokenizer
 from datasets import load_dataset_builder, load_dataset
 
 from serpentvae.modules.SerpentVAE import SerpentVAE
-from train_utils import load_yaml # For loading configs
+from train_utils import load_yaml, dtype_converter # For loading configs
 
-config = load_yaml(config_path)
+config = load_yaml("configs/train_config/debug_config.yaml")
 
 # NOTE: Using smallest possible version for testing
 dataset_builder = load_dataset_builder(path = config["dataset_path"], name = config["dataset_name"])
@@ -36,12 +36,17 @@ train_texts = train_dataset["text"]
 test_texts = test_dataset["text"]
 val_texts = val_dataset["text"] 
 
+print(config)
+
+# NOTE: We must have this so that we can convert the datatypes appropriately
+config["dtype"] = dtype_converter(config["dtype"])
+
 model = SerpentVAE(hidden_dim = config["hidden_dim"],
                    concept_dim = config["concept_dim"],
                    vocab_size = config["vocab_size"],
                    distribution_desired_std = config["dist_desired_std"],
                    num_encoder_layers = config["num_encoder_layers"],
-                   num_decoder_layer = config["num_decoder_layers"],
+                   num_decoder_layers = config["num_decoder_layers"],
                    state_dim = config["mamba_state_dim"],
                    conv_length = config["mamba_conv_length"],
                    mamba_expand = config["mamba_expand"],

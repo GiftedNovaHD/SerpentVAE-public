@@ -20,4 +20,4 @@ share_input_embeddings: true
 tie_embeddings: true
 residual_in_fp32: false
 device: "cuda"
-dtype: "fp16"
+dtype: "fp32"

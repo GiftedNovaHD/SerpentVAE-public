@@ -37,13 +37,16 @@ class SerpentVAE(nn.Module):
                share_input_embeddings: bool = True,
                tie_embeddings: bool = True,
                residual_in_fp32: bool = False,
-               device = None,
-               dtype = None
+               device: torch.device = None,
+               dtype: torch.dtype = None
                ):
      
     super(SerpentVAE, self).__init__()
 
-    factory_kwargs = {"device": device, "dtype": dtype}
+    self.device = torch.device(device) if device is not None else torch.device('cuda')
+    self.dtype = dtype if dtype is not None else torch.float16
+
+    factory_kwargs = {"device": self.device, "dtype": self.dtype}
 
     self.share_input_embeddings = share_input_embeddings
     self.tie_embeddings = tie_embeddings
