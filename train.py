@@ -8,6 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim 
 
+from torch import random
 from torch.utils.data import DataLoader
 from transformers import AutoTokenizer
 from datasets import load_dataset_builder, load_dataset
@@ -64,14 +65,21 @@ parser = argparse.ArgumentParser(description='SerpentVAE Model')
 parser.add_argument('--config', type=str, default='debug_config',help='Choose with experiment configuration to use')
 parser.add_argument('--data', type=str, default='wikitext-2', help='Location of the data corpus') 
 
-def evaluate(): 
+def evaluate(batch, state, vocab_size):
+  inputs = batch[0] 
+  targets = batch[1] 
+ 
   raise NotImplementedError
 
 def train(): 
-  raise NotImplementedError
-
+  """ 
+  Main training function that trains over N number of epochs.
+  """
+  
 def main():
-  raise NotImplementedError
+  rng = torch.random.initial_seed(config["seed"])
 
+
+  raise NotImplementedError
 if __name__ == "__main__":
   raise NotImplementedError
