@@ -1,2 +1,0 @@
-echo "==== Acquiring datasets ====" 
-echo "----" 
