@@ -7,9 +7,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim 
+import torch.distributed as dist 
 
 from torch import random
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, DistributedSampler
+from torch.nn.parallel import DistributedDataParallel as DDP 
+
 from transformers import AutoTokenizer
 from datasets import load_dataset_builder, load_dataset
 
@@ -61,9 +64,13 @@ model = SerpentVAE(hidden_dim = config["hidden_dim"],
                    dtype = config["dtype"]
 )
 
+
 parser = argparse.ArgumentParser(description='SerpentVAE Model')
 parser.add_argument('--config', type=str, default='debug_config',help='Choose with experiment configuration to use')
 parser.add_argument('--data', type=str, default='wikitext-2', help='Location of the data corpus') 
+
+# This argument is provided automatically when using torch.distributed.launch or torchrun
+parser.add_argument('--local_rank', type=int, default=0, help='Local rank for distributed training')
 
 # Tokenizes raw text batches
 def collate(batch): 
@@ -88,15 +95,11 @@ def evaluate(model, data_loader):
   return average_loss
 
 
-def train(): 
+def train(model, optimizer, trainLoader, valLoader): 
   """ 
-  Main training function that trains over N number of epochs.
+  Main training function that trains over N number of epochs. Includes logging and checkpointing
 
   """
-  trainLoader = DataLoader(train_texts, batch_size=config["batch_size"], shuffle=True, collate_fn=collate)
-  valLoader = DataLoader(val_texts, batch_size=config["batch_size"], shuffle=False, collate_fn=collate)
-
-  optimizer = optim.Adam(model.parameters(), lr=config["learning_rate"])
   criterion = nn.CrossEntropyLoss() 
 
   num_epochs = config.get("epochs", 10)
@@ -120,22 +123,46 @@ def train():
       running_loss += loss.item()
     
     average_train_loss = running_loss / len(trainLoader)
-    print(f"Epoch {epoch + 1}/{num_epochs}, Training Loss: {average_train_loss:.4f}")
+    # Only master process should print and save checkpoints
+    if dist.get_rank() == 0:
+      print(f"Epoch {epoch + 1}/{num_epochs}, Training Loss: {average_train_loss:.4f}")
+      val_loss = evaluate(model=model, data_loader=valLoader)
+      # Evaluate on the validation set
+      print(f"Epch {epoch + 1}/{num_epochs}, Validation Loss: {val_loss:.4f}")
 
-    # Evaluate on the validation set 
-    val_loss = evaluate(model=model, data_loader=valLoader)
-    print(f"Epch {epoch + 1}/{num_epochs}, Validation Loss: {val_loss:.4f}")
 
-    # Checkpoint for the current epoch 
-    checkpoint_dir = "checkpoints" 
-    os.makedirs(checkpoint_dir, exist_ok=True)
-    checkpoint_path = os.path.join(checkpoint_dir, f"epoch_{epoch + 1}.pt")
-    torch.save(model.state_dict(), checkpoint_path)
-    print(f"Checkpoint saved at {checkpoint_path}") 
+      # Checkpoint for the current epoch 
+      checkpoint_dir = "checkpoints" 
+      os.makedirs(checkpoint_dir, exist_ok=True)
+      checkpoint_path = os.path.join(checkpoint_dir, f"epoch_{epoch + 1}.pt")
+      torch.save(model.state_dict(), checkpoint_path)
+      print(f"Checkpoint saved at {checkpoint_path}") 
 
 def main():
-  torch.manual_seed(config["seed"])
-  train()
+  args = parser.parse_args() 
+
+  # Initialize distributed process group 
+  dist.init_process_group(backend="nccl", init_method="env://")
+  local_rank = args.local_rank 
+  torch.cuda.set_device(local_rank) 
+  config["device"] = torch.device("cuda", local_rank)
+
+  # Load model into GPU DRAM and wrap with DistributedDataParallel
+  model.to(config["device"]) 
+  model = DDP(model, device_ids=[local_rank], output_device=local_rank)
+
+  # Create distributed samplers so each process gets a subset of the data 
+  train_sampler = DistributedSampler(train_texts, num_replicas=dist.get_world_size(), rank=dist.get_rank(), shuffle=True) 
+  val_sampler = DistributedSampler(val_texts, num_replicas=dist.get_world_size(), rank=dist.get_rank(), shuffle=False)
+
+  trainLoader = DataLoader(train_texts, batch_size=config["batch_size"], sampler=train_sampler, collate_fn=collate)
+  valLoader = DataLoader(val_texts, batch_size=config["batch_size"], sampler=val_sampler, collate_fn=collate)
+
+  optimizer = optim.Adam(model.parameters(), lr=config["learning_rate"])
+  train(model, optimizer, trainLoader, valLoader)
+
+  # Clean up distributed process group
+  dist.destroy_process_group()
 
 if __name__ == "__main__":
   raise NotImplementedError
