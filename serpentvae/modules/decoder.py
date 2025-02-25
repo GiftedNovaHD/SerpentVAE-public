@@ -122,10 +122,11 @@ class Decoder(nn.Module):
                mamba_expand: int,
                mlp_inner_dim: int,
                residual_in_fp32: bool = False,
-               device = None, 
-               dtype = None
+               device: torch.device = None, 
+               dtype: torch.dtype = None
                ):
     factory_kwargs = {"device": device, "dtype": dtype}
+    
     super().__init__() 
     self.num_layers = num_layers
     self.hidden_dim = hidden_dim

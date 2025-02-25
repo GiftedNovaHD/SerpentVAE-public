@@ -1,15 +1,22 @@
+import torch
 import torch.nn as nn
 from torch import Tensor
 
 class MLP(nn.Module):
-  def __init__(self, hidden_dim, inner_dim):
+  def __init__(self,
+               hidden_dim: int,
+               inner_dim: int,
+               device: torch.device = None,
+               dtype: torch.dtype = None
+               ):
+    factory_kwargs = {"device": device, "dtype": dtype}
     super().__init__()
 
-    self.up_proj = nn.Linear(hidden_dim, inner_dim)
-    self.gate = nn.Linear(hidden_dim, inner_dim)
-    self.down_proj = nn.Linear(inner_dim, hidden_dim)
+    self.up_proj = nn.Linear(hidden_dim, inner_dim, **factory_kwargs)
+    self.gate = nn.Linear(hidden_dim, inner_dim, **factory_kwargs)
+    self.down_proj = nn.Linear(inner_dim, hidden_dim, **factory_kwargs)
 
-    self.act = nn.SiLu()
+    self.act = nn.SiLU()
 
   def forward(self, x: Tensor) -> Tensor:
     """

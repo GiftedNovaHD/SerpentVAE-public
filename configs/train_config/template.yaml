@@ -17,6 +17,11 @@ mamba_expand:
 mlp_inner_dim:
 confidence_inner_dim:
 segment_pred_inner_dim:
+num_qnet_layers:
+qnet_conv_length:
+qnet_mamba_expand:
+qnet_mlp_inner_dim:
+qnet_mamba_state_dim:
 share_input_embeddings: true
 tie_embeddings: true
 residual_in_fp32: false

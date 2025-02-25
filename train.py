@@ -57,6 +57,11 @@ model = SerpentVAE(hidden_dim = config["hidden_dim"],
                    mlp_inner_dim = config["mlp_inner_dim"],
                    confidence_module_inner_dim = config["confidence_inner_dim"],
                    segment_predictor_inner_dim = config["segment_pred_inner_dim"],
+                   num_qnet_layers = config["num_qnet_layers"],
+                   qnet_conv_length = config["qnet_conv_length"],
+                   qnet_mamba_expand = config["qnet_mamba_expand"],
+                   qnet_mlp_inner_dim = config["qnet_mlp_inner_dim"],
+                   qnet_mamba_state_dim = config["qnet_mamba_state_dim"],
                    share_input_embeddings = config["share_input_embeddings"],
                    tie_embeddings = config["tie_embeddings"],
                    residual_in_fp32 = config["residual_in_fp32"],
@@ -100,7 +105,9 @@ def train(model, optimizer, trainLoader, valLoader):
   Main training function that trains over N number of epochs. Includes logging and checkpointing
 
   """
-  criterion = nn.CrossEntropyLoss() 
+  
+  # Loss is computed from methods defined in SerpentVAE.py 
+  overall_loss_fn = 
 
   num_epochs = config.get("epochs", 10)
   
@@ -117,7 +124,7 @@ def train(model, optimizer, trainLoader, valLoader):
 
       loss = criterion(outputs.view(-1, config["vocab_size"]), targets.view(-1))
       loss.backward()
-      torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=config["max_grad_norm"]) # Set the max to be 1.0 
+
       optimizer.step() 
 
       running_loss += loss.item()

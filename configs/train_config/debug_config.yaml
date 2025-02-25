@@ -4,20 +4,25 @@ dataset_name: "wikitext-2-raw-v1"
 train_epochs:
 
 # Model configuration
-hidden_dim:
-concept_dim:
+hidden_dim: 512
+concept_dim: 768
 vocab_size: 129280
-dist_desired_std:
-num_encoder_layers:
-num_decoder_layers:
-mamba_state_dim:
-mamba_conv_length:
-mamba_expand:
-mlp_inner_dim:
-confidence_inner_dim:
-segment_pred_inner_dim:
+dist_desired_std: 1.0
+num_encoder_layers: 2
+num_decoder_layers: 2
+mamba_state_dim: 8
+mamba_conv_length: 4
+mamba_expand: 2
+mlp_inner_dim: 768
+confidence_inner_dim: 768
+segment_pred_inner_dim: 768
+num_qnet_layers: 1
+qnet_conv_length: 4
+qnet_mamba_expand: 1
+qnet_mlp_inner_dim: 384
+qnet_mamba_state_dim: 16
 share_input_embeddings: true
 tie_embeddings: true
 residual_in_fp32: false
 device: "cuda"
-dtype: "fp32"
+dtype: "bf16"

@@ -1,4 +1,4 @@
-
+import torch
 import torch.nn as nn
 
 class ConceptMixer(nn.Module):
@@ -8,11 +8,16 @@ class ConceptMixer(nn.Module):
     Here we opt to use a simple gating mechanism although more advanced methods can be used.
     We make the assumption that the concept token is a vector of the same or greater dimension as the hidden token.
   """
-  def __init__(self,hidden_dim, concept_dim):
+  def __init__(self,
+               hidden_dim: int, 
+               concept_dim: int,
+               device: torch.device = None,
+               dtype: torch.dtype = None):
     """
       hidden_dim: dimension of the hidden token
       concept_dim: dimension of the concept token
     """
+    factory_kwargs = {"device": device, "dtype": dtype}
     super().__init__()
 
     assert concept_dim >= hidden_dim, "Concept dimension must be greater than or equal to hidden dimension"
@@ -20,10 +25,10 @@ class ConceptMixer(nn.Module):
     self.hidden_dim = hidden_dim
     self.concept_dim = concept_dim
 
-    self.concept_proj = nn.Linear(concept_dim, concept_dim) # Project the concept token to the concept dimension to extract features
-    self.hidden_up = nn.Linear(hidden_dim, concept_dim) # Project the hidden token to the concept dimension
-    self.gate = nn.Linear(hidden_dim, concept_dim) # Gate the concept token based on the hidden state
-    self.hidden_down = nn.Linear(concept_dim, hidden_dim) # Project the modified hidden token back to the hidden dimension
+    self.concept_proj = nn.Linear(concept_dim, concept_dim, **factory_kwargs) # Project the concept token to the concept dimension to extract features
+    self.hidden_up = nn.Linear(hidden_dim, concept_dim, **factory_kwargs) # Project the hidden token to the concept dimension
+    self.gate = nn.Linear(hidden_dim, concept_dim, **factory_kwargs) # Gate the concept token based on the hidden state
+    self.hidden_down = nn.Linear(concept_dim, hidden_dim, **factory_kwargs) # Project the modified hidden token back to the hidden dimension
   
 
   def forward(self, hidden_token, concept_token):

@@ -8,8 +8,11 @@ class ConfidenceModule(nn.Module):
   def __init__(self,
                hidden_dim: int,
                concept_dim: int,
-               inner_dim: int
+               inner_dim: int,
+               device: torch.device = None,
+               dtype: torch.dtype = None
               ):
+    factory_kwargs = {"device": device, "dtype": dtype}
     # Here we use both the last hidden state of the encoder and also the sampled concept token from the VAE
     # to compute the confidence score this allows us to pursue stuff like stochastic variational inference if desired
     # Although it is probably also possible to only use the concept token and not the encoder hidden state
@@ -17,9 +20,9 @@ class ConfidenceModule(nn.Module):
     super().__init__()
     self.concept_dim = concept_dim
 
-    self.hidden_state_mlp = MLP(hidden_dim,  inner_dim)
-    self.hidden_state_up_proj = nn.Linear(hidden_dim, concept_dim)
-    self.concept_mlp = MLP(concept_dim, inner_dim)
+    self.hidden_state_mlp = MLP(hidden_dim,  inner_dim, **factory_kwargs)
+    self.hidden_state_up_proj = nn.Linear(hidden_dim, concept_dim, **factory_kwargs)
+    self.concept_mlp = MLP(concept_dim, inner_dim, **factory_kwargs)
 
   def forward(self,
               encoder_last_hidden_states: Tensor,

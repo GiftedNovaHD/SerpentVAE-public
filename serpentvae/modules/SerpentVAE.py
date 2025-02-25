@@ -35,6 +35,11 @@ class SerpentVAE(nn.Module):
                mlp_inner_dim: int,
                confidence_module_inner_dim: int,
                segment_predictor_inner_dim: int,
+               num_qnet_layers: int,
+               qnet_conv_length: int,
+               qnet_mamba_expand: int,
+               qnet_mlp_inner_dim: int,
+               qnet_mamba_state_dim: int,
                share_input_embeddings: bool = True,
                tie_embeddings: bool = True,
                residual_in_fp32: bool = False,
@@ -62,7 +67,8 @@ class SerpentVAE(nn.Module):
     if self.tie_embeddings:
       if self.share_input_embeddings:
         self.decoder_head = TiedLinear(self.embeddings)
-      self.decoder_head = TiedLinear(self.decoder_embeddings)
+      else:
+        self.decoder_head = TiedLinear(self.decoder_embeddings)
     else:
       self.decoder_head = nn.Linear(hidden_dim, vocab_size)
     
@@ -100,7 +106,15 @@ class SerpentVAE(nn.Module):
                                               )
 
     # Instantiate the auxiliary network Q 
-    self.qnet = QNet(decoder_hidden_dim=hidden_dim, latent_dim=concept_dim)
+    self.qnet = QNet(latent_dim = concept_dim,
+                     num_layers = num_qnet_layers,
+                     conv_length = qnet_conv_length,
+                     mamba_expand = qnet_mamba_expand,
+                     mlp_inner_dim = qnet_mlp_inner_dim,
+                     state_dim = qnet_mamba_state_dim,
+                     vocab_size = vocab_size
+                    )
+                     
 
     # Instatiate the segment predictor
     self.segment_predictor = SegmentPredictor(hidden_dim = hidden_dim,
@@ -125,16 +139,17 @@ class SerpentVAE(nn.Module):
     Returns:
       mu (Tensor): (batch_size, seq_len, concept_dim)
       logvar (Tensor): (batch_size, seq_len, concept_dim)
+      hidden_states (Tensor): (batch_size, seq_len, hidden_dim)
     """
     
     hidden_states = self.encoder(hidden_states, inference_params=inference_params, **kwargs)
     
     mu, logvar = self.distribution.encode_dist_params(hidden_states)
     
-    return mu, logvar
+    return mu, logvar, hidden_states
   
   def sample(self,
-             mu:  Tensor,
+             mu: Tensor,
              logvar: Tensor,
              infer: bool = False
             ) -> Tensor:
@@ -564,6 +579,12 @@ class SerpentVAE(nn.Module):
 
     Returns:
       decoded_logits (Tensor) (batch_size, seq_len, vocab_size)
+      mu (Tensor): (batch_size, seq_len, latent_dim)
+      logvar (Tensor): (batch_size, seq_len, latent_dim)
+      sampled_latents (Tensor): (batch_size, seq_len, latent_dim)
+      segmentation_indices (Tensor): (batch_size, seq_len, 1)
+      predicted_segments (Tensor): (batch_size, seq_len, 1)
+      predicted_confidence (Tensor): (batch_size, seq_len, 1)
     """
     # Transform with embeddings
     if self.share_input_embeddings:
@@ -574,14 +595,20 @@ class SerpentVAE(nn.Module):
       dec_hidden_states = self.decoder_embeddings(input_ids) # (batch_size, seq_len, 1) -> (batch_size, seq_len, hidden_dim)
 
     # Encode tokens 
-    mu, logvar = self.encode(enc_hidden_states) # (batch_size, seq_len, hidden_dim) -> mu: (batch_size, seq_len, hidden_dim), logvar: (batch_size, seq_len, hidden_dim)
+    mu, logvar, hidden_states = self.encode(enc_hidden_states) # (batch_size, seq_len, hidden_dim) -> mu: (batch_size, seq_len, hidden_dim), logvar: (batch_size, seq_len, hidden_dim)
 
     # Sample the concept tokens from the latent 
     sampled_latents = self.sample(mu = mu, logvar = logvar) # mu: (batch_size, seq_len, hidden_dim), logvar: (batch_size, seq_len, hidden_dim) -> (batch_size, seq_len, hidden_dim)
     # across seq_len, we have a different mu and logvar
 
     # Segment the concepts 
-    segmented_concept_tokens = self.segment(sampled_latents) # (batch_size, seq_len, hidden_dim) -> (batch_size, seq_len, hidden_dim)
+    segmented_concept_tokens, segmentation_indices = self.segment(sampled_latents) # (batch_size, seq_len, hidden_dim) -> (batch_size, seq_len, hidden_dim)
+
+    # Predict segmentation
+    predicted_segments = self.segmentation_predictions(hidden_states) # (batch_size, seq_len, hidden_dim) -> (batch_size, seq_len, 1)
+
+    # Predict reconstruction error (Confidence) 
+    predicted_confidence = self.confidence(hidden_states, sampled_latents) # (batch_size, seq_len, 1)
 
     # Decode the hidden states based on the segmented concept tokens
     # NOTE: We are doing teacher forcing here
@@ -590,7 +617,7 @@ class SerpentVAE(nn.Module):
     # Decode the hidden tokens 
     decoded_logits = self.decoder_head(decoded_hidden_tokens) # (batch_size, seq_len, hidden_dim) -> (batch_size, seq_len, vocab_size)
 
-    return decoded_logits # (batch_size, seq_len, vocab_size)
+    return decoded_logits, mu, logvar, sampled_latents, segmentation_indices, predicted_segments, predicted_confidence
   
   def metrics(self,
               input_ids: Tensor,
@@ -600,6 +627,7 @@ class SerpentVAE(nn.Module):
               segmentation_indices: Tensor,
               decoder_output: Tensor,
               confidence_estimates: Tensor,
+              segmentation_predictions: Tensor,
               threshold: float = 1e-2
              ):
     """
@@ -612,6 +640,7 @@ class SerpentVAE(nn.Module):
       - KL-Divergence
       - Reconstruction Error
       - Confidence Error
+      - Segmentation Prediction Error
 
     Args:
       input_ids (Tensor): (batch_size, seq_len, 1)
@@ -621,6 +650,7 @@ class SerpentVAE(nn.Module):
       segmentation_indices (Tensor): (batch_size, seq_len, 1)
       decoder_output (Tensor): (batch_size, seq_len, vocab_size)
       confidence_estimates (Tensor): (batch_size, seq_len, 1)
+      segmentation_predictions (Tensor): (batch_size, seq_len, 1)
       threshold (float): Threshold for considering a unit active
 
     Returns:
@@ -684,13 +714,19 @@ class SerpentVAE(nn.Module):
                                             decoder_output = decoder_output
                                            )
     
+    # Calculate the segmentation prediction error
+    segmentation_prediction_error = self.segment_prediction_loss(segmentation_predictions = segmentation_predictions,
+                                                                 segmentation_indices = segmentation_indices
+                                                                )
+
     # Initialize the metrics dictionary
     metrics = {"num_active_units": num_active_units,
                "vmi": vmi_loss,
                "full_mi": full_mutual_info,
                "kl_divergence": kl_divergence,
                "recon_error": reconstruction_error,
-               "confidence_error": confidence_error
+               "confidence_error": confidence_error,
+               "segment_prediction_error": segmentation_prediction_error,
               }
     
     return metrics
@@ -731,13 +767,75 @@ class SerpentVAE(nn.Module):
 
     return num_active_units
 
-  def train(self,):
-    raise NotImplementedError
+  def train(self, correct_input_ids: Tensor):
+    predicted_logits, mu, logvar, sampled_latents, segmentation_indices, predicted_segments, predicted_confidence = self.forward(correct_input_ids)
+
+    # Change mu, logvar, sampled_latents based on segmentation_indices
+    end_indices = bitmask_to_end_indices(segmentation_indices, inclusive = True)
+    
+    # Format sampled_latents
+    formatted_sampled_latents = deduplicate(sampled_latents)
+
+    # Format mu and logvar
+    formatted_mu = []
+    formatted_logvar = []
+
+    for seq_end_indices in end_indices:
+      seq_mu = torch.tensor([])
+      seq_logvar = torch.tensor([])
+      for end_index in seq_end_indices:
+        seq_mu = torch.cat((seq_mu, mu[end_index].unsqueeze(0)), dim = 0)
+        seq_logvar = torch.cat((seq_logvar, logvar[end_index].unsqueeze(0)), dim = 0)
+      
+      formatted_mu.append(seq_mu)
+      formatted_logvar.append(seq_logvar)
+
+    # Calculate the VAE loss
+    vae_loss = self.vae_loss(input_ids = correct_input_ids,
+                             mu = formatted_mu,
+                             logvar = formatted_logvar,
+                             z = formatted_sampled_latents,
+                             segmentation_indices = segmentation_indices,
+                             decoder_output = predicted_logits
+                            )
+
+    # Calculate the loss of the confidence network
+    confidence_loss = self.confidence_loss(confidence_estimates = predicted_confidence,
+                                           segmentation_indices = segmentation_indices,
+                                           input_ids = correct_input_ids,
+                                           decoder_output = predicted_logits
+                                          )
+    
+    # Calculate the loss of the segment prediction network
+    segment_prediction_loss = self.segment_prediction_loss(segmentation_predictions = predicted_segments,
+                                                           segmentation_indices = segmentation_indices
+                                                          )
+    
+    # Calculate total loss
+    total_loss = vae_loss + confidence_loss + segment_prediction_loss
+
+    return total_loss
   
-  def eval(self,):
-    raise NotImplementedError
+  def eval(self, correct_input_ids: Tensor):
+    with torch.no_grad():
+      predicted_logits, mu, logvar, sampled_latents, segmentation_indices, predicted_segments, predicted_confidence = self.forward(correct_input_ids)
+
+      # Get metrics
+      metrics = self.metrics(input_ids = correct_input_ids,
+                             z = sampled_latents,
+                             mu = mu,
+                             logvar = logvar,
+                             segmentation_indices = segmentation_indices,
+                             decoder_output = predicted_logits,
+                             confidence_estimates = predicted_confidence,
+                             segmentation_predictions = predicted_segments)
+
+      return metrics
   
   def infer(self,):
+    """
+    This will not be implemented for a long time
+    """
     raise NotImplementedError
   
   def allocate_inference_cache(self,batch_size, max_seqlen, dtype=None, **kwargs):

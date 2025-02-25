@@ -17,8 +17,8 @@ class QNet(nn.Module):
                mlp_inner_dim: int, 
                state_dim: int = None, 
                residual_in_fp32: bool = False, 
-               device=None, 
-               dtype=None, 
+               device: torch.device = None, 
+               dtype: torch.dtype = None, 
                vocab_size: Optional[int] = None,
                hidden_dim: Optional[int] = None
               ):
@@ -30,11 +30,12 @@ class QNet(nn.Module):
       mamba_expand (int): Expansion factor for the 
 
     """
+    factory_kwargs = {"device": device, "dtype": dtype}
     super(QNet, self).__init__() 
     state_dim = state_dim if state_dim is not None else latent_dim
 
     # Make sure that only vocab_size or hidden_dim is enabled at a single time
-    assert vocab_size is not None ^ hidden_dim is not None, "Either vocab_size or hidden_dim must be provided, but not both at the same time"
+    assert (vocab_size is not None) ^ (hidden_dim is not None), "Either vocab_size or hidden_dim must be provided, but not both at the same time"
     
     if vocab_size is not None:
       self.discrete = True
@@ -55,15 +56,15 @@ class QNet(nn.Module):
 
     # NOTE: Since context latent dim is same as current latent dim, we concatenate them (hence multiply by 2) and pass it through the MLP
     self.seq_mixer = Encoder(
-      num_layers=num_layers, 
-      hidden_dim=latent_dim,
-      state_dim=state_dim,
-      conv_length=conv_length,
-      mamba_expand=mamba_expand,
-      mlp_inner_dim=mlp_inner_dim,
-      residual_in_fp32=residual_in_fp32,
-      device=device,
-      dtype=dtype
+      num_layers = num_layers, 
+      hidden_dim = latent_dim,
+      state_dim = state_dim,
+      conv_length = conv_length,
+      mamba_expand = mamba_expand,
+      mlp_inner_dim = mlp_inner_dim,
+      residual_in_fp32 = residual_in_fp32,
+      device = device,
+      dtype = dtype
     ) # Aggregate information over each subsequence 
 
     # TODO: Refactor to generalize to other distributions
