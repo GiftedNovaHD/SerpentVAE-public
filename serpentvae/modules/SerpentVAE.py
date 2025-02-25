@@ -767,7 +767,7 @@ class SerpentVAE(nn.Module):
 
     return num_active_units
 
-  def train(self, correct_input_ids: Tensor):
+  def train_step(self, correct_input_ids: Tensor):
     predicted_logits, mu, logvar, sampled_latents, segmentation_indices, predicted_segments, predicted_confidence = self.forward(correct_input_ids)
 
     # Change mu, logvar, sampled_latents based on segmentation_indices
@@ -816,7 +816,7 @@ class SerpentVAE(nn.Module):
 
     return total_loss
   
-  def eval(self, correct_input_ids: Tensor):
+  def eval_step(self, correct_input_ids: Tensor):
     with torch.no_grad():
       predicted_logits, mu, logvar, sampled_latents, segmentation_indices, predicted_segments, predicted_confidence = self.forward(correct_input_ids)
 
@@ -832,7 +832,7 @@ class SerpentVAE(nn.Module):
 
       return metrics
   
-  def infer(self,):
+  def infer_step(self,):
     """
     This will not be implemented for a long time
     """

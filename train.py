@@ -107,7 +107,7 @@ def train(model, optimizer, trainLoader, valLoader):
   """
   
   # Loss is computed from methods defined in SerpentVAE.py 
-  overall_loss_fn = 
+  overall_loss_fn = model.train_step()
 
   num_epochs = config.get("epochs", 10)
   
