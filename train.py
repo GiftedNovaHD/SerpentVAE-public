@@ -34,14 +34,23 @@ val_dataset = load_dataset(path = config["dataset_path"], name = config["dataset
 # NOTE: Vocab size is 129280
 tokenizer = AutoTokenizer.from_pretrained("configs/tokenizer_config")
 
-print(tokenizer.encode("This is a test", return_tensors = "pt"))
+print(tokenizer.encode("This is a test", return_tensors = "pt").unsqueeze(-1))
 
 # Create sequences for training and validation
-train_texts = train_dataset["text"] 
-test_texts = test_dataset["text"]
-val_texts = val_dataset["text"] 
+train_texts = train_dataset["text"][1:]
+test_texts = test_dataset["text"][1:]
+val_texts = val_dataset["text"][1:]
 
-print(config)
+tokenized_train_texts = tokenizer(train_texts, padding = True, truncation = True, max_length = 128, return_tensors = "pt")
+tokenized_test_texts = tokenizer(test_texts, padding = True, truncation = True, max_length = 128, return_tensors = "pt")
+tokenized_val_texts = tokenizer(val_texts, padding = True, truncation = True, max_length = 128, return_tensors = "pt")
+
+print(len(train_texts))
+
+#print(config)
+#print(train_texts)
+#print(test_texts)
+#print(val_texts)
 
 # NOTE: We must have this so that we can convert the datatypes appropriately
 config["dtype"] = dtype_converter(config["dtype"])
@@ -76,7 +85,7 @@ parser.add_argument('--config', type=str, default='debug_config',help='Choose wi
 parser.add_argument('--data', type=str, default='wikitext-2', help='Location of the data corpus') 
 
 # This argument is provided automatically when using torch.distributed.launch or torchrun
-parser.add_argument('--local_rank', type=int, default=0, help='Local rank for distributed training')
+# parser.add_argument('--local_rank', type=int, default=0, help='Local rank for distributed training')
 
 # Tokenizes raw text batches
 def collate(batch): 
@@ -98,7 +107,7 @@ def train_fn(model, optimizer, train_loader, epoch):
   for data in train_loader:
     optimizer.zero_grad()
     
-    total_loss, vae_loss, confidence_loss, segment_pred_loss = model.train_step(data.unsqueeze(1))
+    total_loss, vae_loss, confidence_loss, segment_pred_loss = model.train_step(data.unsqueeze(-1))
     
     total_loss.backward()
     optimizer.step()
@@ -118,7 +127,7 @@ def train_fn(model, optimizer, train_loader, epoch):
   print(f"Epoch: {epoch} \n Total Loss: {average_total_loss:.4f} \n  VAE Loss: {average_vae_loss:.4f} \n  Confidence Loss: {average_confidence_loss:.4f} \n  Segment Prediction Loss: {average_segment_pred_loss:.4f}")
 
 
-def eval_fn(model, optimizer, val_loader, model_save_folder_path, metrics_save_folder_path, epoch):
+def eval_fn(model, optimizer, val_loader, epoch, model_save_folder_path = None, metrics_save_folder_path = None):
   model.eval()
 
   num_batches = len(val_loader)
@@ -135,7 +144,7 @@ def eval_fn(model, optimizer, val_loader, model_save_folder_path, metrics_save_f
   # Loop over batches
   for data in val_loader:
     with torch.no_grad():
-      metrics = model.eval_step(data.unsqueeze(1))
+      metrics = model.eval_step(data.unsqueeze(-1))
 
       num_au += metrics["num_active_units"]
       vmi_loss += metrics["vmi"]
@@ -166,18 +175,19 @@ def eval_fn(model, optimizer, val_loader, model_save_folder_path, metrics_save_f
                   "confidence_error": confidence_error,
                   "segment_prediction_error": segment_pred_error
                  }
-  
-  metric_save_path = os.path.join(metrics_save_folder_path, f"metrics_epoch_{epoch}.json")
+  if metrics_save_folder_path is not None:
+    metric_save_path = os.path.join(metrics_save_folder_path, f"metrics_epoch_{epoch}.json")
 
-  with open(metric_save_path, "w") as file:
-    json.dump(metrics_dict, file)
+    with open(metric_save_path, "w") as file:
+      json.dump(metrics_dict, file)
 
   # Save model and optimizer states
-  model_save_path =  os.path.join(model_save_folder_path, f"model_epoch_{epoch}.pt")
+  if model_save_folder_path is not None:
+    model_save_path =  os.path.join(model_save_folder_path, f"model_epoch_{epoch}.pt")
 
-  torch.save({"model" : model.state_dict(), 
-                  "optimizer": optimizer.state_dict()},
-               model_save_path)
+    torch.save({"model" : model.state_dict(), 
+                    "optimizer": optimizer.state_dict()},
+                 model_save_path)
 
 def training_loop(model, optimizer, train_loader, val_loader, num_epochs, eval_freq, model_save_folder_path, metrics_save_folder_path):
   for epoch in tqdm(range(num_epochs)):
