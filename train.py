@@ -105,6 +105,7 @@ def train_fn(model, optimizer, train_loader, epoch):
 
   # Loop over batches
   for data in train_loader:
+    data = data["input_ids"]
     optimizer.zero_grad()
     
     total_loss, vae_loss, confidence_loss, segment_pred_loss = model.train_step(data.unsqueeze(-1))
@@ -143,6 +144,8 @@ def eval_fn(model, optimizer, val_loader, epoch, model_save_folder_path = None, 
 
   # Loop over batches
   for data in val_loader:
+    data = data["input_ids"]
+
     with torch.no_grad():
       metrics = model.eval_step(data.unsqueeze(-1))
 
