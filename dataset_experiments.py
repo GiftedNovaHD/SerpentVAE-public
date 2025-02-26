@@ -22,7 +22,7 @@ def filter_empty(sequence):
   return not ((sequence["text"].strip() == "\n") or (sequence["text"].strip() == ""))
 
 print("Before filtering")
-print(len(train_dataset))
+print(len(train_dataset["text"][1:]))
 
 # Create sequences for training and validation
 train_texts = train_dataset.filter(filter_empty)["text"][1:]
@@ -39,6 +39,8 @@ def collate(batch):
 
 dataloader = DataLoader(train_texts, batch_size=8, shuffle=True, collate_fn=collate)
 
+'''
 for batch in dataloader:
   print(batch["input_ids"])
   break
+'''
