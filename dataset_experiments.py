@@ -1,6 +1,7 @@
 from transformers import AutoTokenizer
 from datasets import load_dataset_builder, load_dataset
 from train_utils import load_yaml, dtype_converter # For loading configs
+from torch.utils.data import DataLoader, DistributedSampler, Sampler
 
 
 config = load_yaml("configs/train_config/debug_config.yaml")
@@ -25,3 +26,12 @@ val_texts = val_dataset["text"][1:]
 tokenized_train_texts = tokenizer(train_texts, padding = True, truncation = True, max_length = 128, return_tensors = "pt")
 
 print(tokenized_train_texts['input_ids'][0])
+
+def collate(batch):
+  return tokenizer(batch, padding = True, truncation = True, max_length = 128, return_tensors = "pt")
+
+dataloader = DataLoader(train_texts, batch_size=4, shuffle=True, collate_fn=collate)
+
+for batch in dataloader:
+  print(batch)
+  break
