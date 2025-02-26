@@ -36,14 +36,18 @@ tokenizer = AutoTokenizer.from_pretrained("configs/tokenizer_config")
 
 #print(tokenizer.encode("This is a test", return_tensors = "pt").unsqueeze(-1))
 
-# Create sequences for training and validation
-train_texts = train_dataset["text"][1:]
-test_texts = test_dataset["text"][1:]
-val_texts = val_dataset["text"][1:]
+# Filter datasets to remove blank sequences
+def filter_empty(sequence):
+  return not ((sequence["text"].strip() == "\n") or (sequence["text"].strip() == ""))
 
-tokenized_train_texts = tokenizer(train_texts, padding = True, truncation = True, max_length = 128, return_tensors = "pt")
-tokenized_test_texts = tokenizer(test_texts, padding = True, truncation = True, max_length = 128, return_tensors = "pt")
-tokenized_val_texts = tokenizer(val_texts, padding = True, truncation = True, max_length = 128, return_tensors = "pt")
+filtered_train_dataset = train_dataset.filter(filter_empty)
+filtered_test_dataset = test_dataset.filter(filter_empty)
+filtered_val_dataset = val_dataset.filter(filter_empty)
+
+# Create sequences for training and validation
+train_texts = filtered_train_dataset["text"][1:]
+test_texts = filtered_test_dataset["text"][1:]
+val_texts = filtered_val_dataset["text"][1:]
 
 print(len(train_texts))
 

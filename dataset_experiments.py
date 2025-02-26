@@ -18,20 +18,27 @@ val_dataset = load_dataset(path = config["dataset_path"], name = config["dataset
 # NOTE: Vocab size is 129280
 tokenizer = AutoTokenizer.from_pretrained("configs/tokenizer_config")
 
+def filter_empty(sequence):
+  return not ((sequence["text"].strip() == "\n") or (sequence["text"].strip() == ""))
+
+print("Before filtering")
+print(len(train_dataset))
+
 # Create sequences for training and validation
-train_texts = train_dataset["text"][1:]
-test_texts = test_dataset["text"][1:]
-val_texts = val_dataset["text"][1:]
+train_texts = train_dataset.filter(filter_empty)["text"][1:]
+test_texts = test_dataset.filter(filter_empty)["text"][1:]
+val_texts = val_dataset.filter(filter_empty)["text"][1:]
+
+print("After filtering")
+print(len(train_texts))
 
 tokenized_train_texts = tokenizer(train_texts, padding = True, truncation = True, max_length = 128, return_tensors = "pt")
-
-print(tokenized_train_texts['input_ids'][0])
 
 def collate(batch):
   return tokenizer(batch, padding = True, truncation = True, max_length = 128, return_tensors = "pt")
 
-dataloader = DataLoader(train_texts, batch_size=4, shuffle=True, collate_fn=collate)
+dataloader = DataLoader(train_texts, batch_size=8, shuffle=True, collate_fn=collate)
 
 for batch in dataloader:
-  print(batch)
+  print(batch["input_ids"])
   break
