@@ -34,7 +34,7 @@ val_dataset = load_dataset(path = config["dataset_path"], name = config["dataset
 # NOTE: Vocab size is 129280
 tokenizer = AutoTokenizer.from_pretrained("configs/tokenizer_config")
 
-print(tokenizer.encode("This is a test", return_tensors = "pt").unsqueeze(-1))
+#print(tokenizer.encode("This is a test", return_tensors = "pt").unsqueeze(-1))
 
 # Create sequences for training and validation
 train_texts = train_dataset["text"][1:]
@@ -46,6 +46,14 @@ tokenized_test_texts = tokenizer(test_texts, padding = True, truncation = True, 
 tokenized_val_texts = tokenizer(val_texts, padding = True, truncation = True, max_length = 128, return_tensors = "pt")
 
 print(len(train_texts))
+
+def collate(batch):
+  return tokenizer(batch, padding = True, truncation = True, max_length = config["max_seq_len"], return_tensors = "pt")
+
+train_dataloader = DataLoader(train_texts, batch_size=config["batch_size"], shuffle=True, collate_fn=collate)
+test_dataloader = DataLoader(test_texts, batch_size=config["batch_size"], shuffle=True, collate_fn=collate)
+val_dataloader = DataLoader(val_texts, batch_size=config["batch_size"], shuffle=True, collate_fn=collate)
+
 
 #print(config)
 #print(train_texts)
@@ -86,12 +94,6 @@ parser.add_argument('--data', type=str, default='wikitext-2', help='Location of 
 
 # This argument is provided automatically when using torch.distributed.launch or torchrun
 # parser.add_argument('--local_rank', type=int, default=0, help='Local rank for distributed training')
-
-# Tokenizes raw text batches
-def collate(batch): 
-  encodings = tokenizer(batch, return_tensors='pt', padding=True, truncation=True)
-  # Set targets to be the same as inputs
-  return encodings
 
 def train_fn(model, optimizer, train_loader, epoch):    
   model.train()

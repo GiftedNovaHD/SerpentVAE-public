@@ -6,6 +6,8 @@ eval_freq:
 model_save_folder_path:
 metrics_save_folder_path:
 learning_rate:
+max_seq_len:
+batch_size:
 seed: 6969
 
 # Model configuration
