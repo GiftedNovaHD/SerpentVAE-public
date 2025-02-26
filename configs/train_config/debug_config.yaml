@@ -2,6 +2,11 @@
 dataset_path: "salesforce/wikitext"
 dataset_name: "wikitext-2-raw-v1"
 train_epochs:
+eval_freq: 10
+model_save_folder_path:
+metrics_save_folder_path:
+learning_rate: 1e-3
+seed: 6969
 
 # Model configuration
 hidden_dim: 512
@@ -20,7 +25,7 @@ num_qnet_layers: 1
 qnet_conv_length: 4
 qnet_mamba_expand: 1
 qnet_mlp_inner_dim: 384
-qnet_mamba_state_dim: 16
+qnet_mamba_state_dim: 8
 share_input_embeddings: true
 tie_embeddings: true
 residual_in_fp32: false

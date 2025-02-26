@@ -144,31 +144,25 @@ class SerpentVAE(nn.Module):
     
     hidden_states = self.encoder(hidden_states, inference_params=inference_params, **kwargs)
     
-    mu, logvar = self.distribution.encode_dist_params(hidden_states)
-    
-    return mu, logvar, hidden_states
+    return hidden_states
   
   def sample(self,
-             mu: Tensor,
-             logvar: Tensor,
-             infer: bool = False
-            ) -> Tensor:
+             hidden_states: Tensor,
+            ) -> Tuple[Tensor, Tensor, Tensor]:
     """
-    Samples the latent state 
+    Samples the latent state and returns distribution parameters
     
     Args: 
-      mu (Tensor): (batch_size, seq_len, concept_dim) 
-      logvar (Tensor): (batch_size, seq_len, concept_dim)
-      infer (bool): Whether to use the inference mode or not
-        If infer is False, then training mode is being used
-        If infer is True, then inference mode is being used
+      hidden_states (Tensor): (batch_size, seq_len, hidden_dim)
     
     Returns:
       sampled_latents (Tensor): (batch_size, seq_len, concept_dim)
+      mu (Tensor): (batch_size, seq_len, concept_dim)
+      logvar (Tensor): (batch_size, seq_len, concept_dim)
     """
-    sampled_latents = self.distribution.sample(mu = mu, logvar = logvar, infer = infer)
+    sampled_latents, mu, logvar = self.distribution(hidden_states)
     
-    return sampled_latents
+    return sampled_latents, mu, logvar
   
   def segment(self,
               concept_tokens: Tensor,
@@ -595,10 +589,10 @@ class SerpentVAE(nn.Module):
       dec_hidden_states = self.decoder_embeddings(input_ids) # (batch_size, seq_len, 1) -> (batch_size, seq_len, hidden_dim)
 
     # Encode tokens 
-    mu, logvar, hidden_states = self.encode(enc_hidden_states) # (batch_size, seq_len, hidden_dim) -> mu: (batch_size, seq_len, hidden_dim), logvar: (batch_size, seq_len, hidden_dim)
+    hidden_states = self.encode(enc_hidden_states) # (batch_size, seq_len, hidden_dim) -> mu: (batch_size, seq_len, hidden_dim), logvar: (batch_size, seq_len, hidden_dim)
 
     # Sample the concept tokens from the latent 
-    sampled_latents = self.sample(mu = mu, logvar = logvar) # mu: (batch_size, seq_len, hidden_dim), logvar: (batch_size, seq_len, hidden_dim) -> (batch_size, seq_len, hidden_dim)
+    sampled_latents, mu, logvar = self.sample(hidden_states) # mu: (batch_size, seq_len, hidden_dim), logvar: (batch_size, seq_len, hidden_dim) -> (batch_size, seq_len, hidden_dim)
     # across seq_len, we have a different mu and logvar
 
     # Segment the concepts 
@@ -720,13 +714,13 @@ class SerpentVAE(nn.Module):
                                                                 )
 
     # Initialize the metrics dictionary
-    metrics = {"num_active_units": num_active_units,
-               "vmi": vmi_loss,
-               "full_mi": full_mutual_info,
-               "kl_divergence": kl_divergence,
-               "recon_error": reconstruction_error,
-               "confidence_error": confidence_error,
-               "segment_prediction_error": segmentation_prediction_error,
+    metrics = {"num_active_units": num_active_units.item(),
+               "vmi": vmi_loss.item(),
+               "full_mi": full_mutual_info.item(),
+               "kl_divergence": kl_divergence.item(),
+               "recon_error": reconstruction_error.item(),
+               "confidence_error": confidence_error.item(),
+               "segment_prediction_error": segmentation_prediction_error.item(),
               }
     
     return metrics
@@ -736,17 +730,17 @@ class SerpentVAE(nn.Module):
                        threshold: float = 1e-2
                       ) -> int:
     """
-      Calculate number of active units in latent variables
-      We basically calculate the covariance between the latent variables and see if they are above a threshold 
+    Calculate number of active units in latent variables
+    We basically calculate the covariance between the latent variables and see if they are above a threshold 
 
-      A_u = Cov_x(E_u~q(u|x)[u])
+    A_u = Cov_x(E_u~q(u|x)[u])
 
-      Args:
-        mu (List[Tensor]): (batch_size, num_subseq, concept_dim) Mean of the approximate posterior distribution 
-        threshold (float): Threshold for considering a unit active
+    Args:
+      mu (List[Tensor]): (batch_size, num_subseq, concept_dim) Mean of the approximate posterior distribution 
+      threshold (float): Threshold for considering a unit active
 
-      Returns:
-          num_active_units: Number of active units
+    Returns:
+      num_active_units: Number of active units
     """
     # Center the means
     all_mu = torch.tensor([])
@@ -768,6 +762,18 @@ class SerpentVAE(nn.Module):
     return num_active_units
 
   def train_step(self, correct_input_ids: Tensor):
+    """
+    Calculates the overall loss at each training step of SerpentVAE
+    
+    Args: 
+      correct_input_ids (Tensor): (batch_size, seq_len, 1)
+
+    Returns: 
+      total_loss (Tensor): (1,)
+      vae_loss (Tensor): (1,)
+      confidence_loss (Tensor): (1,)
+      segment_prediction_loss (Tensor): (1,)
+    """
     predicted_logits, mu, logvar, sampled_latents, segmentation_indices, predicted_segments, predicted_confidence = self.forward(correct_input_ids)
 
     # Change mu, logvar, sampled_latents based on segmentation_indices
@@ -814,7 +820,7 @@ class SerpentVAE(nn.Module):
     # Calculate total loss
     total_loss = vae_loss + confidence_loss + segment_prediction_loss
 
-    return total_loss
+    return total_loss, vae_loss, confidence_loss, segment_prediction_loss
   
   def eval_step(self, correct_input_ids: Tensor):
     with torch.no_grad():

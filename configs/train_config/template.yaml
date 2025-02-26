@@ -2,6 +2,10 @@
 dataset_path:
 dataset_name:
 train_epochs:
+eval_freq:
+model_save_folder_path:
+metrics_save_folder_path:
+learning_rate:
 seed: 6969
 
 # Model configuration

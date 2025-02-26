@@ -2,6 +2,7 @@ import os
 import argparse
 import itertools 
 from tqdm import tqdm 
+import json
 
 import torch
 import torch.nn as nn
@@ -10,7 +11,7 @@ import torch.optim as optim
 import torch.distributed as dist 
 
 from torch import random
-from torch.utils.data import DataLoader, DistributedSampler
+from torch.utils.data import DataLoader, DistributedSampler, Sampler
 from torch.nn.parallel import DistributedDataParallel as DDP 
 
 from transformers import AutoTokenizer
@@ -81,95 +82,122 @@ parser.add_argument('--local_rank', type=int, default=0, help='Local rank for di
 def collate(batch): 
   encodings = tokenizer(batch, return_tensors='pt', padding=True, truncation=True)
   # Set targets to be the same as inputs
-  return encodings.input_ids, encodings.input_ids
+  return encodings
 
-def evaluate(model, data_loader):
-  model.eval()
-  total_loss = 0.0 
-  criterion = nn.CrossEntropyLoss() # TODO: Check whether to use CE or BCE / any other loss function
+def train_fn(model, optimizer, train_loader, epoch):    
+  model.train()
   
-  with torch.no_grad(): 
-    for inputs, targets in data_loader: 
-      inputs = inputs.to(config["device"])
-      targets = targets.to(config["device"])
-      outputs = model(inputs) 
-      loss = criterion(outputs.view(-1, config["vocab_size"]), targets.view(-1))
-      total_loss += loss.item()
-  
-  average_loss = total_loss / len(data_loader)
-  return average_loss
+  num_batches = len(train_loader)
 
+  batch_total_loss = 0.0
+  batch_vae_loss = 0.0
+  batch_confidence_loss = 0.0
+  batch_segment_pred_loss = 0.0
 
-def train(model, optimizer, trainLoader, valLoader): 
-  """ 
-  Main training function that trains over N number of epochs. Includes logging and checkpointing
-
-  """
-  
-  # Loss is computed from methods defined in SerpentVAE.py 
-  overall_loss_fn = model.train_step()
-
-  num_epochs = config.get("epochs", 10)
-  
-  for epoch in range(num_epochs):
-    model.train() 
-    running_loss = 0.0
-
-    for inputs, targets in tqdm(trainLoader, desc=f"Epoch {epoch + 1} / {num_epochs}"): 
-      inputs = inputs.to(config["device"])
-      targets = targets.to(config["device"])
-
-      optimizer.zero_grad()
-      outputs = model(inputs) 
-
-      loss = criterion(outputs.view(-1, config["vocab_size"]), targets.view(-1))
-      loss.backward()
-
-      optimizer.step() 
-
-      running_loss += loss.item()
+  # Loop over batches
+  for data in train_loader:
+    optimizer.zero_grad()
     
-    average_train_loss = running_loss / len(trainLoader)
-    # Only master process should print and save checkpoints
-    if dist.get_rank() == 0:
-      print(f"Epoch {epoch + 1}/{num_epochs}, Training Loss: {average_train_loss:.4f}")
-      val_loss = evaluate(model=model, data_loader=valLoader)
-      # Evaluate on the validation set
-      print(f"Epch {epoch + 1}/{num_epochs}, Validation Loss: {val_loss:.4f}")
+    total_loss, vae_loss, confidence_loss, segment_pred_loss = model.train_step(data.unsqueeze(1))
+    
+    total_loss.backward()
+    optimizer.step()
+
+    batch_total_loss += total_loss.item()
+    batch_vae_loss += vae_loss.item()
+    batch_confidence_loss += confidence_loss.item()
+    batch_segment_pred_loss += segment_pred_loss.item()
+
+  # Calculate average losses
+  average_total_loss = batch_total_loss / num_batches
+  average_vae_loss = batch_vae_loss / num_batches
+  average_confidence_loss = batch_confidence_loss / num_batches
+  average_segment_pred_loss = batch_segment_pred_loss / num_batches
+
+  # Print metrics
+  print(f"Epoch: {epoch} \n Total Loss: {average_total_loss:.4f} \n  VAE Loss: {average_vae_loss:.4f} \n  Confidence Loss: {average_confidence_loss:.4f} \n  Segment Prediction Loss: {average_segment_pred_loss:.4f}")
 
 
-      # Checkpoint for the current epoch 
-      checkpoint_dir = "checkpoints" 
-      os.makedirs(checkpoint_dir, exist_ok=True)
-      checkpoint_path = os.path.join(checkpoint_dir, f"epoch_{epoch + 1}.pt")
-      torch.save(model.state_dict(), checkpoint_path)
-      print(f"Checkpoint saved at {checkpoint_path}") 
+def eval_fn(model, optimizer, val_loader, model_save_folder_path, metrics_save_folder_path, epoch):
+  model.eval()
 
-def main():
-  args = parser.parse_args() 
+  num_batches = len(val_loader)
 
-  # Initialize distributed process group 
-  dist.init_process_group(backend="nccl", init_method="env://")
-  local_rank = args.local_rank 
-  torch.cuda.set_device(local_rank) 
-  config["device"] = torch.device("cuda", local_rank)
+  # Initialize metrics
+  num_au = 0.0
+  vmi_loss = 0.0
+  full_mi = 0.0
+  kl_divergence = 0.0
+  recon_error = 0.0
+  confidence_error = 0.0
+  segment_pred_error = 0.0
 
-  # Load model into GPU DRAM and wrap with DistributedDataParallel
-  model.to(config["device"]) 
-  model = DDP(model, device_ids=[local_rank], output_device=local_rank)
+  # Loop over batches
+  for data in val_loader:
+    with torch.no_grad():
+      metrics = model.eval_step(data.unsqueeze(1))
 
-  # Create distributed samplers so each process gets a subset of the data 
-  train_sampler = DistributedSampler(train_texts, num_replicas=dist.get_world_size(), rank=dist.get_rank(), shuffle=True) 
-  val_sampler = DistributedSampler(val_texts, num_replicas=dist.get_world_size(), rank=dist.get_rank(), shuffle=False)
+      num_au += metrics["num_active_units"]
+      vmi_loss += metrics["vmi"]
+      full_mi += metrics["full_mi"]
+      kl_divergence += metrics["kl_divergence"]
+      recon_error += metrics["recon_error"]
+      confidence_error += metrics["confidence_error"]
+      segment_pred_error += metrics["segment_prediction_error"]
+  
+  # Compute average metrics
+  num_au /= num_batches
+  vmi_loss /= num_batches
+  full_mi /= num_batches
+  kl_divergence /= num_batches
+  recon_error /= num_batches
+  confidence_error /= num_batches
+  segment_pred_error /= num_batches
 
-  trainLoader = DataLoader(train_texts, batch_size=config["batch_size"], sampler=train_sampler, collate_fn=collate)
-  valLoader = DataLoader(val_texts, batch_size=config["batch_size"], sampler=val_sampler, collate_fn=collate)
+  # Print metrics
+  print(f"Epoch: {epoch} \n  Num Active Units: {num_au:.4f} \n  VMI Loss: {vmi_loss:.4f} \n  Full MI: {full_mi:.4f} \n  KL Divergence: {kl_divergence:.4f} \n  Recon Error: {recon_error:.4f} \n  Confidence Error: {confidence_error:.4f} \n  Segment Prediction Error: {segment_pred_error:.4f}")
 
-  optimizer = optim.Adam(model.parameters(), lr=config["learning_rate"])
-  train(model, optimizer, trainLoader, valLoader)
+  # Save metrics to file
+  metrics_dict = {"num_active_units": num_au,
+                  "vmi_loss": vmi_loss,
+                  "full_mi": full_mi,
+                  "kl_divergence": kl_divergence,
+                  "recon_error": recon_error,
+                  "confidence_error": confidence_error,
+                  "segment_prediction_error": segment_pred_error
+                 }
+  
+  metric_save_path = os.path.join(metrics_save_folder_path, f"metrics_epoch_{epoch}.json")
 
-  # Clean up distributed process group
-  dist.destroy_process_group()
+  with open(metric_save_path, "w") as file:
+    json.dump(metrics_dict, file)
+
+  # Save model and optimizer states
+  model_save_path =  os.path.join(model_save_folder_path, f"model_epoch_{epoch}.pt")
+
+  torch.save({"model" : model.state_dict(), 
+                  "optimizer": optimizer.state_dict()},
+               model_save_path)
+
+def training_loop(model, optimizer, train_loader, val_loader, num_epochs, eval_freq, model_save_folder_path, metrics_save_folder_path):
+  for epoch in tqdm(range(num_epochs)):
+    train_fn(model, optimizer, train_loader, epoch)
+    if epoch % eval_freq == 0:
+      eval_fn(model, val_loader, model_save_folder_path, metrics_save_folder_path, epoch)
 
 if __name__ == "__main__":
-  raise NotImplementedError
+  args = parser.parse_args() 
+
+  # Load model into GPU DRAM and wrap with DistributedDataParallel
+  # model.to(config["device"]) 
+
+  # Create distributed samplers so each process gets a subset of the data 
+  # train_sampler = Sampler(train_texts, num_replicas=dist.get_world_size()) 
+  # val_sampler = Sampler(val_texts)
+
+  # trainLoader = DataLoader(train_texts, batch_size=config["batch_size"], sampler=train_sampler, collate_fn=collate)
+  # valLoader = DataLoader(val_texts, batch_size=config["batch_size"], sampler=val_sampler, collate_fn=collate)
+
+  # optimizer = optim.AdamW(model.parameters(), lr=config["learning_rate"])
+  
+  # training_loop(model, optimizer, trainLoader, valLoader, config["num_epochs"], config["eval_freq"], config["model_save_folder_path"], config["metrics_save_folder_path"])

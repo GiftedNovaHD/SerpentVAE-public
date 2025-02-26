@@ -60,7 +60,7 @@ class ScaledNormal(nn.Module):
       f_vec = torch.ones_like(mu) # (batch_size, seq_len, latent_dim)
     else:
       # Compute std across batch and sequence length for each latent dimension  
-      std_mu = torch.std(mu, dim = (0,1), unbiased = False) # (latent_dim,)
+      std_mu = torch.std(mu, dim=(0,1), unbiased=False) # (latent_dim,)
 
       f_vec = self.des_std / (std_mu + 1e-8) # (latent_dim,)
   
@@ -88,10 +88,33 @@ class ScaledNormal(nn.Module):
     scaled_mu = self.scale_mu(mu, infer = infer)
 
     # Reparameterize using the ALREADY SCALED mu
-    std = torch.exp(0.5 * logvar)
+    stddev = torch.exp(0.5 * logvar)
     eps = torch.randn_like(mu)
 
-    return scaled_mu + eps * std
+    return scaled_mu + eps * stddev
+
+  def forward(self, hidden_states: Tensor) -> Tensor:
+    """
+    1. Computes the mean and log variance of the latent distribution given the encoder hidden states
+    2. Sample from the latent distribution
+
+    Args:
+      hidden_states (Tensor): (batch_size, seq_len, hidden_dim)
+
+    Returns:
+      sampled_latents (Tensor): (batch_size, seq_len, latent_dim)
+      mu (Tensor): (batch_size, seq_len, latent_dim)
+      logvar (Tensor): (batch_size, seq_len, latent_dim)
+    """
+    mu, logvar = self.encode_dist_params(hidden_states)
+
+    # Allow toggling between training and inference to be done using model.eval() and model.train()
+    infer = not self.training
+
+    sampled_latents = self.sample(mu, logvar, infer = infer)
+
+    return sampled_latents, mu, logvar
+    
 
 
   def log_likelihood(self,
@@ -104,7 +127,7 @@ class ScaledNormal(nn.Module):
 
     Used to compute the entropy of Q(x) distribution.
     
-    log p(z | mu, logvar) = -0.5 ((z - \mu)^{2}/exp(logvar) + logvar + log(2pi))
+    log p(z | mu, logvar) = -0.5 ((z - mu)^{2}/exp(logvar) + logvar + log(2pi))
     
     Args:
       latent_samples (Tensor): (batch_size, seq_len, latent_dim)
