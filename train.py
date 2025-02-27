@@ -60,7 +60,7 @@ def prep_dataset(config: Dict,tokenizer) -> Tuple[DataLoader, DataLoader, DataLo
   test_texts = filtered_test_dataset["text"][1:]
   val_texts = filtered_val_dataset["text"][1:]
 
-  print(len(train_texts))
+  #print(len(train_texts))
 
   def collate(batch):
     return tokenizer(batch, padding = True, truncation = True, max_length = config["max_seq_len"], return_tensors = "pt")
@@ -271,7 +271,7 @@ if __name__ == "__main__":
   # Load config file
   config = load_config("configs/train_config/debug_config.yaml")
   
-  print(config)
+  #print(config)
 
   # Create tokenizer
   tokenizer = create_tokenizer()

@@ -67,7 +67,7 @@ def bitmask_to_end_indices(bitmask: Tensor,
 
     seq_indices = torch.cat(
                     (seq_indices,
-                             torch.tensor([seq_len], dtype=torch.int32)
+                             torch.tensor([seq_len], dtype=torch.int32, device=seq_bitmask.device)
                             )
                            )
     
@@ -75,7 +75,7 @@ def bitmask_to_end_indices(bitmask: Tensor,
 
     if inclusive:
       seq_indices = seq_indices - 1
-  
+
     batch_indices.append(seq_indices)
   
   return batch_indices

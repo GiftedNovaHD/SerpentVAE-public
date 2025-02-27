@@ -1,0 +1,20 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "run train.py with debug config",
+            "type": "shell",
+            "command": "python",
+            "args": [
+                "train.py",
+                "--config",
+                "debug_config"
+            ],
+            "problemMatcher": [],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        }
+    ]
+}

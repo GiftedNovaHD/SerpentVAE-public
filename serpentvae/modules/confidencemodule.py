@@ -42,7 +42,7 @@ class ConfidenceModule(nn.Module):
     hidden_estimate = self.hidden_state_up_proj(hidden_estimate)
     concept_estimate = self.concept_mlp(concept_tokens.detach())
 
-    confidence_score = einx.einsum("batch seq_len concept_dim, batch seq_len concept_dim -> batch seq_len 1", hidden_estimate, concept_estimate)
+    confidence_score = einx.dot("batch seq_len [concept_dim], batch seq_len [concept_dim] -> batch seq_len 1", hidden_estimate, concept_estimate)
 
     return confidence_score
  

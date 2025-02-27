@@ -30,8 +30,9 @@ class QNet(nn.Module):
       mamba_expand (int): Expansion factor for the 
 
     """
-    factory_kwargs = {"device": device, "dtype": dtype}
+    factory_kwargs = {"device": device, "dtype": dtype}    
     super(QNet, self).__init__() 
+    self.device = device
     state_dim = state_dim if state_dim is not None else latent_dim
 
     # Make sure that only vocab_size or hidden_dim is enabled at a single time
@@ -48,7 +49,7 @@ class QNet(nn.Module):
     if self.discrete is True:
       self.embedding = nn.Embedding(vocab_size, latent_dim)
       # Tie the embedding layer with the decoder
-      self.decoder_proj = TiedLinear(self.embedding)
+      self.decoder_proj = TiedLinear(self.embedding, transpose_weights = True)
     
     # Else: if hidden_dim is provided (instead of vocab_dim), we project the hidden_dim to the latent_dim 
     elif self.discrete is False: # We are not using discrete tokens - Set hidden_dim if using semi-sparse vectors eg from Poisson-VAE or dense vectors
@@ -154,7 +155,7 @@ class QNet(nn.Module):
       batch_start_indices = start_indices[b] # (num_subseq,)
       batch_end_indices = end_indices[b] # (num_subseq,) 
 
-      num_subseq = batch_start_indices.shape(0)
+      num_subseq = batch_start_indices.shape[0]
 
       for i in range(num_subseq): 
         start_index = batch_start_indices[i]
@@ -187,7 +188,7 @@ class QNet(nn.Module):
 
       for index in range(num_subseq): # Iterate over each subsequence
         # NOTE: We are using the correct embeddings as the context for the decoder embeddings
-        context_embedding = torch.Tensor([])
+        context_embedding = torch.tensor([], device = self.device)
 
         for num_context in range(index): # Number of context to add is equal to the index of the subsequence
           context_embedding = torch.cat((context_embedding, batch_segmented_correct_embeddings[num_context]), dim=0) # (context_len, latent_dim)
@@ -210,7 +211,7 @@ class QNet(nn.Module):
 
       num_subseq = len(batch_full_embeddings)
 
-      batch_last_hidden_states = torch.Tensor([])
+      batch_last_hidden_states = torch.tensor([], device = self.device)
 
       for index in range(num_subseq): # Iterate over each subsequence
         hidden_states = self.seq_mixer(batch_full_embeddings[index]) # (context_len + subseq_len, latent_dim)

@@ -66,9 +66,9 @@ class SerpentVAE(nn.Module):
 
     if self.tie_embeddings:
       if self.share_input_embeddings:
-        self.decoder_head = TiedLinear(self.embeddings)
+        self.decoder_head = TiedLinear(self.embeddings, transpose_weights = False)
       else:
-        self.decoder_head = TiedLinear(self.decoder_embeddings)
+        self.decoder_head = TiedLinear(self.decoder_embeddings, transpose_weights = False)
     else:
       self.decoder_head = nn.Linear(hidden_dim, vocab_size)
     
@@ -102,7 +102,7 @@ class SerpentVAE(nn.Module):
                            )
     
     self.confidence_module = ConfidenceModule(hidden_dim = hidden_dim,
-                                              concept_dim = hidden_dim,
+                                              concept_dim =concept_dim,
                                               inner_dim = confidence_module_inner_dim,
                                               device = self.device,
                                               dtype = self.dtype
@@ -236,7 +236,7 @@ class SerpentVAE(nn.Module):
 
   def decode(self,
              hidden_states: Tensor,
-             concept_tokens: Tensor,
+             segmented_concept_tokens: Tensor,
              inference_params=None, 
              **kwargs
              ) -> Tensor:
@@ -251,8 +251,6 @@ class SerpentVAE(nn.Module):
     Returns: 
       decoded_hidden_tokens (Tensor): (batch_size, seq_len, hidden_dim)
     """
-    # Segmenting concept tokens
-    segmented_concept_tokens = self.segment(concept_tokens = concept_tokens)
     
     # Decode hidden states based on concept tokens
     hidden_states = self.decoder(hidden_states = hidden_states,
@@ -289,7 +287,7 @@ class SerpentVAE(nn.Module):
 
     Note: This uses a Monte Carlo approximation that is averaged across the batch and num_subseq dimensions
     """    
-    all_kl = torch.tensor([])
+    all_kl = torch.tensor([], )
 
     for mu_i, logvar_i in zip(mu, logvar): 
       var_i = torch.exp(logvar_i) # (num_subseq, concept_dim)
@@ -350,7 +348,7 @@ class SerpentVAE(nn.Module):
 
     # TODO: Refactor to use distributions log-likelihood method
 
-    all_log_probs = torch.tensor([])
+    all_log_probs = torch.tensor([], device=self.device)
 
     for mu_q_i, logvar_q_i, z_i in zip(mu_q, logvar_q, z):
       
@@ -417,7 +415,7 @@ class SerpentVAE(nn.Module):
 
     # Compute KL divergence analytically:
     # D_{KL}[ q(z | x) || p(z)] = -0.5 * sum_{i=1}^{d} (1 + log(sigma_i^2) - mu_i^2 - sigma_i^2)
-    all_kl = torch.tensor([])
+    all_kl = torch.tensor([], device = self.device)
 
     for mu_i, logvar_i in zip(mu, logvar): 
       var_i = torch.exp(logvar_i) # (num_subseq, concept_dim) 
@@ -680,8 +678,8 @@ class SerpentVAE(nn.Module):
     batch_size = len(start_indices)
 
     for i in range(batch_size):
-      seq_dedup_mu = torch.tensor([])
-      seq_dedup_logvar = torch.tensor([])
+      seq_dedup_mu = torch.tensor([], device=self.device)
+      seq_dedup_logvar = torch.tensor([], device = self.device)
 
       seq_start_indices = start_indices[i]
       seq_end_indices = end_indices[i]
@@ -756,7 +754,7 @@ class SerpentVAE(nn.Module):
       num_active_units: Number of active units
     """
     # Center the means
-    all_mu = torch.tensor([])
+    all_mu = torch.tensor([], device=self.device)
 
     for mu_i in mu:
       all_mu = torch.cat((all_mu, mu_i), dim=0) # (batch_size, num_subseq, concept_dim) ->  (batch_size * num_subseq, concept_dim)
@@ -787,11 +785,21 @@ class SerpentVAE(nn.Module):
       confidence_loss (Tensor): (1,)
       segment_prediction_loss (Tensor): (1,)
     """
+    # Note:
+    # predicted_logits: (batch_size, seq_len, vocab_size)
+    # mu: (batch_size, seq_len, concept_dim)
+    # logvar: (batch_size, seq_len, concept_dim)
+    # sampled_latents: (batch_size, seq_len, concept_dim)
+    # segmentation_indices: (batch_size, seq_len, 1)
+    # predicted_segments: (batch_size, seq_len, 1)
+    # predicted_confidence: (batch_size, seq_len, 1)
+
     predicted_logits, mu, logvar, sampled_latents, segmentation_indices, predicted_segments, predicted_confidence = self.forward(correct_input_ids)
 
     # Change mu, logvar, sampled_latents based on segmentation_indices
     end_indices = bitmask_to_end_indices(segmentation_indices, inclusive = True)
-    
+    # end_indices (batch_size, num_subseq)
+
     # Format sampled_latents
     formatted_sampled_latents = deduplicate(sampled_latents)
 
@@ -799,12 +807,14 @@ class SerpentVAE(nn.Module):
     formatted_mu = []
     formatted_logvar = []
 
-    for seq_end_indices in end_indices:
-      seq_mu = torch.tensor([])
-      seq_logvar = torch.tensor([])
+    # Iterate over batch elements
+    for batch_idx, seq_end_indices in enumerate(end_indices):
+      seq_mu = torch.tensor([], device = self.device)
+      seq_logvar = torch.tensor([], device = self.device)
       for end_index in seq_end_indices:
-        seq_mu = torch.cat((seq_mu, mu[end_index].unsqueeze(0)), dim = 0)
-        seq_logvar = torch.cat((seq_logvar, logvar[end_index].unsqueeze(0)), dim = 0)
+        # NOTE: To correctly index batch elements, we use the batch_idx batch element and the end_index in the sequence dimension
+        seq_mu = torch.cat((seq_mu, mu[batch_idx, end_index].unsqueeze(0)), dim = 0)
+        seq_logvar = torch.cat((seq_logvar, logvar[batch_idx, end_index].unsqueeze(0)), dim = 0)
       
       formatted_mu.append(seq_mu)
       formatted_logvar.append(seq_logvar)
