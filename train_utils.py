@@ -38,6 +38,16 @@ def load_yaml(yaml_path):
   
   return config
 
+def change_yaml_dtype(config: Dict) -> Dict:
+  # NOTE: We must have this so that we can convert the datatypes appropriately
+  #config["train_epochs"] = int(config["train_epochs"])
+  #config["eval_freq"] = int(config["eval_freq"])
+  config["learning_rate"] = float(config["learning_rate"])
+  config["weight_decay"] = float(config["weight_decay"])
+  config["dtype"] = dtype_converter(config["dtype"])
+
+  return config
+
 def dtype_converter(dtype_str: str) -> torch.dtype:
   """
   Convert a string for a dtype from the config yaml file into a torch.dtype

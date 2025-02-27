@@ -79,7 +79,8 @@ class SerpentVAE(nn.Module):
                            mamba_expand = mamba_expand,
                            mlp_inner_dim = mlp_inner_dim,
                            residual_in_fp32 = residual_in_fp32,
-                           **factory_kwargs
+                           device = self.device,
+                           dtype = self.dtype
                            )
     
     self.distribution = ScaledNormal(hidden_dim = hidden_dim,
@@ -96,13 +97,15 @@ class SerpentVAE(nn.Module):
                            mamba_expand = mamba_expand,
                            mlp_inner_dim = mlp_inner_dim,
                            residual_in_fp32 = residual_in_fp32,
-                           **factory_kwargs
+                           device = self.device,
+                           dtype = self.dtype
                            )
     
     self.confidence_module = ConfidenceModule(hidden_dim = hidden_dim,
                                               concept_dim = hidden_dim,
                                               inner_dim = confidence_module_inner_dim,
-                                              **factory_kwargs
+                                              device = self.device,
+                                              dtype = self.dtype
                                               )
 
     # Instantiate the auxiliary network Q 
@@ -112,13 +115,17 @@ class SerpentVAE(nn.Module):
                      mamba_expand = qnet_mamba_expand,
                      mlp_inner_dim = qnet_mlp_inner_dim,
                      state_dim = qnet_mamba_state_dim,
-                     vocab_size = vocab_size
+                     vocab_size = vocab_size,
+                     device = self.device,
+                     dtype = self.dtype
                     )
                      
 
     # Instatiate the segment predictor
     self.segment_predictor = SegmentPredictor(hidden_dim = hidden_dim,
-                                              inner_dim = segment_predictor_inner_dim
+                                              inner_dim = segment_predictor_inner_dim,
+                                              device = self.device,
+                                              dtype = self.dtype
                                              )
   
   def encode(self,
@@ -582,13 +589,13 @@ class SerpentVAE(nn.Module):
     """
     # Transform with embeddings
     if self.share_input_embeddings:
-      enc_hidden_states = self.embeddings(input_ids) # (batch_size, seq_len, 1) -> (batch_size, seq_len, hidden_dim)
-      dec_hidden_states = self.embeddings(input_ids) # (batch_size, seq_len, 1) -> (batch_size, seq_len, hidden_dim)
+      enc_hidden_states = self.embeddings(input_ids).squeeze(2) # (batch_size, seq_len, 1) -> (batch_size, seq_len, hidden_dim)
+      dec_hidden_states = self.embeddings(input_ids).squeeze(2) # (batch_size, seq_len, 1) -> (batch_size, seq_len, hidden_dim)
     else:
-      enc_hidden_states = self.encoder_embeddings(input_ids) # (batch_size, seq_len, 1) -> (batch_size, seq_len, hidden_dim)
-      dec_hidden_states = self.decoder_embeddings(input_ids) # (batch_size, seq_len, 1) -> (batch_size, seq_len, hidden_dim)
+      enc_hidden_states = self.encoder_embeddings(input_ids).squeeze(2) # (batch_size, seq_len, 1) -> (batch_size, seq_len, hidden_dim)
+      dec_hidden_states = self.decoder_embeddings(input_ids).squeeze(2) # (batch_size, seq_len, 1) -> (batch_size, seq_len, hidden_dim)
 
-    # Encode tokens 
+    # Encode tokens
     hidden_states = self.encode(enc_hidden_states) # (batch_size, seq_len, hidden_dim) -> mu: (batch_size, seq_len, hidden_dim), logvar: (batch_size, seq_len, hidden_dim)
 
     # Sample the concept tokens from the latent 
@@ -596,7 +603,13 @@ class SerpentVAE(nn.Module):
     # across seq_len, we have a different mu and logvar
 
     # Segment the concepts 
-    segmented_concept_tokens, segmentation_indices = self.segment(sampled_latents) # (batch_size, seq_len, hidden_dim) -> (batch_size, seq_len, hidden_dim)
+    def dummy():
+      return None
+
+    segmented_concept_tokens, segmentation_indices = self.segment(concept_tokens = sampled_latents,
+                                                                  boundary_function = dummy, 
+                                                                  replacement_function = dummy
+                                                                 ) # (batch_size, seq_len, hidden_dim) -> (batch_size, seq_len, hidden_dim)
 
     # Predict segmentation
     predicted_segments = self.segmentation_predictions(hidden_states) # (batch_size, seq_len, hidden_dim) -> (batch_size, seq_len, 1)

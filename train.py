@@ -3,103 +3,137 @@ import argparse
 import itertools 
 from tqdm import tqdm 
 import json
+from typing import Tuple, Dict
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim 
+from torch.optim import Optimizer
 import torch.distributed as dist 
 
+from torch.amp import autocast
 from torch import random
-from torch.utils.data import DataLoader, DistributedSampler, Sampler
+from torch.utils.data import DataLoader
 from torch.nn.parallel import DistributedDataParallel as DDP 
 
 from transformers import AutoTokenizer
 from datasets import load_dataset_builder, load_dataset
 
 from serpentvae.modules.SerpentVAE import SerpentVAE
-from train_utils import load_yaml, dtype_converter # For loading configs
+from train_utils import load_yaml, change_yaml_dtype # For loading configs
 
-config = load_yaml("configs/train_config/debug_config.yaml")
+def load_config(config_path: str) -> Dict:
+  config_file = load_yaml(config_path)
 
-# NOTE: Using smallest possible version for testing
-dataset_builder = load_dataset_builder(path = config["dataset_path"], name = config["dataset_name"])
+  formatted_config = change_yaml_dtype(config_file)
 
-# Load datasets
-train_dataset = load_dataset(path = config["dataset_path"], name = config["dataset_name"], split = "train")
-test_dataset = load_dataset(path = config["dataset_path"], name = config["dataset_name"], split = "test")
-val_dataset = load_dataset(path = config["dataset_path"], name = config["dataset_name"], split = "validation")
+  return formatted_config
 
-# Create tokenizer - This is basically the DeepSeek-V3 tokeniser
-# NOTE: Vocab size is 129280
-tokenizer = AutoTokenizer.from_pretrained("configs/tokenizer_config")
+def create_tokenizer():
+  # Create tokenizer - This is basically the DeepSeek-V3 tokeniser
+  # NOTE: Vocab size is 129280
+  tokenizer = AutoTokenizer.from_pretrained("configs/tokenizer_config")
+
+  return tokenizer
 
 #print(tokenizer.encode("This is a test", return_tensors = "pt").unsqueeze(-1))
+def prep_dataset(config: Dict,tokenizer) -> Tuple[DataLoader, DataLoader, DataLoader]:
+  # NOTE: Using smallest possible version for testing
+  dataset_builder = load_dataset_builder(path = config["dataset_path"], name = config["dataset_name"])
 
-# Filter datasets to remove blank sequences
-def filter_empty(sequence):
-  return not ((sequence["text"].strip() == "\n") or (sequence["text"].strip() == ""))
+  # Load datasets
+  train_dataset = load_dataset(path = config["dataset_path"], name = config["dataset_name"], split = "train")
+  test_dataset = load_dataset(path = config["dataset_path"], name = config["dataset_name"], split = "test")
+  val_dataset = load_dataset(path = config["dataset_path"], name = config["dataset_name"], split = "validation")
 
-filtered_train_dataset = train_dataset.filter(filter_empty)
-filtered_test_dataset = test_dataset.filter(filter_empty)
-filtered_val_dataset = val_dataset.filter(filter_empty)
+  # Filter datasets to remove blank sequences
+  def filter_empty(sequence):
+    return not ((sequence["text"].strip() == "\n") or (sequence["text"].strip() == ""))
+
+  filtered_train_dataset = train_dataset.filter(filter_empty)
+  filtered_test_dataset = test_dataset.filter(filter_empty)
+  filtered_val_dataset = val_dataset.filter(filter_empty)
 
 # Create sequences for training and validation
-train_texts = filtered_train_dataset["text"][1:]
-test_texts = filtered_test_dataset["text"][1:]
-val_texts = filtered_val_dataset["text"][1:]
+  train_texts = filtered_train_dataset["text"][1:]
+  test_texts = filtered_test_dataset["text"][1:]
+  val_texts = filtered_val_dataset["text"][1:]
 
-print(len(train_texts))
+  print(len(train_texts))
 
-def collate(batch):
-  return tokenizer(batch, padding = True, truncation = True, max_length = config["max_seq_len"], return_tensors = "pt")
+  def collate(batch):
+    return tokenizer(batch, padding = True, truncation = True, max_length = config["max_seq_len"], return_tensors = "pt")
 
-train_dataloader = DataLoader(train_texts, batch_size=config["batch_size"], shuffle=True, collate_fn=collate)
-test_dataloader = DataLoader(test_texts, batch_size=config["batch_size"], shuffle=True, collate_fn=collate)
-val_dataloader = DataLoader(val_texts, batch_size=config["batch_size"], shuffle=True, collate_fn=collate)
+  train_dataloader = DataLoader(train_texts, batch_size=config["batch_size"], shuffle=True, collate_fn=collate, )
+  test_dataloader = DataLoader(test_texts, batch_size=config["batch_size"], shuffle=True, collate_fn=collate)
+  val_dataloader = DataLoader(val_texts, batch_size=config["batch_size"], shuffle=True, collate_fn=collate)
 
+  return train_dataloader, test_dataloader, val_dataloader
 
-#print(config)
-#print(train_texts)
-#print(test_texts)
-#print(val_texts)
+def prep_model(config: Dict) -> SerpentVAE:
+  """
+  Prepares and returns a (SerpentVAE) model based on config parameters. 
 
-# NOTE: We must have this so that we can convert the datatypes appropriately
-config["dtype"] = dtype_converter(config["dtype"])
+  Args: 
+    config (dict): The (SerpentVAE) model's hyperparameters 
 
-model = SerpentVAE(hidden_dim = config["hidden_dim"],
-                   concept_dim = config["concept_dim"],
-                   vocab_size = config["vocab_size"],
-                   distribution_desired_std = config["dist_desired_std"],
-                   num_encoder_layers = config["num_encoder_layers"],
-                   num_decoder_layers = config["num_decoder_layers"],
-                   state_dim = config["mamba_state_dim"],
-                   conv_length = config["mamba_conv_length"],
-                   mamba_expand = config["mamba_expand"],
-                   mlp_inner_dim = config["mlp_inner_dim"],
-                   confidence_module_inner_dim = config["confidence_inner_dim"],
-                   segment_predictor_inner_dim = config["segment_pred_inner_dim"],
-                   num_qnet_layers = config["num_qnet_layers"],
-                   qnet_conv_length = config["qnet_conv_length"],
-                   qnet_mamba_expand = config["qnet_mamba_expand"],
-                   qnet_mlp_inner_dim = config["qnet_mlp_inner_dim"],
-                   qnet_mamba_state_dim = config["qnet_mamba_state_dim"],
-                   share_input_embeddings = config["share_input_embeddings"],
-                   tie_embeddings = config["tie_embeddings"],
-                   residual_in_fp32 = config["residual_in_fp32"],
-                   device = config["device"],
-                   dtype = config["dtype"]
-)
+  Returns 
+    model (SerpentVAE): The (SerpentVAE) neural network Module
+  """
 
+  model = SerpentVAE(hidden_dim = config["hidden_dim"],
+                     concept_dim = config["concept_dim"],
+                     vocab_size = config["vocab_size"],
+                     distribution_desired_std = config["dist_desired_std"],
+                     num_encoder_layers = config["num_encoder_layers"],
+                     num_decoder_layers = config["num_decoder_layers"],
+                     state_dim = config["mamba_state_dim"],
+                     conv_length = config["mamba_conv_length"],
+                     mamba_expand = config["mamba_expand"],
+                     mlp_inner_dim = config["mlp_inner_dim"],
+                     confidence_module_inner_dim = config["confidence_inner_dim"],
+                     segment_predictor_inner_dim = config["segment_pred_inner_dim"],
+                     num_qnet_layers = config["num_qnet_layers"],
+                     qnet_conv_length = config["qnet_conv_length"],
+                     qnet_mamba_expand = config["qnet_mamba_expand"],
+                     qnet_mlp_inner_dim = config["qnet_mlp_inner_dim"],
+                     qnet_mamba_state_dim = config["qnet_mamba_state_dim"],
+                     share_input_embeddings = config["share_input_embeddings"],
+                     tie_embeddings = config["tie_embeddings"],
+                     residual_in_fp32 = config["residual_in_fp32"],
+                     device = config["device"],
+                     dtype = config["dtype"]
+                    )
 
-parser = argparse.ArgumentParser(description='SerpentVAE Model')
-parser.add_argument('--config', type=str, default='debug_config',help='Choose with experiment configuration to use')
-parser.add_argument('--data', type=str, default='wikitext-2', help='Location of the data corpus') 
+  model.to(config["device"])
 
-# This argument is provided automatically when using torch.distributed.launch or torchrun
-# parser.add_argument('--local_rank', type=int, default=0, help='Local rank for distributed training')
+  return model
 
-def train_fn(model, optimizer, train_loader, epoch):    
+def prep_optimizer(model: SerpentVAE, config: Dict) -> Optimizer: 
+  """
+  Prepares and returns an optimizer for the given (SerpentVAE) model based on config parameters. 
+
+  Args: 
+    model (torch.nn.Module): The (SerpentVAE) model whose parameters will be optimized. 
+    config (dict): Configuration dictionary containing optimizer settings.
+      - "learning_rate": (float) Learning rate
+      - "weight_decay": (float) Weight decay coefficient
+  
+  Returns
+    optimizer (Optimizer): Configured optimizer. 
+  """
+  # Create optimizer
+  optimizer = optim.AdamW(model.parameters(), lr = config["learning_rate"], weight_decay = config["weight_decay"])
+  
+  return optimizer
+  
+
+def train_fn(model: SerpentVAE,
+             optimizer: Optimizer,
+             train_loader: DataLoader,
+             epoch: int
+            ):    
   model.train()
   
   num_batches = len(train_loader)
@@ -111,10 +145,12 @@ def train_fn(model, optimizer, train_loader, epoch):
 
   # Loop over batches
   for data in train_loader:
-    data = data["input_ids"]
+    data = data["input_ids"].to(config['device'])
+
     optimizer.zero_grad()
     
-    total_loss, vae_loss, confidence_loss, segment_pred_loss = model.train_step(data.unsqueeze(-1))
+    with autocast(device_type='cuda', dtype=config["dtype"]): 
+      total_loss, vae_loss, confidence_loss, segment_pred_loss = model.train_step(data.unsqueeze(-1))
     
     total_loss.backward()
     optimizer.step()
@@ -134,8 +170,15 @@ def train_fn(model, optimizer, train_loader, epoch):
   print(f"Epoch: {epoch} \n Total Loss: {average_total_loss:.4f} \n  VAE Loss: {average_vae_loss:.4f} \n  Confidence Loss: {average_confidence_loss:.4f} \n  Segment Prediction Loss: {average_segment_pred_loss:.4f}")
 
 
-def eval_fn(model, optimizer, val_loader, epoch, model_save_folder_path = None, metrics_save_folder_path = None):
-  model.eval()
+def eval_fn(model: SerpentVAE,
+            optimizer: Optimizer,
+            val_loader: DataLoader,
+            epoch: int,
+            model_save_folder_path: str = None,
+            metrics_save_folder_path: str = None
+           ):
+  
+  model.eval() 
 
   num_batches = len(val_loader)
 
@@ -150,10 +193,12 @@ def eval_fn(model, optimizer, val_loader, epoch, model_save_folder_path = None, 
 
   # Loop over batches
   for data in val_loader:
-    data = data["input_ids"]
+    data = data["input_ids"].to(config['device'])
 
     with torch.no_grad():
-      metrics = model.eval_step(data.unsqueeze(-1))
+
+      with autocast(device_type='cuda', dtype=config["dtype"]):
+        metrics = model.eval_step(data.unsqueeze(-1))
 
       num_au += metrics["num_active_units"]
       vmi_loss += metrics["vmi"]
@@ -198,25 +243,53 @@ def eval_fn(model, optimizer, val_loader, epoch, model_save_folder_path = None, 
                     "optimizer": optimizer.state_dict()},
                  model_save_path)
 
-def training_loop(model, optimizer, train_loader, val_loader, num_epochs, eval_freq, model_save_folder_path, metrics_save_folder_path):
+def training_loop(model: SerpentVAE,
+                  optimizer: Optimizer,
+                  train_loader: DataLoader,
+                  val_loader: DataLoader,
+                  num_epochs: int, 
+                  eval_freq: int,
+                  model_save_folder_path: str = None,
+                  metrics_save_folder_path: str = None
+                 ):
   for epoch in tqdm(range(num_epochs)):
     train_fn(model, optimizer, train_loader, epoch)
+    
     if epoch % eval_freq == 0:
       eval_fn(model, val_loader, model_save_folder_path, metrics_save_folder_path, epoch)
 
 if __name__ == "__main__":
-  args = parser.parse_args() 
+  parser = argparse.ArgumentParser(description='SerpentVAE Model')
+  parser.add_argument('--config', type=str, default='debug_config',help='Choose with experiment configuration to use')
+  parser.add_argument('--data', type=str, default='wikitext-2', help='Location of the data corpus') 
 
-  # Load model into GPU DRAM and wrap with DistributedDataParallel
-  # model.to(config["device"]) 
+  # This argument is provided automatically when using torch.distributed.launch or torchrun
+  # parser.add_argument('--local_rank', type=int, default=0, help='Local rank for distributed training')
 
-  # Create distributed samplers so each process gets a subset of the data 
-  # train_sampler = Sampler(train_texts, num_replicas=dist.get_world_size()) 
-  # val_sampler = Sampler(val_texts)
+  args = parser.parse_args()
 
-  # trainLoader = DataLoader(train_texts, batch_size=config["batch_size"], sampler=train_sampler, collate_fn=collate)
-  # valLoader = DataLoader(val_texts, batch_size=config["batch_size"], sampler=val_sampler, collate_fn=collate)
-
-  # optimizer = optim.AdamW(model.parameters(), lr=config["learning_rate"])
+  # Load config file
+  config = load_config("configs/train_config/debug_config.yaml")
   
-  # training_loop(model, optimizer, trainLoader, valLoader, config["num_epochs"], config["eval_freq"], config["model_save_folder_path"], config["metrics_save_folder_path"])
+  print(config)
+
+  # Create tokenizer
+  tokenizer = create_tokenizer()
+
+  # Load data
+  train_dataloader, test_dataloader, val_dataloader = prep_dataset(config = config, tokenizer = tokenizer)
+
+  # Create model
+  model = prep_model(config = config)
+
+  # Create optimizer
+  optimizer = prep_optimizer(model = model, config = config)
+
+  training_loop(model = model,
+                optimizer = optimizer,
+                train_loader = train_dataloader,
+                val_loader = val_dataloader,
+                num_epochs = config["train_epochs"],
+                eval_freq = config["eval_freq"],
+                model_save_folder_path = config["model_save_folder_path"],
+                metrics_save_folder_path = config["metrics_save_folder_path"])

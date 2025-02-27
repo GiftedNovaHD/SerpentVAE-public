@@ -19,9 +19,10 @@ class DecoderLayer(nn.Module):
                mlp_inner_dim: int,
                layer_idx: int,
                residual_in_fp32: bool = False, 
-               device = None, 
-               dtype = None
+               device: torch.device = None,
+               dtype: torch.dtype = None
                ):
+    factory_kwargs = {"device": device, "dtype": dtype}
     
     super().__init__()
 
@@ -34,9 +35,9 @@ class DecoderLayer(nn.Module):
     self.layer_idx = layer_idx
     self.residual_in_fp32 = residual_in_fp32
  
-    self.ssm = Mamba2(d_model = hidden_dim, d_state = state_dim, d_conv = conv_length, expand = mamba_expand, rmsnorm = False)
-    self.concept_mixer = ConceptMixer(hidden_dim = hidden_dim, concept_dim = concept_dim)
-    self.mlp = MLP(hidden_dim = hidden_dim, inner_dim = mlp_inner_dim)
+    self.ssm = Mamba2(d_model = hidden_dim, d_state = state_dim, d_conv = conv_length, expand = mamba_expand, rmsnorm = False, device = device, dtype = dtype)
+    self.concept_mixer = ConceptMixer(hidden_dim = hidden_dim, concept_dim = concept_dim, device = device, dtype = dtype)
+    self.mlp = MLP(hidden_dim = hidden_dim, inner_dim = mlp_inner_dim, device = device, dtype = dtype)
     self.ssm_rms_norm = RMSNorm(hidden_dim)
     self.concept_mixer_rms_norm = RMSNorm(hidden_dim)
     self.mlp_rms_norm = RMSNorm(hidden_dim)
@@ -145,7 +146,9 @@ class Decoder(nn.Module):
       mamba_expand = mamba_expand,
       mlp_inner_dim = mlp_inner_dim,
       layer_idx = idx,
-      residual_in_fp32 = residual_in_fp32
+      residual_in_fp32 = residual_in_fp32,
+      device = device,
+      dtype = dtype
     ) for idx in range(num_layers)])
 
     self.final_rms_norm = RMSNorm(hidden_dim)

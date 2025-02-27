@@ -1,11 +1,12 @@
 # Training configuration
 dataset_path: "salesforce/wikitext"
 dataset_name: "wikitext-2-raw-v1"
-train_epochs:
-eval_freq: 10
-model_save_folder_path:
-metrics_save_folder_path:
+train_epochs: 5
+eval_freq: 1
+model_save_folder_path: None
+metrics_save_folder_path: None
 learning_rate: 1e-3
+weight_decay: 1e-2
 max_seq_len: 256
 batch_size: 64
 seed: 6969
