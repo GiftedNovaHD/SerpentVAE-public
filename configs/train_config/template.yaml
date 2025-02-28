@@ -12,6 +12,10 @@ batch_size:
 seed: 6969
 
 # Model configuration
+# Notes on model configuration:
+# For Mamba2 head_dims, hidden_dim/concept_dim * mamba_expand / head_dim must be a multiple of 8
+
+# Model configuration settings
 hidden_dim:
 concept_dim:
 vocab_size: 129280
@@ -21,12 +25,14 @@ num_decoder_layers:
 mamba_state_dim:
 mamba_conv_length:
 mamba_expand:
+mamba_head_dim:
 mlp_inner_dim:
 confidence_inner_dim:
 segment_pred_inner_dim:
 num_qnet_layers:
 qnet_conv_length:
 qnet_mamba_expand:
+qnet_mamba_head_dim:
 qnet_mlp_inner_dim:
 qnet_mamba_state_dim:
 share_input_embeddings: true

@@ -32,12 +32,14 @@ class SerpentVAE(nn.Module):
                state_dim: int,
                conv_length: int,
                mamba_expand: int,
+               mamba_head_dim: int,
                mlp_inner_dim: int,
                confidence_module_inner_dim: int,
                segment_predictor_inner_dim: int,
                num_qnet_layers: int,
                qnet_conv_length: int,
                qnet_mamba_expand: int,
+               qnet_mamba_head_dim: int,
                qnet_mlp_inner_dim: int,
                qnet_mamba_state_dim: int,
                share_input_embeddings: bool = True,
@@ -77,6 +79,7 @@ class SerpentVAE(nn.Module):
                            state_dim = state_dim,
                            conv_length = conv_length,
                            mamba_expand = mamba_expand,
+                           head_dim = mamba_head_dim,
                            mlp_inner_dim = mlp_inner_dim,
                            residual_in_fp32 = residual_in_fp32,
                            device = self.device,
@@ -95,6 +98,7 @@ class SerpentVAE(nn.Module):
                            state_dim = state_dim,
                            conv_length = conv_length,
                            mamba_expand = mamba_expand,
+                           head_dim = mamba_head_dim,
                            mlp_inner_dim = mlp_inner_dim,
                            residual_in_fp32 = residual_in_fp32,
                            device = self.device,
@@ -113,6 +117,7 @@ class SerpentVAE(nn.Module):
                      num_layers = num_qnet_layers,
                      conv_length = qnet_conv_length,
                      mamba_expand = qnet_mamba_expand,
+                     mamba_head_dim = qnet_mamba_head_dim,
                      mlp_inner_dim = qnet_mlp_inner_dim,
                      state_dim = qnet_mamba_state_dim,
                      vocab_size = vocab_size,
@@ -377,7 +382,7 @@ class SerpentVAE(nn.Module):
                decoder_output: Tensor,
                alpha=1.0,
                beta=1.0
-              ) -> Tensor:
+              ) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
     """
     Takes in logits, input_ids, mu, and logvar, in order to compute the reconstruction loss
 
@@ -409,7 +414,7 @@ class SerpentVAE(nn.Module):
     # Compute the reconstruction loss here using cross entropy 
     reconstruction_loss = F.cross_entropy(
       decoder_output.view(-1, decoder_output.size(-1)), # logits (batch_size, seq_len, vocab_size) -> (batch_size * seq_len, vocab_size)
-      input_ids.view(-1), # input_ids (batch_size, seq_len, 1) -> (batch_size * seq_len, 1)
+      input_ids.view(-1).long(), # input_ids (batch_size, seq_len, 1) -> (batch_size * seq_len,)
       reduction='mean' # Average over the batch
     )
 
@@ -545,11 +550,19 @@ class SerpentVAE(nn.Module):
         # Get confidence estimate for subsequence
         subseq_confidence_estimates = batch_confidence_estimates[end] # Shape: (1,)
 
+        print("batch_logits[start:end + 1] shape:")
+        print(batch_logits[start:end + 1].shape)
+        print("batch_input_ids[start:end + 1] shape:")
+        print(batch_input_ids[start:end + 1].view(-1).long().shape)
+
         subseq_recon_loss = F.cross_entropy(
-          batch_logits[start:end + 1], # Shape: (subseq_len, vocab_size)
-          batch_input_ids[start:end + 1].view(-1), # Shape: (subseq_len,)
+          batch_logits[start:end + 1].view(-1, batch_logits.size(-1)), # Shape: (subseq_len, vocab_size)
+          batch_input_ids[start:end + 1].view(-1).long(), # Shape: (subseq_len,)
           reduction='mean'
         ) # Shape: (1,)
+        
+        print("Subseq recon loss:")
+        print(subseq_recon_loss)
 
         # Compute the confidence loss
         sub_seq_confidence_loss = F.mse_loss(subseq_confidence_estimates,
@@ -820,13 +833,15 @@ class SerpentVAE(nn.Module):
       formatted_logvar.append(seq_logvar)
 
     # Calculate the VAE loss
-    vae_loss = self.vae_loss(input_ids = correct_input_ids,
+    loss_objective, kl_loss, reconstruction_loss, vmi_loss_term = self.vae_loss(input_ids = correct_input_ids,
                              mu = formatted_mu,
                              logvar = formatted_logvar,
                              z = formatted_sampled_latents,
                              segmentation_indices = segmentation_indices,
                              decoder_output = predicted_logits
                             )
+   
+    print(f"Reconstruction loss: {reconstruction_loss.item()}")
 
     # Calculate the loss of the confidence network
     confidence_loss = self.confidence_loss(confidence_estimates = predicted_confidence,
@@ -841,9 +856,9 @@ class SerpentVAE(nn.Module):
                                                           )
     
     # Calculate total loss
-    total_loss = vae_loss + confidence_loss + segment_prediction_loss
+    total_loss = loss_objective + confidence_loss + segment_prediction_loss
 
-    return total_loss, vae_loss, confidence_loss, segment_prediction_loss
+    return total_loss, loss_objective, confidence_loss, segment_prediction_loss
   
   def eval_step(self, correct_input_ids: Tensor):
     with torch.no_grad():

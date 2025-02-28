@@ -24,7 +24,6 @@ import pyro.distributions as dist
 from pyro.distributions import constraints
 from pyro.nn import PyroSample, PyroModule, PyroParam
 
-
 from typing import Optional, Tuple
 
 class ChainCRP(PyroModule): 
@@ -40,7 +39,7 @@ class ChainCRP(PyroModule):
     """
     super().__init__() 
     
-    self.concept_dim = concept_dim
+    self.concept_dim = hidden_dim
     self.use_hard_segmentation = use_hard_segmentation
 
     # The segmentation decision is defined for tokens 2...L. For token 1, we fix it as a segment start.

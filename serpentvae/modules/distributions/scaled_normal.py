@@ -2,6 +2,7 @@ import torch
 from torch import nn, Tensor
 
 torch.pi = torch.acos(torch.zeros(1)).item() * 2
+torch.pi = torch.tensor(torch.pi)
 
 class ScaledNormal(nn.Module):
   def __init__(

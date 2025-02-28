@@ -7,11 +7,15 @@ model_save_folder_path: None
 metrics_save_folder_path: None
 learning_rate: 1e-3
 weight_decay: 1e-2
-max_seq_len: 256
-batch_size: 64
+max_seq_len: 8
+batch_size: 1
 seed: 6969
 
 # Model configuration
+# Notes on model configuration:
+# For Mamba2 head_dims, hidden_dim/concept_dim * mamba_expand / head_dim must be a multiple of 8
+
+# Model configuration settings
 hidden_dim: 512
 concept_dim: 768
 vocab_size: 129280
@@ -21,16 +25,18 @@ num_decoder_layers: 2
 mamba_state_dim: 8
 mamba_conv_length: 4
 mamba_expand: 2
+mamba_head_dim: 64 # (hidden_dim * mamba_expand / mamba_head_dim = 64 = 8 * 8)
 mlp_inner_dim: 768
 confidence_inner_dim: 768
 segment_pred_inner_dim: 768
 num_qnet_layers: 1
 qnet_conv_length: 4
 qnet_mamba_expand: 1
+qnet_mamba_head_dim: 48 # (concept_dim * mamba_expand / qnet_mamba_head_dim = 48 = 8 * 6)
 qnet_mlp_inner_dim: 384
 qnet_mamba_state_dim: 8
 share_input_embeddings: true
 tie_embeddings: true
 residual_in_fp32: false
 device: "cuda"
-dtype: "bf16"
+dtype: "fp32"

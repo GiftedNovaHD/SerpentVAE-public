@@ -14,6 +14,7 @@ class EncoderLayer(nn.Module):
                state_dim: int,
                conv_length: int,
                mamba_expand: int,
+               head_dim: int,
                mlp_inner_dim: int,
                layer_idx: int,
                residual_in_fp32: bool = False,
@@ -27,11 +28,15 @@ class EncoderLayer(nn.Module):
     self.state_dim = state_dim
     self.conv_length = conv_length
     self.mamba_expand = mamba_expand
+    self.head_dim = head_dim
     self.mlp_inner_dim = mlp_inner_dim
     self.layer_idx = layer_idx
     self.residual_in_fp32 = residual_in_fp32
 
-    self.ssm = Mamba2(d_model = hidden_dim, d_state = state_dim, d_conv = conv_length, expand = mamba_expand, rmsnorm = False, device = device, dtype = dtype)
+    # Calculate head dimension for Mamba
+    assert (hidden_dim * (mamba_expand / head_dim)) % 8 == 0, "Hidden dim * Expand / head_dim must be a multiple of 8 for kernels to work"
+
+    self.ssm = Mamba2(d_model = hidden_dim, d_state = state_dim, d_conv = conv_length, expand = mamba_expand, headdim = head_dim, rmsnorm = False, device = device, dtype = dtype)
     self.mlp = MLP(hidden_dim = hidden_dim, inner_dim = mlp_inner_dim, device = device, dtype = dtype)
     self.ssm_rms_norm = RMSNorm(hidden_dim)
     self.mlp_rms_norm = RMSNorm(hidden_dim)
@@ -96,6 +101,7 @@ class Encoder(nn.Module):
                state_dim: int,
                conv_length: int,
                mamba_expand: int,
+               head_dim: int,
                mlp_inner_dim: int,
                residual_in_fp32: bool = False,
                device: torch.device = None, 
@@ -103,12 +109,14 @@ class Encoder(nn.Module):
                ):
     factory_kwargs = {"device": device, "dtype": dtype}
     
+    assert (hidden_dim * (mamba_expand / head_dim)) % 8 == 0, "Hidden dim * Expand / head_dim must be a multiple of 8 for kernels to work"
     super().__init__() 
     self.num_layers = num_layers
     self.hidden_dim = hidden_dim
     self.state_dim = state_dim
     self.conv_length = conv_length
     self.mamba_expand = mamba_expand
+    self.head_dim = head_dim
     self.mlp_inner_dim = mlp_inner_dim
     self.residual_in_fp32 = residual_in_fp32
 
@@ -117,6 +125,7 @@ class Encoder(nn.Module):
       state_dim = state_dim,
       conv_length = conv_length,
       mamba_expand = mamba_expand,
+      head_dim = head_dim,
       mlp_inner_dim = mlp_inner_dim,
       layer_idx = idx,
       residual_in_fp32 = residual_in_fp32,

@@ -14,6 +14,7 @@ class QNet(nn.Module):
                num_layers: int,
                conv_length: int, 
                mamba_expand: int, 
+               mamba_head_dim: int,
                mlp_inner_dim: int, 
                state_dim: int = None, 
                residual_in_fp32: bool = False, 
@@ -62,6 +63,7 @@ class QNet(nn.Module):
       state_dim = state_dim,
       conv_length = conv_length,
       mamba_expand = mamba_expand,
+      head_dim = mamba_head_dim,
       mlp_inner_dim = mlp_inner_dim,
       residual_in_fp32 = residual_in_fp32,
       device = device,
@@ -214,10 +216,11 @@ class QNet(nn.Module):
       batch_last_hidden_states = torch.tensor([], device = self.device)
 
       for index in range(num_subseq): # Iterate over each subsequence
-        hidden_states = self.seq_mixer(batch_full_embeddings[index]) # (context_len + subseq_len, latent_dim)
+        # NOTE: We need to unsqueeze the first dimension as the sequence mixer expects a batch dimension
+        hidden_states = self.seq_mixer(batch_full_embeddings[index].unsqueeze(0)) # (1, context_len + subseq_len, latent_dim)
 
         # Get the last hidden state
-        hidden_states = hidden_states[-1, : ] # (context_len + subseq_len, latent_dim) -> (1, latent_dim)
+        hidden_states = hidden_states[:, -1, : ] # (1, context_len + subseq_len, latent_dim) -> (1, 1, latent_dim)
 
         batch_last_hidden_states = torch.cat((batch_last_hidden_states, hidden_states.unsqueeze(0)), dim=0) # (num_subseq, latent_dim)
 
