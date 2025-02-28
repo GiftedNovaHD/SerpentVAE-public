@@ -9,6 +9,7 @@ learning_rate:
 weight_decay:
 max_seq_len:
 batch_size:
+use_fsdp: false
 seed: 6969
 
 # Model configuration
