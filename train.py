@@ -81,6 +81,9 @@ def setup_distributed():
   if not dist.is_initialized(): 
     dist.init_process_group(backend = "nccl")
 
+def cleanup_distributed(): 
+  dist.destroy_process_group()
+
 #print(tokenizer.encode("This is a test", return_tensors = "pt").unsqueeze(-1))
 def prep_dataset(config: Dict,tokenizer) -> Tuple[DataLoader, DataLoader, DataLoader]:
   """
