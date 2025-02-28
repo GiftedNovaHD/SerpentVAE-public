@@ -39,8 +39,12 @@ qnet_mamba_expand:
 qnet_mamba_head_dim:
 qnet_mlp_inner_dim:
 qnet_mamba_state_dim:
+
+# Embedding configuration
 share_input_embeddings: true
 tie_embeddings: true
+
+# Hardware configuration
 residual_in_fp32: false
 device: "cuda"
 dtype: "bf16"

@@ -153,6 +153,7 @@ def prep_model(config: Dict) -> SerpentVAE:
                      mlp_inner_dim = config["mlp_inner_dim"],
                      confidence_module_inner_dim = config["confidence_inner_dim"],
                      segment_predictor_inner_dim = config["segment_pred_inner_dim"],
+                     enable_qnet = config["enable_qnet"],
                      num_qnet_layers = config["num_qnet_layers"],
                      qnet_conv_length = config["qnet_conv_length"],
                      qnet_mamba_expand = config["qnet_mamba_expand"],
