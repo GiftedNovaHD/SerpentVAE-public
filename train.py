@@ -10,12 +10,30 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim 
 from torch.optim import Optimizer
-import torch.distributed as dist 
-
-from torch.amp import autocast
 from torch import random
 from torch.utils.data import DataLoader
+
+# For data parallel training 
+import torch.distributed as dist 
 from torch.nn.parallel import DistributedDataParallel as DDP 
+from torch.utils.data.distributed import DistributedSampler
+from torch.distributed.fsdp import (
+  FullyShardedDataParallel as FSDP, 
+  ShardingStrategy, 
+  MixedPrecision, 
+)
+from torch.distributed.fsdp.fully_sharded_data_parallel import (
+  CPUOffload, 
+  BackwardPrefetch,
+)
+from torch.distributed.fsdp.wrap import ( 
+  size_based_auto_wrap_policy, 
+  enable_wrap, 
+  wrap,
+)
+
+# PyTorch Automatic Mixed Precision (AMP)
+from torch.amp import autocast
 
 from transformers import AutoTokenizer
 from datasets import load_dataset_builder, load_dataset
@@ -36,6 +54,14 @@ def create_tokenizer():
   tokenizer = AutoTokenizer.from_pretrained("configs/tokenizer_config")
 
   return tokenizer
+
+# Distributed training setup 
+def setup_distributed(): 
+  """
+  Initializes the process group (using the NCCL backend)
+  """
+  if not dist.is_initialized(): 
+    dist.init_process_group(backend = "nccl")
 
 #print(tokenizer.encode("This is a test", return_tensors = "pt").unsqueeze(-1))
 def prep_dataset(config: Dict,tokenizer) -> Tuple[DataLoader, DataLoader, DataLoader]:
@@ -63,6 +89,9 @@ def prep_dataset(config: Dict,tokenizer) -> Tuple[DataLoader, DataLoader, DataLo
   #print(len(train_texts))
 
   def collate(batch):
+    """
+    Tokenizes the batch of sequences.
+    """
     return tokenizer(batch, padding = True, truncation = True, max_length = config["max_seq_len"], return_tensors = "pt")
 
   train_dataloader = DataLoader(train_texts, batch_size=config["batch_size"], shuffle=True, collate_fn=collate, )
@@ -130,7 +159,26 @@ def prep_optimizer(model: SerpentVAE, config: Dict) -> Optimizer:
   
   return optimizer
   
-
+def wrap_model_fsdp(model: nn.Module, config: dict) -> nn.Module: 
+  torch.cuda.set_device(config["device"])
+  # Optionally, set an auto_wrap_policy
+  auto_wrap_policy = None 
+  
+  try:
+    SerpentVAE_FSDP = FSDP(
+      model, 
+      auto_wrap_policy=auto_wrap_policy, 
+      mixed_precision=config.get("mixed_precision", None), 
+      cpu_offload=CPUOffload(offload_params=True),
+      device_id=config["device"], 
+      sharding_strategy=ShardingStrategy.SHARD_GRAD_OP,
+    )
+    print("SerpentVAE model wrapped in FSDP.")
+    return SerpentVAE_FSDP
+  except Exception as e: 
+    print("Failed to wrap SerpentVAE model in FSDP. Falling back to standard SerpentVAE model", e)
+    return model
+  
 def train_fn(model: SerpentVAE,
              optimizer: Optimizer,
              train_loader: DataLoader,
