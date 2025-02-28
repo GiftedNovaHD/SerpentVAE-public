@@ -143,7 +143,9 @@ class ScaledNormal(nn.Module):
       + q_dist_logvar
       + torch.log(2 * torch.pi)
     )
-    # Take the mean over the last dimension instead of summing over to normalize the scale of the loss. 
+    # Take the mean over the last dimension instead of summing over to normalize the scale of the loss so that we get more stable gradients and ensure
+    # that each latent variable contributes equally on average. 
+    # NOTE: yMight try both honestly if time permits
     log_likelihood = torch.mean(log_likelihood_elementwise, dim=-1)
     
     return log_likelihood  # (batch_size, seq_len)
