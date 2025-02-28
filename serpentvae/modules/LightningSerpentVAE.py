@@ -14,13 +14,8 @@ from serpentvae.utils.convert_bitmask import convert_bitmask
 
 from serpentvae.ops.segment.replace.segment_utils.bitmask_to_indices import bitmask_to_start_indices, bitmask_to_end_indices
 
-from serpentvae.modules.tied_linear import TiedLinear
-from serpentvae.modules.encoder import Encoder
-from serpentvae.modules.decoder import Decoder
-from serpentvae.modules.distributions.scaled_normal import ScaledNormal
-from serpentvae.modules.confidencemodule import ConfidenceModule
-from serpentvae.modules.qnet import QNet # Auxiliary Network
-from serpentvae.modules.segment_predictor import SegmentPredictor
+from serpentvae.utils.prep_model import prep_model
+
 
 class LightningSerpentVAE(pl.LightningModule):
   def __init__(self,
@@ -30,3 +25,9 @@ class LightningSerpentVAE(pl.LightningModule):
 
     self.config = config
     self.serpent_vae = 
+
+  def training_step(self, correct_input_ids: Tensor, batch_idx: int):
+    raise NotImplementedError()
+
+  def configure_optimizers(self):
+    raise NotImplementedError()
