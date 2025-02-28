@@ -8,7 +8,6 @@ from torchvision.ops import sigmoid_focal_loss
 
 from einops import rearrange
 
-from serpentvae.utils.deduplicate import deduplicate
 from serpentvae.utils.convert_bitmask import convert_bitmask
 
 from serpentvae.ops.segment.replace.segment_utils.bitmask_to_indices import bitmask_to_start_indices, bitmask_to_end_indices
@@ -51,6 +50,7 @@ class SerpentVAE(nn.Module):
      
     super(SerpentVAE, self).__init__()
 
+    self.hidden_dim = hidden_dim
     self.device = torch.device(device) if device is not None else torch.device('cuda')
     self.dtype = dtype if dtype is not None else torch.float16
 
@@ -60,11 +60,12 @@ class SerpentVAE(nn.Module):
     self.tie_embeddings = tie_embeddings
     
     # Defining model components
+    # NOTE: We constrain  the embedding weights to have a maximum norm of 1.0 for training stability.
     if self.share_input_embeddings:
-      self.embeddings = nn.Embedding(vocab_size, hidden_dim, **factory_kwargs)
+      self.embeddings = nn.Embedding(vocab_size, hidden_dim, max_norm = 1.0, **factory_kwargs)
     else:
-      self.encoder_embeddings = nn.Embedding(vocab_size, hidden_dim, **factory_kwargs)
-      self.decoder_embeddings = nn.Embedding(vocab_size, hidden_dim, **factory_kwargs)
+      self.encoder_embeddings = nn.Embedding(vocab_size, hidden_dim, max_norm = 1.0, **factory_kwargs)
+      self.decoder_embeddings = nn.Embedding(vocab_size, hidden_dim, max_norm = 1.0, **factory_kwargs)
 
     if self.tie_embeddings:
       if self.share_input_embeddings:
@@ -548,21 +549,16 @@ class SerpentVAE(nn.Module):
       # Iterate over the sub-sequences
       for start, end in zip(batch_start_indices, batch_end_indices):
         # Get confidence estimate for subsequence
-        subseq_confidence_estimates = batch_confidence_estimates[end] # Shape: (1,)
+        subseq_confidence_estimates = batch_confidence_estimates[end][0] # Shape: (1,)
 
-        print("batch_logits[start:end + 1] shape:")
-        print(batch_logits[start:end + 1].shape)
-        print("batch_input_ids[start:end + 1] shape:")
-        print(batch_input_ids[start:end + 1].view(-1).long().shape)
+        subseq_logits = batch_logits[start:end + 1] # Shape: (subseq_len, vocab_size)
+        subseq_targets = batch_input_ids[start:end + 1].squeeze(-1).long() # Shape: (subseq_len,)
 
         subseq_recon_loss = F.cross_entropy(
-          batch_logits[start:end + 1].view(-1, batch_logits.size(-1)), # Shape: (subseq_len, vocab_size)
-          batch_input_ids[start:end + 1].view(-1).long(), # Shape: (subseq_len,)
-          reduction='mean'
+          input = subseq_logits, # Shape: (subseq_len, vocab_size)
+          target = subseq_targets, # Shape: (subseq_len,)
+          reduction = 'mean'
         ) # Shape: (1,)
-        
-        print("Subseq recon loss:")
-        print(subseq_recon_loss)
 
         # Compute the confidence loss
         sub_seq_confidence_loss = F.mse_loss(subseq_confidence_estimates,
@@ -631,9 +627,15 @@ class SerpentVAE(nn.Module):
     # Decode the hidden states based on the segmented concept tokens
     # NOTE: We are doing teacher forcing here
     decoded_hidden_tokens = self.decode(dec_hidden_states, segmented_concept_tokens) # hidden_states: (batch_size, seq_len, hidden_dim), concept_tokens: (batch_size, seq_len, hidden_dim) -> (batch_size, seq_len, hidden_dim)
-  
+
+    #print(f"Decoded hidden tokens max: {decoded_hidden_tokens.max()}, min: {decoded_hidden_tokens.min()}")
+
     # Decode the hidden tokens 
     decoded_logits = self.decoder_head(decoded_hidden_tokens) # (batch_size, seq_len, hidden_dim) -> (batch_size, seq_len, vocab_size)
+
+    decoded_logits = decoded_logits / (self.hidden_dim ** 0.5)
+
+    #print(f"Decoded logits max: {decoded_logits.max()}, min: {decoded_logits.min()}")
 
     return decoded_logits, mu, logvar, sampled_latents, segmentation_indices, predicted_segments, predicted_confidence
   
@@ -675,12 +677,12 @@ class SerpentVAE(nn.Module):
       metrics (dict): Dictionary of metrics
 
     """
+    # Deduplicate z, mu and logvar
     # NOTE: The batch_size dimension of all these are lists
+    dedup_z = [] # (batch_size, num_subseq, concept_dim)
     dedup_mu = [] # (batch_size, num_subseq, concept_dim)
     dedup_logvar = [] # (batch_size, num_subseq, concept_dim)
 
-    # Deduplicate z
-    dedup_z = deduplicate(z) # (batch_size, num_subseq, concept_dim)
 
     # Remove unnecessary elements in mu and logvar
     start_indices = bitmask_to_start_indices(segmentation_indices)
@@ -691,22 +693,25 @@ class SerpentVAE(nn.Module):
     batch_size = len(start_indices)
 
     for i in range(batch_size):
+      seq_dedup_z = torch.tensor([], device = self.device)
       seq_dedup_mu = torch.tensor([], device=self.device)
       seq_dedup_logvar = torch.tensor([], device = self.device)
 
       seq_start_indices = start_indices[i]
       seq_end_indices = end_indices[i]
 
+      seq_z = z[i]
       seq_mu = mu[i]
       seq_logvar = logvar[i]
 
       for start, end in zip(seq_start_indices, seq_end_indices):
+        seq_dedup_z = torch.cat((seq_dedup_z, seq_z[end].unsqueeze(0)), dim = 0)
         seq_dedup_mu = torch.cat((seq_dedup_mu, seq_mu[end].unsqueeze(0)), dim = 0)
         seq_dedup_logvar = torch.cat((seq_dedup_logvar, seq_logvar[end].unsqueeze(0)), dim = 0)
 
+      dedup_z.append(seq_dedup_z)
       dedup_mu.append(seq_dedup_mu)
       dedup_logvar.append(seq_dedup_logvar)
-        
 
     # Calculate the number of active units
     num_active_units = self.num_active_units(mu = dedup_mu, threshold = threshold)
@@ -813,22 +818,24 @@ class SerpentVAE(nn.Module):
     end_indices = bitmask_to_end_indices(segmentation_indices, inclusive = True)
     # end_indices (batch_size, num_subseq)
 
-    # Format sampled_latents
-    formatted_sampled_latents = deduplicate(sampled_latents)
 
-    # Format mu and logvar
+    # Format sampled_latents, mu and logvar
+    formatted_sampled_latents = []
     formatted_mu = []
     formatted_logvar = []
 
     # Iterate over batch elements
     for batch_idx, seq_end_indices in enumerate(end_indices):
+      seq_sampled_latents = torch.tensor([], device = self.device)
       seq_mu = torch.tensor([], device = self.device)
       seq_logvar = torch.tensor([], device = self.device)
       for end_index in seq_end_indices:
         # NOTE: To correctly index batch elements, we use the batch_idx batch element and the end_index in the sequence dimension
+        seq_sampled_latents = torch.cat((seq_sampled_latents, sampled_latents[batch_idx, end_index].unsqueeze(0)), dim = 0)
         seq_mu = torch.cat((seq_mu, mu[batch_idx, end_index].unsqueeze(0)), dim = 0)
         seq_logvar = torch.cat((seq_logvar, logvar[batch_idx, end_index].unsqueeze(0)), dim = 0)
       
+      formatted_sampled_latents.append(seq_sampled_latents)
       formatted_mu.append(seq_mu)
       formatted_logvar.append(seq_logvar)
 
@@ -842,6 +849,8 @@ class SerpentVAE(nn.Module):
                             )
    
     print(f"Reconstruction loss: {reconstruction_loss.item()}")
+    print(f"KL loss: {kl_loss.item()}")
+    print(f"VMI loss: {vmi_loss_term.item()}")
 
     # Calculate the loss of the confidence network
     confidence_loss = self.confidence_loss(confidence_estimates = predicted_confidence,
@@ -850,10 +859,14 @@ class SerpentVAE(nn.Module):
                                            decoder_output = predicted_logits
                                           )
     
+    print(f"Confidence loss: {confidence_loss.item()}")
+    
     # Calculate the loss of the segment prediction network
     segment_prediction_loss = self.segment_prediction_loss(segmentation_predictions = predicted_segments,
                                                            segmentation_indices = segmentation_indices
                                                           )
+    
+    print(f"Segment prediction loss: {segment_prediction_loss.item()}")
     
     # Calculate total loss
     total_loss = loss_objective + confidence_loss + segment_prediction_loss

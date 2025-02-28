@@ -9,7 +9,7 @@ target = torch.randint(0,5, (1,), dtype=torch.int32)
 
 print(target.shape)
 
-logits = torch.randn(1, 5)
+logits = torch.randn(1, 129290) * 100
 
 print(logits.shape)
 

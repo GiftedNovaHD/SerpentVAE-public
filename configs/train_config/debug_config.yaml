@@ -1,14 +1,14 @@
 # Training configuration
 dataset_path: "salesforce/wikitext"
 dataset_name: "wikitext-2-raw-v1"
-train_epochs: 5
+train_epochs: 10
 eval_freq: 1
 model_save_folder_path: None
 metrics_save_folder_path: None
-learning_rate: 1e-3
-weight_decay: 1e-2
-max_seq_len: 8
-batch_size: 1
+learning_rate: 5e-4
+weight_decay: 5e-3
+max_seq_len: 128
+batch_size: 4
 seed: 6969
 
 # Model configuration
@@ -39,4 +39,4 @@ share_input_embeddings: true
 tie_embeddings: true
 residual_in_fp32: false
 device: "cuda"
-dtype: "fp32"
+dtype: "bf16"
