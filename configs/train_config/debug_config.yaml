@@ -29,6 +29,9 @@ mamba_head_dim: 64 # (hidden_dim * mamba_expand / mamba_head_dim = 64 = 8 * 8)
 mlp_inner_dim: 768
 confidence_inner_dim: 768
 segment_pred_inner_dim: 768
+
+# Q-Net configuration
+enable_qnet: true
 num_qnet_layers: 1
 qnet_conv_length: 4
 qnet_mamba_expand: 1

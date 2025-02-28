@@ -13,6 +13,9 @@ from torch.optim import Optimizer
 from torch import random
 from torch.utils.data import DataLoader
 
+# For cleaner training loops
+import lightning as pl
+
 # For data parallel training 
 import torch.distributed as dist 
 from torch.nn.parallel import DistributedDataParallel as DDP 
@@ -39,16 +42,30 @@ from transformers import AutoTokenizer
 from datasets import load_dataset_builder, load_dataset
 
 from serpentvae.modules.SerpentVAE import SerpentVAE
-from train_utils import load_yaml, change_yaml_dtype # For loading configs
+from train_utils.config_utils import load_yaml, change_yaml_dtype # For loading configs
 
-def load_config(config_path: str) -> Dict:
-  config_file = load_yaml(config_path)
+def load_config(config_name: str) -> Dict:
+  """
+  Returns the configuration dictionary for the given experiment
+
+  Args:
+    config_name (str): The name of the experiment configuration file
+  Returns:
+    config (dict): The configuration dictionary for the given experiment
+  """
+  config_file = load_yaml(config_name)
 
   formatted_config = change_yaml_dtype(config_file)
 
   return formatted_config
 
 def create_tokenizer():
+  """
+  Create and returns the DeepSeek-V3 tokenizer
+
+  Returns:
+    tokenizer (AutoTokenizer): The DeepSeek-V3 tokenizer
+  """
   # Create tokenizer - This is basically the DeepSeek-V3 tokeniser
   # NOTE: Vocab size is 129280
   tokenizer = AutoTokenizer.from_pretrained("configs/tokenizer_config")
@@ -65,6 +82,18 @@ def setup_distributed():
 
 #print(tokenizer.encode("This is a test", return_tensors = "pt").unsqueeze(-1))
 def prep_dataset(config: Dict,tokenizer) -> Tuple[DataLoader, DataLoader, DataLoader]:
+  """
+  Takes in the configuration and returns dataloaders for the training, testing, and validation datasets.
+
+  Args:
+    config (dict): The configuration dictionary for the given experiment
+      - "dataset_path" (str): The path to the dataset
+      - "dataset_name" (str): The name of the dataset
+  Returns:
+    train_dataloader (DataLoader): The training dataloader
+    test_dataloader (DataLoader): The testing dataloader
+    val_dataloader (DataLoader): The validation dataloader
+  """
   # NOTE: Using smallest possible version for testing
   dataset_builder = load_dataset_builder(path = config["dataset_path"], name = config["dataset_name"])
 
@@ -148,8 +177,8 @@ def prep_optimizer(model: SerpentVAE, config: Dict) -> Optimizer:
   Args: 
     model (torch.nn.Module): The (SerpentVAE) model whose parameters will be optimized. 
     config (dict): Configuration dictionary containing optimizer settings.
-      - "learning_rate": (float) Learning rate
-      - "weight_decay": (float) Weight decay coefficient
+      - "learning_rate" (float): Learning rate
+      - "weight_decay" (float): Weight decay coefficient
   
   Returns
     optimizer (Optimizer): Configured optimizer. 
@@ -311,15 +340,23 @@ def training_loop(model: SerpentVAE,
 if __name__ == "__main__":
   parser = argparse.ArgumentParser(description='SerpentVAE Model')
   parser.add_argument('--config', type=str, default='debug_config',help='Choose with experiment configuration to use')
-  parser.add_argument('--data', type=str, default='wikitext-2', help='Location of the data corpus') 
 
   # This argument is provided automatically when using torch.distributed.launch or torchrun
   # parser.add_argument('--local_rank', type=int, default=0, help='Local rank for distributed training')
 
   args = parser.parse_args()
 
-  # Load config file
-  config = load_config("configs/train_config/debug_config.yaml")
+  '''
+  # Check that config file exists
+  if not os.path.exists(f"configs/train_config/{args.config}.yaml"):
+    raise ValueError(f"Config file {args.config}.yaml does not exist")
+  else:
+    print(f"Using config file {args.config}.yaml")
+    config_file_path = f"configs/train_config/{args.config}.yaml"
+  '''
+    
+  # Check that config file exists and load it
+  config = load_config(args.config)
   
   #print(config)
 

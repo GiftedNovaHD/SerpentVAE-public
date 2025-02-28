@@ -1,4 +1,4 @@
-from os.path import dirname, abspath
+from os.path import dirname, abspath, exists
 import yaml
 import yaml_include
 from typing import Dict
@@ -23,12 +23,20 @@ def recursive_update(d: Dict, u: Dict) -> Dict:
     
   return d
 
-def load_yaml(yaml_path):
+def load_yaml(config_name: str) -> Dict:
+  # Check that config file exists
+  if not exists(f"configs/train_config/{config_name}.yaml"):
+    raise ValueError(f"Config file {config_name}.yaml does not exist")
+  else:
+    print(f"Using config file {config_name}.yaml")
+    config_file_path = f"configs/train_config/{config_name}.yaml"
+
+  # Load config file
   yaml.add_constructor(tag = "!include",
-                       constructor = yaml_include.Constructor(base_dir=dirname(abspath(yaml_path)))
+                       constructor = yaml_include.Constructor(base_dir=dirname(abspath(config_file_path)))
                       )
   
-  with open(yaml_path, "r") as file:
+  with open(config_file_path, "r") as file:
     config = yaml.full_load(file)
   
   while "__base__" in config.keys():
