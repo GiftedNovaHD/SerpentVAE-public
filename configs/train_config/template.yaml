@@ -9,6 +9,7 @@ learning_rate:
 weight_decay:
 max_seq_len:
 batch_size:
+use_fsdp: false
 seed: 6969
 
 # Model configuration
@@ -29,14 +30,21 @@ mamba_head_dim:
 mlp_inner_dim:
 confidence_inner_dim:
 segment_pred_inner_dim:
+
+# Q-Net configuration
+enable_qnet: true # We advise Q-Net to be enabled to reduce the chance of posterior collapse
 num_qnet_layers:
 qnet_conv_length:
 qnet_mamba_expand:
 qnet_mamba_head_dim:
 qnet_mlp_inner_dim:
 qnet_mamba_state_dim:
+
+# Embedding configuration
 share_input_embeddings: true
 tie_embeddings: true
+
+# Hardware configuration
 residual_in_fp32: false
 device: "cuda"
-dtype: "fp32"
+dtype: "bf16"

@@ -1,6 +1,6 @@
 from transformers import AutoTokenizer
 from datasets import load_dataset_builder, load_dataset
-from train_utils import load_yaml, dtype_converter # For loading configs
+from train_utils.config_utils import load_yaml, dtype_converter # For loading configs
 from torch.utils.data import DataLoader, DistributedSampler, Sampler
 
 

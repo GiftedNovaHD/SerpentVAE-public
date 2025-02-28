@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torch import Tensor
-from typing import Tuple, Callable, List
+from typing import Tuple, Callable, List, Dict, Optional
 from torch.nn import functional as F
 #from torch.nested 
 from torchvision.ops import sigmoid_focal_loss
@@ -35,12 +35,13 @@ class SerpentVAE(nn.Module):
                mlp_inner_dim: int,
                confidence_module_inner_dim: int,
                segment_predictor_inner_dim: int,
-               num_qnet_layers: int,
-               qnet_conv_length: int,
-               qnet_mamba_expand: int,
-               qnet_mamba_head_dim: int,
-               qnet_mlp_inner_dim: int,
-               qnet_mamba_state_dim: int,
+               enable_qnet: bool = True,
+               num_qnet_layers: Optional[int] = None,
+               qnet_conv_length: Optional[int] = None,
+               qnet_mamba_expand: Optional[int] = None,
+               qnet_mamba_head_dim: Optional[int] = None,
+               qnet_mlp_inner_dim: Optional[int] = None,
+               qnet_mamba_state_dim: Optional[int] = None,
                share_input_embeddings: bool = True,
                tie_embeddings: bool = True,
                residual_in_fp32: bool = False,
@@ -50,14 +51,48 @@ class SerpentVAE(nn.Module):
      
     super(SerpentVAE, self).__init__()
 
+    # Main encoder and decoder configuration settings
     self.hidden_dim = hidden_dim
+    self.concept_dim = concept_dim
+    self.vocab_size = vocab_size
+    self.distribution_desired_std = distribution_desired_std
+    self.num_encoder_layers = num_encoder_layers
+    self.num_decoder_layers = num_decoder_layers
+    self.state_dim = state_dim
+    self.conv_length = conv_length
+    self.mamba_expand = mamba_expand
+    self.mamba_head_dim = mamba_head_dim
+    self.mlp_inner_dim = mlp_inner_dim
+    self.confidence_module_inner_dim = confidence_module_inner_dim
+    self.segment_predictor_inner_dim = segment_predictor_inner_dim
+
+    # Q-Net configuration settings
+    self.enable_qnet = enable_qnet
+    self.num_qnet_layers = num_qnet_layers
+    self.qnet_conv_length = qnet_conv_length
+    self.qnet_mamba_expand = qnet_mamba_expand
+    self.qnet_mamba_head_dim = qnet_mamba_head_dim
+    self.qnet_mlp_inner_dim = qnet_mlp_inner_dim
+    self.qnet_mamba_state_dim = qnet_mamba_state_dim
+
+    # Other configuration settings
+    self.share_input_embeddings = share_input_embeddings
+    self.tie_embeddings = tie_embeddings
+
+    # Hardware configuration settings
+    self.residual_in_fp32 = residual_in_fp32
     self.device = torch.device(device) if device is not None else torch.device('cuda')
     self.dtype = dtype if dtype is not None else torch.float16
 
     factory_kwargs = {"device": self.device, "dtype": self.dtype}
 
-    self.share_input_embeddings = share_input_embeddings
-    self.tie_embeddings = tie_embeddings
+    if self.enable_qnet == True:
+      assert self.num_qnet_layers is not None, "num_qnet_layers must be specified if Q-Net is enabled"
+      assert self.qnet_conv_length is not None, "qnet_conv_length must be specified if Q-Net is enabled"
+      assert self.qnet_mamba_expand is not None, "qnet_mamba_expand must be specified if Q-Net is enabled"
+      assert self.qnet_mamba_head_dim is not None, "qnet_mamba_head_dim must be specified if Q-Net is enabled"
+      assert self.qnet_mlp_inner_dim is not None, "qnet_mlp_inner_dim must be specified if Q-Net is enabled"
+      assert self.qnet_mamba_state_dim is not None, "qnet_mamba_state_dim must be specified if Q-Net is enabled"
     
     # Defining model components
     # NOTE: We constrain  the embedding weights to have a maximum norm of 1.0 for training stability.
@@ -114,17 +149,18 @@ class SerpentVAE(nn.Module):
                                               )
 
     # Instantiate the auxiliary network Q 
-    self.qnet = QNet(latent_dim = concept_dim,
-                     num_layers = num_qnet_layers,
-                     conv_length = qnet_conv_length,
-                     mamba_expand = qnet_mamba_expand,
-                     mamba_head_dim = qnet_mamba_head_dim,
-                     mlp_inner_dim = qnet_mlp_inner_dim,
-                     state_dim = qnet_mamba_state_dim,
-                     vocab_size = vocab_size,
-                     device = self.device,
-                     dtype = self.dtype
-                    )
+    if self.enable_qnet == True:
+      self.qnet = QNet(latent_dim = concept_dim,
+                       num_layers = num_qnet_layers,
+                       conv_length = qnet_conv_length,
+                       mamba_expand = qnet_mamba_expand,
+                       mamba_head_dim = qnet_mamba_head_dim,
+                       mlp_inner_dim = qnet_mlp_inner_dim,
+                       state_dim = qnet_mamba_state_dim,
+                       vocab_size = vocab_size,
+                       device = self.device,
+                       dtype = self.dtype
+                      )
                      
 
     # Instatiate the segment predictor
@@ -388,7 +424,7 @@ class SerpentVAE(nn.Module):
     Takes in logits, input_ids, mu, and logvar, in order to compute the reconstruction loss
 
     Recall that SerpentVAE has loss objective given by 
-    L = L_recon + KL + L_vmi 
+    L = L_recon + KL + L_vmi if Q-Net is used
     where 
       - L_recon = -E_q(z|x)[log p(x|z)]
       - KL = KL(q(z|x) || p(z))
@@ -444,12 +480,14 @@ class SerpentVAE(nn.Module):
     kl_loss = all_kl.mean() # Scalar
 
     # Compute the maximized MI regularizer term
-
-    vmi_loss_term = self.maximize_vmi_regularizer(z = z,
-                                                  decoder_output = decoder_output,
-                                                  segmentation_indices = segmentation_indices,
-                                                  input_ids = input_ids
-                                                 )
+    if self.enable_qnet == True:
+      vmi_loss_term = self.maximize_vmi_regularizer(z = z,
+                                                    decoder_output = decoder_output,
+                                                    segmentation_indices = segmentation_indices,
+                                                    input_ids = input_ids
+                                                   )
+    else:
+      vmi_loss_term = torch.tensor(0.0, device=self.device)
 
     loss_objective = reconstruction_loss + alpha * vmi_loss_term + beta * kl_loss 
     
@@ -743,14 +781,25 @@ class SerpentVAE(nn.Module):
                                                                 )
 
     # Initialize the metrics dictionary
-    metrics = {"num_active_units": num_active_units.item(),
-               "vmi": vmi_loss.item(),
-               "full_mi": full_mutual_info.item(),
-               "kl_divergence": kl_divergence.item(),
-               "recon_error": reconstruction_error.item(),
-               "confidence_error": confidence_error.item(),
-               "segment_prediction_error": segmentation_prediction_error.item(),
-              }
+    if self.enable_qnet == True:
+      metrics = {"num_active_units": num_active_units.item(),
+                 "vmi": vmi_loss.item(),
+                 "full_mi": full_mutual_info.item(),
+                 "kl_divergence": kl_divergence.item(),
+                 "recon_error": reconstruction_error.item(),
+                 "confidence_error": confidence_error.item(),
+                 "segment_prediction_error": segmentation_prediction_error.item(),
+                 "total_loss": total_loss.item(),
+                }
+    else:
+      metrics = {"num_active_units": num_active_units.item(),
+                 "full_mi": full_mutual_info.item(),
+                 "kl_divergence": kl_divergence.item(),
+                 "recon_error": reconstruction_error.item(),
+                 "confidence_error": confidence_error.item(),
+                 "segment_prediction_error": segmentation_prediction_error.item(),
+                 "total_loss": total_loss.item()
+                }
     
     return metrics
   
@@ -850,7 +899,11 @@ class SerpentVAE(nn.Module):
    
     print(f"Reconstruction loss: {reconstruction_loss.item()}")
     print(f"KL loss: {kl_loss.item()}")
-    print(f"VMI loss: {vmi_loss_term.item()}")
+    
+    if self.enable_qnet == True:
+      print(f"VMI loss: {vmi_loss_term.item()}")
+    else:
+      print(f"VMI is disabled")
 
     # Calculate the loss of the confidence network
     confidence_loss = self.confidence_loss(confidence_estimates = predicted_confidence,
