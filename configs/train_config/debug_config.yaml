@@ -32,7 +32,7 @@ confidence_inner_dim: 768
 segment_pred_inner_dim: 768
 
 # Q-Net configuration
-enable_qnet: true
+enable_qnet: true # We advise Q-Net to be enabled to reduce the chance of posterior collapse
 num_qnet_layers: 1
 qnet_conv_length: 4
 qnet_mamba_expand: 1
