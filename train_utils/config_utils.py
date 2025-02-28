@@ -4,6 +4,21 @@ import yaml_include
 from typing import Dict
 import torch
 
+def load_config(config_name: str) -> Dict:
+  """
+  Returns the configuration dictionary for the given experiment
+
+  Args:
+    config_name (str): The name of the experiment configuration file
+  Returns:
+    config (dict): The configuration dictionary for the given experiment
+  """
+  config_file = load_yaml(config_name)
+
+  formatted_config = change_yaml_dtype(config_file)
+
+  return formatted_config
+
 def recursive_update(d: Dict, u: Dict) -> Dict:
   """
   Merge two dictionaries recursively.

@@ -4,7 +4,6 @@ from torch import Tensor
 from typing import Tuple, Callable, List, Dict, Optional
 from torch.nn import functional as F
 #from torch.nested 
-from torchvision.ops import sigmoid_focal_loss
 
 from einops import rearrange
 
@@ -19,6 +18,7 @@ from serpentvae.modules.distributions.scaled_normal import ScaledNormal
 from serpentvae.modules.confidencemodule import ConfidenceModule
 from serpentvae.modules.qnet import QNet # Auxiliary Network
 from serpentvae.modules.segment_predictor import SegmentPredictor
+from serpentvae.ops.sigmoid_focal_loss import sigmoid_focal_loss
 
 class SerpentVAE(nn.Module):
   def __init__(self,
@@ -322,15 +322,13 @@ class SerpentVAE(nn.Module):
       mu (List[Tensor]): (batch_size, num_subseq, concept_dim)
       logvar (List[Tensor]): (batch_size, num_subseq, concept_dim)
 
-    Note: For mu, logvar and z batch_size dimension is a list and num_subseq and concept_dim are tensors
+    NOTE: For mu, logvar and z batch_size dimension is a list while num_subseq and concept_dim are tensors
 
     Return: 
       mi_per_batch (Scalar): (1,)
-
-    Note: This uses a Monte Carlo approximation that is averaged across the batch and num_subseq dimensions
     """    
-    all_kl = torch.tensor([], )
-
+    all_kl = torch.tensor([], device=self.device)
+    
     for mu_i, logvar_i in zip(mu, logvar): 
       var_i = torch.exp(logvar_i) # (num_subseq, concept_dim)
 
@@ -455,8 +453,26 @@ class SerpentVAE(nn.Module):
       reduction='mean' # Average over the batch
     )
 
-    # Compute KL divergence analytically:
-    # D_{KL}[ q(z | x) || p(z)] = -0.5 * sum_{i=1}^{d} (1 + log(sigma_i^2) - mu_i^2 - sigma_i^2)
+    # Compute KL divergence analytically
+    """
+    q(z | x) ~ N(mu, I)
+    p(z) ~ N(0, I)
+
+    KL(q(z | x, context) || p(z | context)) 
+
+    """
+    all_kl = torch.tensor([], device=self.device) 
+
+    for mu_i, logvar_i in zip(mu, logvar): 
+      kl_divergence = self.distribution.kl_divergence(mu=mu_i, logvar=logvar_i)
+      all_kl = torch.cat(tensors=(all_kl,
+                                  torch.tensor(data=[kl_divergence],
+                                               device = self.device)
+                                 ),
+                         dim=0
+                        )
+
+    '''
     all_kl = torch.tensor([], device = self.device)
 
     for mu_i, logvar_i in zip(mu, logvar): 
@@ -477,7 +493,9 @@ class SerpentVAE(nn.Module):
       
       all_kl = torch.cat((all_kl, average_kl_divergence.unsqueeze(0)), dim=0) # (batch_size, )#
     
+    '''
     kl_loss = all_kl.mean() # Scalar
+
 
     # Compute the maximized MI regularizer term
     if self.enable_qnet == True:
@@ -686,7 +704,8 @@ class SerpentVAE(nn.Module):
               decoder_output: Tensor,
               confidence_estimates: Tensor,
               segmentation_predictions: Tensor,
-              threshold: float = 1e-2
+              threshold: float = 1e-2,
+              is_test: bool = True
              ):
     """
     Output the current metrics at this training step
@@ -710,6 +729,7 @@ class SerpentVAE(nn.Module):
       confidence_estimates (Tensor): (batch_size, seq_len, 1)
       segmentation_predictions (Tensor): (batch_size, seq_len, 1)
       threshold (float): Threshold for considering a unit active
+      is_test (bool): Specifies if prefix for metrics dictionary should be "test" or "validation"
 
     Returns:
       metrics (dict): Dictionary of metrics
@@ -779,26 +799,32 @@ class SerpentVAE(nn.Module):
     segmentation_prediction_error = self.segment_prediction_loss(segmentation_predictions = segmentation_predictions,
                                                                  segmentation_indices = segmentation_indices
                                                                 )
+    
+    # Prepare prefix for metrics dictionary
+    if is_test == True:
+      prefix = "test_"
+    else:
+      prefix = "validation_"
 
     # Initialize the metrics dictionary
     if self.enable_qnet == True:
-      metrics = {"num_active_units": num_active_units.item(),
-                 "vmi": vmi_loss.item(),
-                 "full_mi": full_mutual_info.item(),
-                 "kl_divergence": kl_divergence.item(),
-                 "recon_error": reconstruction_error.item(),
-                 "confidence_error": confidence_error.item(),
-                 "segment_prediction_error": segmentation_prediction_error.item(),
-                 "total_loss": total_loss.item(),
+      metrics = {prefix + "num_active_units": num_active_units.item(),
+                 prefix +"vmi": vmi_loss.item(),
+                 prefix +"full_mi": full_mutual_info.item(),
+                 prefix +"kl_divergence": kl_divergence.item(),
+                 prefix +"recon_error": reconstruction_error.item(),
+                 prefix +"confidence_error": confidence_error.item(),
+                 prefix +"segment_prediction_error": segmentation_prediction_error.item(),
+                 prefix +"total_loss": total_loss.item(),
                 }
     else:
-      metrics = {"num_active_units": num_active_units.item(),
-                 "full_mi": full_mutual_info.item(),
-                 "kl_divergence": kl_divergence.item(),
-                 "recon_error": reconstruction_error.item(),
-                 "confidence_error": confidence_error.item(),
-                 "segment_prediction_error": segmentation_prediction_error.item(),
-                 "total_loss": total_loss.item()
+      metrics = {prefix + "num_active_units": num_active_units.item(),
+                 prefix + "full_mi": full_mutual_info.item(),
+                 prefix + "kl_divergence": kl_divergence.item(),
+                 prefix + "recon_error": reconstruction_error.item(),
+                 prefix + "confidence_error": confidence_error.item(),
+                 prefix + "segment_prediction_error": segmentation_prediction_error.item(),
+                 prefix + "total_loss": total_loss.item()
                 }
     
     return metrics
@@ -829,7 +855,7 @@ class SerpentVAE(nn.Module):
     centered_mu = all_mu - all_mu.mean(dim=0, keepdim=True)
 
     # Compute covariance matrix
-    cov = torch.matmul(centered_mu.T, centered_mu) / (mu.size(0) - 1)
+    cov = torch.matmul(centered_mu.T, centered_mu) / (all_mu.size(0) - 1)
 
     # Compute the variance of each latent variable
     variances = torch.diag(cov)
@@ -878,6 +904,7 @@ class SerpentVAE(nn.Module):
       seq_sampled_latents = torch.tensor([], device = self.device)
       seq_mu = torch.tensor([], device = self.device)
       seq_logvar = torch.tensor([], device = self.device)
+      
       for end_index in seq_end_indices:
         # NOTE: To correctly index batch elements, we use the batch_idx batch element and the end_index in the sequence dimension
         seq_sampled_latents = torch.cat((seq_sampled_latents, sampled_latents[batch_idx, end_index].unsqueeze(0)), dim = 0)
@@ -926,7 +953,7 @@ class SerpentVAE(nn.Module):
 
     return total_loss, loss_objective, confidence_loss, segment_prediction_loss
   
-  def eval_step(self, correct_input_ids: Tensor):
+  def eval_step(self, correct_input_ids: Tensor, is_test: bool = True):
     with torch.no_grad():
       predicted_logits, mu, logvar, sampled_latents, segmentation_indices, predicted_segments, predicted_confidence = self.forward(correct_input_ids)
 
@@ -938,8 +965,10 @@ class SerpentVAE(nn.Module):
                              segmentation_indices = segmentation_indices,
                              decoder_output = predicted_logits,
                              confidence_estimates = predicted_confidence,
-                             segmentation_predictions = predicted_segments)
-
+                             segmentation_predictions = predicted_segments,
+                             is_test = is_test
+                            )
+      
       return metrics
   
   def infer_step(self,):

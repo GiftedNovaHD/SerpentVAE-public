@@ -34,6 +34,7 @@ class QNet(nn.Module):
     factory_kwargs = {"device": device, "dtype": dtype}    
     super(QNet, self).__init__() 
     self.device = device
+    self.dtype = dtype
     state_dim = state_dim if state_dim is not None else latent_dim
 
     # Make sure that only vocab_size or hidden_dim is enabled at a single time
@@ -48,13 +49,13 @@ class QNet(nn.Module):
     
     # Optional: if vocab_size is provided, we introduce an embedding layer
     if self.discrete is True:
-      self.embedding = nn.Embedding(vocab_size, latent_dim)
+      self.embedding = nn.Embedding(vocab_size, latent_dim, device = self.device, dtype = dtype)
       # Tie the embedding layer with the decoder
       self.decoder_proj = TiedLinear(self.embedding, transpose_weights = True)
     
     # Else: if hidden_dim is provided (instead of vocab_dim), we project the hidden_dim to the latent_dim 
     elif self.discrete is False: # We are not using discrete tokens - Set hidden_dim if using semi-sparse vectors eg from Poisson-VAE or dense vectors
-      self.input_proj = nn.Linear(hidden_dim, latent_dim)
+      self.input_proj = nn.Linear(hidden_dim, latent_dim, device = self.device, dtype = dtype)
 
     # NOTE: Since context latent dim is same as current latent dim, we concatenate them (hence multiply by 2) and pass it through the MLP
     self.seq_mixer = Encoder(
@@ -72,8 +73,8 @@ class QNet(nn.Module):
 
     # TODO: Refactor to generalize to other distributions
     # For now, implement the head with two linear layers. One for mu and one for logvar
-    self.mu_head = nn.Linear(latent_dim, latent_dim) 
-    self.logvar_head = nn.Linear(latent_dim, latent_dim) 
+    self.mu_head = nn.Linear(latent_dim, latent_dim, device = self.device, dtype = dtype) 
+    self.logvar_head = nn.Linear(latent_dim, latent_dim, device = self.device, dtype = dtype) 
     
   def forward(self, 
               decoder_output: Tensor, 
@@ -190,7 +191,7 @@ class QNet(nn.Module):
 
       for index in range(num_subseq): # Iterate over each subsequence
         # NOTE: We are using the correct embeddings as the context for the decoder embeddings
-        context_embedding = torch.tensor([], device = self.device)
+        context_embedding = torch.tensor([], device = self.device, dtype = self.dtype) # (0, latent_dim)
 
         for num_context in range(index): # Number of context to add is equal to the index of the subsequence
           context_embedding = torch.cat((context_embedding, batch_segmented_correct_embeddings[num_context]), dim=0) # (context_len, latent_dim)
@@ -213,7 +214,7 @@ class QNet(nn.Module):
 
       num_subseq = len(batch_full_embeddings)
 
-      batch_last_hidden_states = torch.tensor([], device = self.device)
+      batch_last_hidden_states = torch.tensor([], device = self.device, dtype = self.dtype) # (num_subseq, latent_dim)
 
       for index in range(num_subseq): # Iterate over each subsequence
         # NOTE: We need to unsqueeze the first dimension as the sequence mixer expects a batch dimension

@@ -35,10 +35,11 @@ A method to dynamically segment and compress information into latent tokens acro
  
 # Checklist
 - [x] Encoder and Decoder
-- [ ] Implement VAE
+- [x] Implement VAE
   - [x] VMI-VAE implementation for neural-network estimation of VMI
-  - [ ] Implement ScaleVAE using distributions abstract base class
-- [ ] Training loop and training
+- [x] Training 
+  - [x] Training loop
+  - [ ] Model trains as expected
 - [ ] Inference Code
 - [ ] Demo Model
 - [ ] Kernels

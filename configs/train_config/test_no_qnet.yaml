@@ -5,6 +5,7 @@ train_epochs: 10
 eval_freq: 1
 model_save_folder_path: None
 metrics_save_folder_path: None
+training_path: None
 learning_rate: 5e-4
 weight_decay: 5e-3
 max_seq_len: 128

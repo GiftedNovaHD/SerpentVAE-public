@@ -13,6 +13,21 @@
             "problemMatcher": [],
             "group": {
                 "kind": "test",
+                "isDefault": false
+            }
+        },
+        {
+            "label": "run lightning_train.py with debug config",
+            "type": "shell",
+            "command": "python",
+            "args": [
+                "lightning_train.py",
+                "--config",
+                "debug_config"
+            ],
+            "problemMatcher": [],
+            "group": {
+                "kind": "test",
                 "isDefault": true
             }
         }

@@ -3,8 +3,9 @@ dataset_path: "salesforce/wikitext"
 dataset_name: "wikitext-2-raw-v1"
 train_epochs: 10
 eval_freq: 1
-model_save_folder_path: None
-metrics_save_folder_path: None
+model_save_folder_path:
+metrics_save_folder_path: 
+training_path: 
 learning_rate: 5e-4
 weight_decay: 5e-3
 max_seq_len: 128

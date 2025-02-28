@@ -1,3 +1,11 @@
+"""
+This file is deprecated and is no longer used in the training pipeline.
+
+It is kept here for reference purposes.
+
+lightning_train.py should be used for training instead.
+"""
+
 import os
 import argparse
 import itertools 
@@ -38,40 +46,12 @@ from torch.distributed.fsdp.wrap import (
 # PyTorch Automatic Mixed Precision (AMP)
 from torch.amp import autocast
 
-from transformers import AutoTokenizer
-from datasets import load_dataset_builder, load_dataset
-
 from serpentvae.utils.prep_model import prep_model
+from serpentvae.utils.prep_optimizer import prep_optimizer
 from serpentvae.modules.SerpentVAE import SerpentVAE
-from train_utils.config_utils import load_yaml, change_yaml_dtype # For loading configs
-
-def load_config(config_name: str) -> Dict:
-  """
-  Returns the configuration dictionary for the given experiment
-
-  Args:
-    config_name (str): The name of the experiment configuration file
-  Returns:
-    config (dict): The configuration dictionary for the given experiment
-  """
-  config_file = load_yaml(config_name)
-
-  formatted_config = change_yaml_dtype(config_file)
-
-  return formatted_config
-
-def create_tokenizer():
-  """
-  Create and returns the DeepSeek-V3 tokenizer
-
-  Returns:
-    tokenizer (AutoTokenizer): The DeepSeek-V3 tokenizer
-  """
-  # Create tokenizer - This is basically the DeepSeek-V3 tokeniser
-  # NOTE: Vocab size is 129280
-  tokenizer = AutoTokenizer.from_pretrained("configs/tokenizer_config")
-
-  return tokenizer
+from train_utils.config_utils import load_config # For loading configs
+from train_utils.prep_dataloaders import prep_dataset
+from train_utils.create_tokenizer import create_tokenizer
 
 # Distributed training setup 
 def setup_distributed(): 
@@ -84,75 +64,6 @@ def setup_distributed():
 def cleanup_distributed(): 
   dist.destroy_process_group()
 
-#print(tokenizer.encode("This is a test", return_tensors = "pt").unsqueeze(-1))
-def prep_dataset(config: Dict,tokenizer) -> Tuple[DataLoader, DataLoader, DataLoader]:
-  """
-  Takes in the configuration and returns dataloaders for the training, testing, and validation datasets.
-
-  Args:
-    config (dict): The configuration dictionary for the given experiment
-      - "dataset_path" (str): The path to the dataset
-      - "dataset_name" (str): The name of the dataset
-  Returns:
-    train_dataloader (DataLoader): The training dataloader
-    test_dataloader (DataLoader): The testing dataloader
-    val_dataloader (DataLoader): The validation dataloader
-  """
-  # NOTE: Using smallest possible version for testing
-  dataset_builder = load_dataset_builder(path = config["dataset_path"], name = config["dataset_name"])
-
-  # Load datasets
-  train_dataset = load_dataset(path = config["dataset_path"], name = config["dataset_name"], split = "train")
-  test_dataset = load_dataset(path = config["dataset_path"], name = config["dataset_name"], split = "test")
-  val_dataset = load_dataset(path = config["dataset_path"], name = config["dataset_name"], split = "validation")
-
-  # Filter datasets to remove blank sequences
-  def filter_empty(sequence):
-    return not ((sequence["text"].strip() == "\n") or (sequence["text"].strip() == ""))
-
-  filtered_train_dataset = train_dataset.filter(filter_empty)
-  filtered_test_dataset = test_dataset.filter(filter_empty)
-  filtered_val_dataset = val_dataset.filter(filter_empty)
-
-  # Create sequences for training and validation
-  train_texts = filtered_train_dataset["text"][1:]
-  test_texts = filtered_test_dataset["text"][1:]
-  val_texts = filtered_val_dataset["text"][1:]
-
-  #print(len(train_texts))
-
-  def collate(batch):
-    """
-    Tokenizes the batch of sequences.
-    """
-    return tokenizer(batch, padding = True, truncation = True, max_length = config["max_seq_len"], return_tensors = "pt")
-
-  train_dataloader = DataLoader(train_texts, batch_size=config["batch_size"], shuffle=True, collate_fn=collate, )
-  test_dataloader = DataLoader(test_texts, batch_size=config["batch_size"], shuffle=True, collate_fn=collate)
-  val_dataloader = DataLoader(val_texts, batch_size=config["batch_size"], shuffle=True, collate_fn=collate)
-
-  return train_dataloader, test_dataloader, val_dataloader
-
-
-
-def prep_optimizer(model: SerpentVAE, config: Dict) -> Optimizer: 
-  """
-  Prepares and returns an optimizer for the given (SerpentVAE) model based on config parameters. 
-
-  Args: 
-    model (torch.nn.Module): The (SerpentVAE) model whose parameters will be optimized. 
-    config (dict): Configuration dictionary containing optimizer settings.
-      - "learning_rate" (float): Learning rate
-      - "weight_decay" (float): Weight decay coefficient
-  
-  Returns
-    optimizer (Optimizer): Configured optimizer. 
-  """
-  # Create optimizer
-  optimizer = optim.AdamW(model.parameters(), lr = config["learning_rate"], weight_decay = config["weight_decay"])
-  
-  return optimizer
-  
 def wrap_model_fsdp(model: nn.Module, config: dict) -> nn.Module: 
   torch.cuda.set_device(config["device"])
   # Optionally, set an auto_wrap_policy
