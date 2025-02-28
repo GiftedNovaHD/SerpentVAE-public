@@ -143,8 +143,8 @@ class ScaledNormal(nn.Module):
       + q_dist_logvar
       + torch.log(2 * torch.pi)
     )
-    # Sum over the last dimension 
-    log_likelihood = torch.sum(log_likelihood_elementwise, dim=-1)
+    # Take the mean over the last dimension instead of summing over to normalize the scale of the loss. 
+    log_likelihood = torch.mean(log_likelihood_elementwise, dim=-1)
     
     return log_likelihood  # (batch_size, seq_len)
 
