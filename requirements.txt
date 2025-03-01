@@ -1,7 +1,14 @@
 datasets
 einops
 einx
-pytorch
+torch
 transformers
 wandb
-typing
+causal-conv1d
+mamba-ssm
+lightning['extra']
+pyyaml
+pyyaml-include
+numpy
+tqdm
+pyro-ppl

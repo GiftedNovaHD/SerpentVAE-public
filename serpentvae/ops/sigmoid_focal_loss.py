@@ -43,7 +43,6 @@ def sigmoid_focal_loss(
   elif reduction == "sum":
     loss = loss.sum()
   else: 
-    raise ValueError(f"{reduction} is an invalid value supplied for the argument of 'reduction'. 
-                     \n Please key in either 'none', 'mean', or 'sum'.")
+    raise ValueError(f"{reduction} is an invalid value supplied for the argument of 'reduction'. Please key in either 'none', 'mean', or 'sum'.")
   
   return loss
