@@ -39,13 +39,14 @@ A method to dynamically segment and compress information into latent tokens acro
   - [x] VMI-VAE implementation for neural-network estimation of VMI
 - [x] Training 
   - [x] Training loop
-  - [ ] Model trains as expected
+  - [ ] Model trains (on a single GPU) as expected using FSDP implementation
+  - [ ] Multi-GPU training works properly as expected. 
 - [ ] Inference Code
 - [ ] Demo Model
 - [ ] Kernels
 
 # Future Plans
 - [x] Extend SerpentVAE to the Conditional VAE case where the context from previous contexts is used as the conditional input - We made this the default for faster training
-- [ ] Add kernels for Forgetful Causal Top-K Attention to support the use of approximate k-nearest neighbour search to speed up attention (ATP more likely to use an upgraded DeepSeek Native Sparse Attention)
+- [ ] Add kernels for Forgetful Causal Top-K Attention to support the use of approximate k-nearest neighbour search to speed up attention
 - [ ] Integrate Stochastic Variantal Inference (SVI) to SerpentVAE for better quality
 - [ ] Experiment with other sequence mixers such as DeltaNet which are supposedly more expressive, espescially when eigenvalues can be negative
