@@ -21,8 +21,16 @@ print("Original NestedTensor:")
 for tensor in nested_tensor:
   print(tensor)
 
-for idx, tensor in enumerate(nested_tensor):
-  tensor = tensor * idx
+last_concept_token = []
+
+for i in range(len(nested_tensor)):
+  nested_tensor[i] = nested_tensor[i].mul_(i + 2)
+
+for i in range(len(nested_tensor)):
+  last_concept_token.append(nested_tensor[i][:, -1, :])
+
+print(last_concept_token)
+  
 
 print("Modified NestedTensor:")
 for tensor in nested_tensor:
