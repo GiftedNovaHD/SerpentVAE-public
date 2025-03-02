@@ -39,7 +39,8 @@ A method to dynamically segment and compress information into latent tokens acro
   - [x] VMI-VAE implementation for neural-network estimation of VMI
 - [x] Training 
   - [x] Training loop
-  - [ ] Model trains as expected
+  - [ ] Model trains (on a single GPU) as expected using FSDP implementation
+  - [ ] Multi-GPU training works properly as expected. 
 - [ ] Inference Code
 - [ ] Demo Model
 - [ ] Kernels
