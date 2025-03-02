@@ -11,6 +11,7 @@ weight_decay:
 max_seq_len:
 batch_size:
 use_fsdp: false
+compile_model: true
 seed: 6969
 
 # Model configuration
