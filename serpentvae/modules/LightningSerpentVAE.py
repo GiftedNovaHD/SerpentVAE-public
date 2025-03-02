@@ -8,19 +8,23 @@ from serpentvae.utils.prep_optimizer import prep_optimizer
 
 class LightningSerpentVAE(pl.LightningModule):
   def __init__(self,
-               config: Dict
+               config: Dict,
+               compile_model: bool = False
               ):
     super().__init__()
     self.save_hyperparameters()
 
     self.config = config
+    self.compile_model = compile_model
     self.serpent_vae = None
 
     
   def configure_model(self):
     if self.serpent_vae is None:
-      # self.serpent_vae = compile(prep_model(config = self.config))
-      self.serpent_vae = prep_model(config = self.config)
+      if self.compile_model == True:
+        self.serpent_vae = compile(prep_model(config = self.config))
+      else:
+        self.serpent_vae = prep_model(config = self.config)
     
     return None
 
