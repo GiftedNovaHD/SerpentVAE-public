@@ -80,12 +80,15 @@ if __name__ == "__main__":
 
   # Define FSDP strategy
   lightning_fsdp_strategy = FSDPStrategy(
-    auto_wrap_policy=size_based_auto_wrap_policy(
-    min_num_params=1e6  # We only wrap modules >= 1M parameters
+    auto_wrap_policy = size_based_auto_wrap_policy(
+      min_num_params = 1e6  # We only wrap modules >= 1M parameters
+      module = 
+      recurse = 
+      nonwrapped_numel = 
     ),
-    cpu_offload=CPUOffload(offload_params=False),
-    backward_prefetch=BackwardPrefetch.BACKWARD_PRE,
-    mixed_precision=MixedPrecision(param_dtype=torch.bfloat16,  # or torch.float16
+    cpu_offload = CPUOffload(offload_params=False),
+    backward_prefetch = BackwardPrefetch.BACKWARD_PRE,
+    mixed_precision = MixedPrecision(param_dtype=torch.bfloat16,  # or torch.float16
                                    reduce_dtype=torch.bfloat16,
                                    buffer_dtype=torch.bfloat16)
   )
@@ -96,6 +99,8 @@ if __name__ == "__main__":
                        max_epochs = config["train_epochs"],
                        check_val_every_n_epoch = config["eval_freq"],
                        default_root_dir= config["training_path"],
-                       profiler = "pytorch")
+                       profiler = "pytorch",
+                       fast_dev_run = True
+                      )
 
   trainer.fit(model = lightning_model, train_dataloaders = train_dataloader, val_dataloaders = val_dataloader)

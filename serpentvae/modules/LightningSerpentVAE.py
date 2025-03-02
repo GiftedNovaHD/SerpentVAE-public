@@ -14,9 +14,15 @@ class LightningSerpentVAE(pl.LightningModule):
     self.save_hyperparameters()
 
     self.config = config
+    self.serpent_vae = None
 
-    # self.serpent_vae = compile(prep_model(config = self.config))
-    self.serpent_vae = prep_model(config = self.config)
+    
+  def configure_model(self):
+    if self.serpent_vae is None:
+      # self.serpent_vae = compile(prep_model(config = self.config))
+      self.serpent_vae = prep_model(config = self.config)
+    
+    return None
 
   def training_step(self, batch: Tensor, batch_idx: int):
     correct_input_ids = batch["input_ids"].unsqueeze(-1)

@@ -2,11 +2,11 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "run train.py with debug config",
+            "label": "run stable_lightning_train.py with debug config",
             "type": "shell",
             "command": "python",
             "args": [
-                "train.py",
+                "stable_lightning_train.py",
                 "--config",
                 "debug_config"
             ],
