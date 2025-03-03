@@ -15,6 +15,7 @@ from torch.utils.data import DataLoader
 
 # For cleaner training loops
 import lightning as pl
+from lightning.pytorch.profilers import PyTorchProfiler
 from lightning.pytorch.strategies import FSDPStrategy # Strategy for Fully Sharded Data Parallelism provided by torch.distributed
 
 # For data parallel training 
@@ -78,6 +79,13 @@ if __name__ == "__main__":
   # Create model
   lightning_model = LightningSerpentVAE(config = config, compile_model = config["compile_model"])
 
+  # Create profiler
+  profiler = PyTorchProfiler(emit_nvtx = True,
+                             export_to_chrome = True,
+                             group_by_input_shapes = True,
+                             record_module_names = True
+                            )
+
   trainer = pl.Trainer(devices=1,
                        accelerator="gpu",
                        strategy="auto",
@@ -85,7 +93,7 @@ if __name__ == "__main__":
                        check_val_every_n_epoch = config["eval_freq"],
                        default_root_dir= config["training_path"],
                        profiler = "pytorch",
-                       fast_dev_run = 3
+                       fast_dev_run = 5
                       )
 
   trainer.fit(model = lightning_model, train_dataloaders = train_dataloader, val_dataloaders = val_dataloader)
