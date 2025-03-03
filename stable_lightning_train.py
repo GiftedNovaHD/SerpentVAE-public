@@ -93,7 +93,7 @@ if __name__ == "__main__":
                        check_val_every_n_epoch = config["eval_freq"],
                        default_root_dir= config["training_path"],
                        profiler = "pytorch",
-                       fast_dev_run = 2
+                       fast_dev_run = 5
                       )
 
   trainer.fit(model = lightning_model, train_dataloaders = train_dataloader, val_dataloaders = val_dataloader)
