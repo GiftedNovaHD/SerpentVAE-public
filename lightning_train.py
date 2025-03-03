@@ -85,9 +85,7 @@ if __name__ == "__main__":
   fsdp_lightning_model = LightningSerpentVAE(config = config)
 
   fsdp_strategy = FSDPStrategy(
-    auto_wrap_policy=size_based_auto_wrap_policy(
-    min_num_params=1e6  # We only wrap modules >= 1M parameters
-    ),
+    auto_wrap_policy=size_based_auto_wrap_policy,
     cpu_offload=CPUOffload(offload_params=False),
     backward_prefetch=BackwardPrefetch.BACKWARD_PRE,
     mixed_precision=MixedPrecision(param_dtype=torch.bfloat16,  # or torch.float16,
