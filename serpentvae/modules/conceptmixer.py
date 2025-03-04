@@ -22,7 +22,7 @@ class ConceptMixer(nn.Module):
     super().__init__()
 
     if concept_dim <= hidden_dim:
-      warnings.warn("Concept dimension should generally be greater than or equal to hidden dimension", stacklevel = 3)
+      warnings.warn("Concept dimension should generally be greater than or equal to hidden dimension", stacklevel = 1)
 
     self.hidden_dim = hidden_dim
     self.concept_dim = concept_dim
