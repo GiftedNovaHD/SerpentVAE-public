@@ -83,7 +83,7 @@ if __name__ == "__main__":
   # Create model
   fsdp_lightning_model = LightningSerpentVAE(config = config)
 
-  # TODO: NOT WORKING
+  # TODO: Working on local machine
   fsdp_strategy = FSDPStrategy(
     auto_wrap_policy=size_based_auto_wrap_policy,
     cpu_offload=CPUOffload(offload_params=False),
