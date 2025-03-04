@@ -84,19 +84,22 @@ if __name__ == "__main__":
   # Create model
   fsdp_lightning_model = LightningSerpentVAE(config = config)
 
-  # fsdp_strategy = FSDPStrategy(
-  #   auto_wrap_policy=size_based_auto_wrap_policy,
-  #   cpu_offload=CPUOffload(offload_params=False),
-  #   backward_prefetch=BackwardPrefetch.BACKWARD_PRE,
-  #   mixed_precision=MixedPrecision(param_dtype=torch.bfloat16,  # or torch.float16,
-  #                                  reduce_dtype=torch.bfloat16,
-  #                                  buffer_dtype=torch.bfloat16)
-  # )
+  # TODO: NOT WORKING
+  fsdp_strategy = FSDPStrategy(
+    auto_wrap_policy=size_based_auto_wrap_policy,
+    cpu_offload=CPUOffload(offload_params=False),
+    backward_prefetch=BackwardPrefetch.BACKWARD_PRE,
+    mixed_precision=MixedPrecision(param_dtype=torch.bfloat16,  # or torch.float16,
+                                   reduce_dtype=torch.bfloat16,
+                                   buffer_dtype=torch.bfloat16)
+  )
+  
+  # NOTE: DDP is confirmed to work
   ddp = DDPStrategy(process_group_backend='nccl')
   
   trainer = pl.Trainer(devices=1,
                        accelerator="gpu",
-                       strategy=ddp, # DDP Strategy
+                       strategy=fsdp_strategy, # DDP Strategy
                        max_epochs = config["train_epochs"],
                        check_val_every_n_epoch = config["eval_freq"],
                        default_root_dir= config["training_path"],
