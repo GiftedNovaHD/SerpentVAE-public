@@ -100,7 +100,7 @@ if __name__ == "__main__":
                        accelerator="gpu",
                        strategy=fsdp_strategy, # FSDP Strategy
                        use_distributed_sampler = True,
-                       max_epochs = config["train_epochs"],
+                       max_epochs = config["num_epochs"],
                        check_val_every_n_epoch = config["eval_freq"],
                        default_root_dir= config["training_path"],
                        profiler = "pytorch",
