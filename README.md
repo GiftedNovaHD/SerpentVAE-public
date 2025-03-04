@@ -39,6 +39,10 @@ A method to dynamically segment and compress information into latent tokens acro
 - [x] Encoder and Decoder
 - [x] Implement VAE
   - [x] VMI-VAE implementation for neural-network estimation of VMI
+- [x] Training 
+  - [x] Training loop
+  - [x] Model trains (on a single GPU) as expected using FSDP implementation
+  - [ ] Multi-GPU training works properly as expected. 
 - [x] Extend SerpentVAE to the Conditional VAE case where the context from previous contexts is used as the conditional input - We made this the default for faster training
 - [ ] ChainCRP Segmenter
 
@@ -49,7 +53,7 @@ A method to dynamically segment and compress information into latent tokens acro
 - [ ] $N$-D Parallelism strategy works as expected
 - [ ] Overall checklist: Model trains as expected, we are happy
 
-### Inference Checklist 
+### Inference Checklist
 - [ ] Inference Code
 - [ ] Demo Model
 

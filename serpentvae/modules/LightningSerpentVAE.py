@@ -39,7 +39,7 @@ class LightningSerpentVAE(pl.LightningModule):
                "train_segment_pred_loss": segment_pred_loss.item()
               }
     
-    self.log_dict(metrics)
+    self.log_dict(metrics, sync_dist = True)
 
     return total_loss
   def validation_step(self, batch: Tensor, batch_idx: int):
@@ -47,7 +47,7 @@ class LightningSerpentVAE(pl.LightningModule):
 
     metrics = self.serpent_vae.eval_step(correct_input_ids = correct_input_ids, is_test=False)
 
-    self.log_dict(metrics)
+    self.log_dict(metrics, sync_dist = True)
 
   def configure_optimizers(self):
     optimizer = prep_optimizer(model = self.serpent_vae, config = self.config)
