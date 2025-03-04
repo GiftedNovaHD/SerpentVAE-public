@@ -79,9 +79,7 @@ if __name__ == "__main__":
   lightning_model = LightningSerpentVAE(config = config, compile_model = False)
 
   # Define FSDP strategy
-  ddp_strategy = DDPStrategy(accelerator='gpu', 
-                             process_group_backend='nccl'
-                             )
+  ddp_strategy = DDPStrategy(process_group_backend='nccl')
   
   trainer = pl.Trainer(devices=1,
                        accelerator="gpu",
