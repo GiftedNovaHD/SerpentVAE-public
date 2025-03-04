@@ -20,7 +20,6 @@ from torch.utils.data import DataLoader
 
 # For cleaner training loops
 import lightning as pl
-from lightning.pytorch.strategies import FSDPStrategy # Strategy for Fully Sharded Data Parallelism provided by torch.distributed
 from lightning.pytorch.strategies import FSDPStrategy, DDPStrategy
 
 # For data parallel training 
