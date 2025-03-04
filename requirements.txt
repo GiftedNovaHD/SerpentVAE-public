@@ -6,7 +6,7 @@ transformers
 wandb
 causal-conv1d
 mamba-ssm
-lightning['extra']
+lightning[extra]
 pyyaml
 pyyaml-include
 numpy

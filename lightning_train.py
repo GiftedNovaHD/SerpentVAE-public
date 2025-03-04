@@ -81,8 +81,8 @@ if __name__ == "__main__":
   train_dataloader, test_dataloader, val_dataloader = prep_dataset(config = config, tokenizer = tokenizer)
 
   # Create model
-  fsdp_lightning_model = LightningSerpentVAE(config = config)
-
+  lightning_model = LightningSerpentVAE(config = config, compile_model = True)
+  
   # TODO: Working on local machine
   fsdp_strategy = FSDPStrategy(
     auto_wrap_policy=size_based_auto_wrap_policy,
@@ -105,6 +105,5 @@ if __name__ == "__main__":
                        default_root_dir= config["training_path"],
                        profiler = "pytorch",
                        fast_dev_run = 2
-                      )
 
   trainer.fit(model = fsdp_lightning_model, train_dataloaders = train_dataloader, val_dataloaders = val_dataloader)
