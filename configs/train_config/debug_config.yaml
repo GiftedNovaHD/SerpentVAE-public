@@ -6,8 +6,9 @@ eval_freq: 1
 model_save_folder_path:
 metrics_save_folder_path: 
 training_path: 
-learning_rate: 5e-4
-weight_decay: 5e-3
+learning_rate: 5e-6
+min_learning_rate: 1e-8
+weight_decay: 1e-2
 max_seq_len: 128
 batch_size: 4
 use_fsdp: false

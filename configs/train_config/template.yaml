@@ -7,6 +7,7 @@ model_save_folder_path:
 metrics_save_folder_path:
 training_path:
 learning_rate:
+min_learning_rate:
 weight_decay:
 max_seq_len:
 batch_size:

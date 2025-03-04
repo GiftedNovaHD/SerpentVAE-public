@@ -1,10 +1,11 @@
 from torch.optim import Optimizer, AdamW
-from typing import Dict
+from torch.optim.lr_scheduler import CosineAnnealingLR, LRScheduler
+from typing import Dict, Tuple
 
 from serpentvae.modules.SerpentVAE import SerpentVAE
 
 
-def prep_optimizer(model: SerpentVAE, config: Dict) -> Optimizer: 
+def prep_optimizer(model: SerpentVAE, config: Dict) -> Tuple[Optimizer, LRScheduler]: 
   """
   Prepares and returns an optimizer for the given (SerpentVAE) model based on config parameters. 
 
@@ -16,8 +17,12 @@ def prep_optimizer(model: SerpentVAE, config: Dict) -> Optimizer:
   
   Returns
     optimizer (Optimizer): Configured optimizer. 
+    scheduler (LRScheduler): Configured learning rate scheduler
   """
   # Create optimizer
   optimizer = AdamW(model.parameters(), lr = config["learning_rate"], weight_decay = config["weight_decay"])
   
-  return optimizer
+  # Create scheduler
+  scheduler = CosineAnnealingLR(optimizer, T_max = config["num_epochs"], eta_min = config["min_learning_rate"])
+
+  return [optimizer], [scheduler]
