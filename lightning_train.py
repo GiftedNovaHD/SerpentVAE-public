@@ -15,7 +15,7 @@ from torch.utils.data import DataLoader
 
 # For cleaner training loops
 import lightning as pl
-from lightning.pytorch.strategies import FSDPStrategy # Strategy for Fully Sharded Data Parallelism provided by torch.distributed
+from lightning.pytorch.strategies import DDPStrategy
 
 # For data parallel training 
 import torch.distributed as dist 
@@ -79,23 +79,24 @@ if __name__ == "__main__":
   lightning_model = LightningSerpentVAE(config = config, compile_model = False)
 
   # Define FSDP strategy
-  lightning_fsdp_strategy = FSDPStrategy(
-    auto_wrap_policy = size_based_auto_wrap_policy(
-      min_num_params = 1e6  # We only wrap modules >= 1M parameters
-      module = 
-      recurse = 
-      nonwrapped_numel = 
-    ),
-    cpu_offload = CPUOffload(offload_params=False),
-    backward_prefetch = BackwardPrefetch.BACKWARD_PRE,
-    mixed_precision = MixedPrecision(param_dtype=torch.bfloat16,  # or torch.float16
-                                   reduce_dtype=torch.bfloat16,
-                                   buffer_dtype=torch.bfloat16)
-  )
+  ddp_strategy = DDPStrategy()
+  # lightning_fsdp_strategy = FSDPStrategy(
+  #   auto_wrap_policy = size_based_auto_wrap_policy(
+  #     min_num_params = 1e6  # We only wrap modules >= 1M parameters
+  #     module = 
+  #     recurse = 
+  #     nonwrapped_numel = 
+  #   ),
+  #   cpu_offload = CPUOffload(offload_params=False),
+  #   backward_prefetch = BackwardPrefetch.BACKWARD_PRE,
+  #   mixed_precision = MixedPrecision(param_dtype=torch.bfloat16,  # or torch.float16
+  #                                  reduce_dtype=torch.bfloat16,
+  #                                  buffer_dtype=torch.bfloat16)
+  # )
 
   trainer = pl.Trainer(devices=1,
                        accelerator="gpu",
-                       strategy=lightning_fsdp_strategy, # FSDP strategy
+                       strategy=ddp_strategy, # FSDP strategy
                        max_epochs = config["num_epochs"],
                        check_val_every_n_epoch = config["eval_freq"],
                        default_root_dir= config["training_path"],
