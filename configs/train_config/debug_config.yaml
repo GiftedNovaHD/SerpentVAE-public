@@ -20,7 +20,7 @@ seed: 6969
 
 # Model configuration settings
 hidden_dim: 512
-concept_dim: 768
+concept_dim: 384
 vocab_size: 129280
 dist_desired_std: 1.0
 num_encoder_layers: 2
