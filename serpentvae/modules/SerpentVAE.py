@@ -694,6 +694,7 @@ class SerpentVAE(nn.Module):
       - Full Mutual Information
       - KL-Divergence
       - Reconstruction Error
+      - Perplexity
       - Confidence Error
       - Segmentation Prediction Error
 
@@ -905,6 +906,7 @@ class SerpentVAE(nn.Module):
                             )
    
     print(f"Reconstruction loss: {reconstruction_loss.item()}")
+    print(f"Perplexity: {torch.exp(reconstruction_loss).item()}")
     print(f"KL loss: {kl_loss.item()}")
     
     if self.enable_qnet == True:
