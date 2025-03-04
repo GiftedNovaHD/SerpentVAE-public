@@ -20,36 +20,15 @@ from torch.utils.data import DataLoader
 
 # For cleaner training loops
 import lightning as pl
-from lightning.pytorch.strategies import FSDPStrategy, DDPStrategy
-
-# For data parallel training 
-import torch.distributed as dist 
-from torch.nn.parallel import DistributedDataParallel as DDP 
-from torch.utils.data.distributed import DistributedSampler
-from torch.distributed.fsdp import (
-  FullyShardedDataParallel as FSDP, 
-  ShardingStrategy, 
-  MixedPrecision, 
-)
-from torch.distributed.fsdp.fully_sharded_data_parallel import (
-  CPUOffload, 
-  BackwardPrefetch,
-)
-from torch.distributed.fsdp.wrap import ( 
-  size_based_auto_wrap_policy, 
-  enable_wrap, 
-  wrap,
-)
 
 # PyTorch Automatic Mixed Precision (AMP)
 from torch.amp import autocast
 
-from serpentvae.utils.prep_model import prep_model
-from serpentvae.utils.prep_optimizer import prep_optimizer
 from serpentvae.modules.LightningSerpentVAE import LightningSerpentVAE
 from train_utils.config_utils import load_config # For loading configs
 from train_utils.prep_dataloaders import prep_dataset
 from train_utils.create_tokenizer import create_tokenizer
+from train_utils.prep_parallelism import prep_parallelism
 
 if __name__ == "__main__":
   parser = argparse.ArgumentParser(description='SerpentVAE Model')
@@ -81,24 +60,14 @@ if __name__ == "__main__":
   train_dataloader, test_dataloader, val_dataloader = prep_dataset(config = config, tokenizer = tokenizer)
 
   # Create model
-  lightning_model = LightningSerpentVAE(config = config, compile_model = True)
+  lightning_model = LightningSerpentVAE(config = config, compile_model = config["compile_model"])
   
-  # TODO: Working on local machine
-  fsdp_strategy = FSDPStrategy(
-    auto_wrap_policy=size_based_auto_wrap_policy,
-    cpu_offload=CPUOffload(offload_params=False),
-    backward_prefetch=BackwardPrefetch.BACKWARD_PRE,
-    mixed_precision=MixedPrecision(param_dtype=torch.bfloat16,  # or torch.float16,
-                                   reduce_dtype=torch.bfloat16,
-                                   buffer_dtype=torch.bfloat16)
-  )
-  
-  # NOTE: DDP is confirmed to work
-  ddp = DDPStrategy(process_group_backend='nccl')
+  # Create paraallelism strategy
+  parallelism_strategy = prep_parallelism(config = config)
   
   trainer = pl.Trainer(devices=1,
                        accelerator="gpu",
-                       strategy=fsdp_strategy, # FSDP Strategy
+                       strategy=parallelism_strategy, # FSDP Strategy
                        use_distributed_sampler = True,
                        max_epochs = config["num_epochs"],
                        check_val_every_n_epoch = config["eval_freq"],
