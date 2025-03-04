@@ -1,7 +1,7 @@
 # Training configuration
 dataset_path:
 dataset_name:
-train_epochs:
+num_epochs:
 eval_freq:
 model_save_folder_path:
 metrics_save_folder_path:
