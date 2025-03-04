@@ -98,8 +98,8 @@ if __name__ == "__main__":
   
   trainer = pl.Trainer(devices=1,
                        accelerator="gpu",
-                       strategy=fsdp_strategy, # DDP Strategy
-                       use_distributed_sampler =  True,
+                       strategy=fsdp_strategy, # FSDP Strategy
+                       use_distributed_sampler = True,
                        max_epochs = config["train_epochs"],
                        check_val_every_n_epoch = config["eval_freq"],
                        default_root_dir= config["training_path"],
