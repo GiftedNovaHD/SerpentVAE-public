@@ -97,10 +97,10 @@ class SerpentVAE(nn.Module):
     # Defining model components
     # NOTE: We constrain  the embedding weights to have a maximum norm of 1.0 for training stability.
     if self.share_input_embeddings:
-      self.embeddings = nn.Embedding(vocab_size, hidden_dim, max_norm = 1.0, **factory_kwargs)
+      self.embeddings = nn.Embedding(vocab_size, hidden_dim, **factory_kwargs)
     else:
-      self.encoder_embeddings = nn.Embedding(vocab_size, hidden_dim, max_norm = 1.0, **factory_kwargs)
-      self.decoder_embeddings = nn.Embedding(vocab_size, hidden_dim, max_norm = 1.0, **factory_kwargs)
+      self.encoder_embeddings = nn.Embedding(vocab_size, hidden_dim, **factory_kwargs)
+      self.decoder_embeddings = nn.Embedding(vocab_size, hidden_dim, **factory_kwargs)
 
     if self.tie_embeddings:
       if self.share_input_embeddings:

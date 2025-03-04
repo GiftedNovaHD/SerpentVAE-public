@@ -99,12 +99,12 @@ if __name__ == "__main__":
   
   trainer = pl.Trainer(devices=1,
                        accelerator="gpu",
-                       strategy=ddp, # DDP Strategy
+                       strategy=fsdp_strategy, # DDP Strategy
                        max_epochs = config["train_epochs"],
                        check_val_every_n_epoch = config["eval_freq"],
                        default_root_dir= config["training_path"],
                        profiler = "pytorch",
-                       fast_dev_run = True
+                       fast_dev_run = 2
                       )
 
   trainer.fit(model = fsdp_lightning_model, train_dataloaders = train_dataloader, val_dataloaders = val_dataloader)
