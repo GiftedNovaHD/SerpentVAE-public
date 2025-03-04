@@ -105,5 +105,6 @@ if __name__ == "__main__":
                        default_root_dir= config["training_path"],
                        profiler = "pytorch",
                        fast_dev_run = 2
+                      )
 
-  trainer.fit(model = fsdp_lightning_model, train_dataloaders = train_dataloader, val_dataloaders = val_dataloader)
+  trainer.fit(model = lightning_model, train_dataloaders = train_dataloader, val_dataloaders = val_dataloader)
