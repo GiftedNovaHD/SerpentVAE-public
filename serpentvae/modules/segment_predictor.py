@@ -5,6 +5,18 @@ import torch.nn.functional as F
 from serpentvae.modules.mlp import MLP
 
 class SegmentPredictor(nn.Module):
+  """
+  Predicts segment boundaries from hidden states.
+  This module takes the hidden states from a decoder layer and predicts segmentation information representing boundaries in the sequence.
+  
+  Attributes:
+    mlp (MLP): Multi-layer perceptron for hidden state transformation.
+    out_project (nn.Linear): Linear projection to output a single value per token.
+    hidden_dim (int): Dimension of the input hidden states.
+    inner_dim (int): Dimension of the MLP's inner layer.
+    device (torch.device, optional): Device to place the module on.
+    dtype (torch.dtype, optional): Data type for the module's parameters.
+  """
   def __init__(self,
                hidden_dim: int,
                inner_dim: int,
