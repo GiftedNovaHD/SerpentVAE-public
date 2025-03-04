@@ -787,19 +787,21 @@ class SerpentVAE(nn.Module):
     # Initialize the metrics dictionary
     if self.enable_qnet == True:
       metrics = {prefix + "num_active_units": num_active_units.item(),
-                 prefix +"vmi": vmi_loss.item(),
-                 prefix +"full_mi": full_mutual_info.item(),
-                 prefix +"kl_divergence": kl_divergence.item(),
-                 prefix +"recon_error": reconstruction_error.item(),
-                 prefix +"confidence_error": confidence_error.item(),
-                 prefix +"segment_prediction_error": segmentation_prediction_error.item(),
-                 prefix +"total_loss": total_loss.item(),
+                 prefix + "vmi": vmi_loss.item(),
+                 prefix + "full_mi": full_mutual_info.item(),
+                 prefix + "kl_divergence": kl_divergence.item(),
+                 prefix + "recon_error": reconstruction_error.item(),
+                 prefix + "perplexity": torch.exp(reconstruction_error).item(),
+                 prefix + "confidence_error": confidence_error.item(),
+                 prefix + "segment_prediction_error": segmentation_prediction_error.item(),
+                 prefix + "total_loss": total_loss.item(),
                 }
     else:
       metrics = {prefix + "num_active_units": num_active_units.item(),
                  prefix + "full_mi": full_mutual_info.item(),
                  prefix + "kl_divergence": kl_divergence.item(),
                  prefix + "recon_error": reconstruction_error.item(),
+                 prefix + "perplexity": torch.exp(reconstruction_error).item(),
                  prefix + "confidence_error": confidence_error.item(),
                  prefix + "segment_prediction_error": segmentation_prediction_error.item(),
                  prefix + "total_loss": total_loss.item()

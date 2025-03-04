@@ -39,7 +39,7 @@ class LightningSerpentVAE(pl.LightningModule):
                "train_segment_pred_loss": segment_pred_loss.item()
               }
     
-    self.log_dict(metrics)
+    self.log_dict(metrics, sync_dist = True)
 
     return total_loss
   def validation_step(self, batch: Tensor, batch_idx: int):
