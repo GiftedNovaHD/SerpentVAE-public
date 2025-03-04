@@ -76,7 +76,7 @@ if __name__ == "__main__":
   train_dataloader, test_dataloader, val_dataloader = prep_dataset(config = config, tokenizer = tokenizer)
 
   # Create model
-  lightning_model = LightningSerpentVAE(config = config, compile_model = False)
+  lightning_model = LightningSerpentVAE(config = config, compile_model = True)
 
   # Define FSDP strategy
   ddp_strategy = DDPStrategy(process_group_backend='nccl')
