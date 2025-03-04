@@ -472,28 +472,6 @@ class SerpentVAE(nn.Module):
                          dim=0
                         )
 
-    '''
-    all_kl = torch.tensor([], device = self.device)
-
-    for mu_i, logvar_i in zip(mu, logvar): 
-      var_i = torch.exp(logvar_i) # (num_subseq, concept_dim) 
-      
-      aggregated_mu = mu_i.mean(dim=0) # (concept_dim,) 
-      aggregated_second_moment = (mu_i ** 2 + var_i).mean(dim=0) # (concept_dim,)
-      aggregated_variance = aggregated_second_moment - aggregated_mu ** 2 # (concept_dim,) 
-
-      aggregated_variance = torch.clamp(aggregated_variance, min=1e-8) # (concept_dim,)
-
-      kl_divergence = 0.5 * torch.sum( 
-        torch.log(aggregated_variance) - logvar_i - 1.0 + (var_i + (mu_i - aggregated_mu) ** 2) / aggregated_variance,
-        dim=1
-      ) # (num_subseq, )
-      
-      average_kl_divergence = kl_divergence.mean() # (1, )
-      
-      all_kl = torch.cat((all_kl, average_kl_divergence.unsqueeze(0)), dim=0) # (batch_size, )#
-    
-    '''
     kl_loss = all_kl.mean() # Scalar
 
 
