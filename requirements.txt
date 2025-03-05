@@ -3,7 +3,6 @@ einops
 einx
 torch
 transformers
-wandb
 causal-conv1d
 mamba-ssm
 lightning[extra]
