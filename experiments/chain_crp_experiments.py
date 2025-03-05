@@ -9,7 +9,7 @@ from typing import Optional
 
 class ChainCRP(PyroModule): 
   """
-  Copied from ChainCRP implementation.
+  
   """
   def __init__(self, 
                theta_prior_shape: float=1.0, 
@@ -54,7 +54,11 @@ class ChainCRP(PyroModule):
         b_i = pyro.sample(f"b_{i}", dist.Bernoulli(p_boundary).to_event(1),
                           obs=segmentation_obs[:, i:i + 1] if segmentation_obs is not None else None
         )
-        segmentation[:, i] = b_i.squeeze(-1)
+
+        if b_i.dim() > 1:
+          b_i = b_i.view(batch_size)
+
+        segmentation[:, i] = b_i
 
     return segmentation.unsqueeze(-1)
   
@@ -84,12 +88,18 @@ class ChainCRP(PyroModule):
         else: 
           p_boundary = base_probability
         
+        # Sample boundary decision for token i 
         b_i = pyro.sample(f"b_{i}", dist.Bernoulli(p_boundary).to_event(1),
-                          obs=segmentation_obs[:, i:i + 1] if segmentation_obs is not None else None
+                          obs=segmentation_obs[:, i : i + 1] if segmentation_obs is not None else None
         )
-        segmentation[:, i] = b_i.squeeze(-1)
+        
+        # Ensure b_i is reshaped to (batch,) regardless of its shape 
+        if b_i.dim() > 1: 
+          b_i = b_i.view(batch_len)
+        
+        segmentation[:, i] = b_i
     
-    return segmentation.unsqueeze(-1)
+    return segmentation.unsqueeze(-1) # (batch_len, seq_len, 1)
   
   def forward(self, concept_tokens: Tensor, segmentation_obs: Optional[Tensor] = None) -> Tensor: 
     segmentation = self.guide(concept_tokens, segmentation_obs=segmentation_obs)
@@ -108,3 +118,24 @@ def runChainCRP():
   print("output segmentation shape: ", segmentation.shape)
   print("segmentation mask: ")
   print(segmentation)
+
+  print("\n=== Test 2: Test with similarity modulation ===")
+  chain_crp_sim = ChainCRP(theta_prior_shape=1.0, theta_prior_rate=1.0, use_similarity=True, similarity_threshold=0.5)
+  segmentation_sim = chain_crp_sim(dummy_concept_tokens)
+  print("Segmentation mask with similarity modulation: ")
+  print(segmentation_sim)
+
+  print('\n=== Test 3: First token is always boundary ===')
+  if not torch.all(segmentation[:, 0] == 1): 
+    raise AssertionError("Test 3 failed :( First token is not always a boundary.")
+  else: 
+    print("Test 3 passed! First token is always a boundary.")
+  
+  print('\n=== Test 4: Multiple Iterations (stochastically) ===')
+  for i in range(69): 
+    seg_iter = chain_crp(dummy_concept_tokens)
+    print(f"iteration {i + 1} segmentation: ")
+    print(seg_iter)
+
+if __name__ == "__main__": 
+  runChainCRP()
