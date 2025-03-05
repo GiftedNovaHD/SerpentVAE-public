@@ -1,85 +1,111 @@
 """
-Consider a token sequence x_1, x_2, ..., x_n, where each x_i is a token, and define a binary indicator (random variable) b_i for each position i. To enforce contiguity,
-we adopt the following convention: 
-- The first token is always a segment start, i.e. b_1 = 1.
-- For every token x_i with i >= 2, we have b_i ∈ {0, 1}. Here,
-  - b_i = 0 indicates that x_i is attached to x_{i - 1} (continuing the current segment)
-  - b_i = 1 indicates that x_i starts a new segment. 
+Consider a token sequence x_1, x_2, ..., x_n, where each x_i is a token, and define a binary indicator (random variable) b_i for each position i. 
+To enforce contiguity, we adopt the following convention:
+  - The first token is always a segment start (b_1 = 1).
+  - For every token x_i with i >= 2, b_i ∈ {0, 1}, where:
+      * b_i = 0 indicates that x_i attaches to x_{i-1} (continuing the current segment),
+      * b_i = 1 indicates that x_i starts a new segment.
+  - The segmentation decisions are determined by a restricted binary distance-dependent Chinese Restaurant Process (CRP) with concentration parameter theta. 
+  - The CRP looks at the latent vector, i.e. concept tokens and determines how to segment the input tokens, as prescribed by the `segment()` method in 
+  SerpentVAE. 
 
-The entire segmentation decisions are represented by a vector B of indicators, where B = (b_1, b_2, ..., b_n).
-
-Denote K as the number of segments in the segmentation. The computation of K is trivial and involves summing up all our indicator variables: 
-K = 1 + sum_{i=2}^n b_i
-since we fix b_i = 1 for the first token.
+The entire segmentation decisions are represented by a vector B = (b_1, b_2, ..., b_n).
+We define the number of segments as K = 1 + sum_{i=2}^n b_i.
 """
-import torch 
-from torch import nn 
-from torch import Tensor 
 
-from modules.mlp import MLP
-from modules.encoder import Encoder 
-
+import torch
+from torch import Tensor
 import pyro
 import pyro.distributions as dist
 from pyro.distributions import constraints
-from pyro.nn import PyroSample, PyroModule, PyroParam
+from pyro.nn import PyroSample, PyroModule
 
-from typing import Optional, Tuple
+from typing import Optional
 
 class ChainCRP(PyroModule): 
+  """
+  
+  """
   def __init__(self, 
-               input_dim, 
-               hidden_dim, 
-               use_hard_segmentation=False): 
-    """
-    Args: 
-      input_dim (int): The dimension D of each input token's embedding
-      hidden_dim (int): The dimension of the hidden state 
-      use_hard_segmentation (bool): If True, the module outputs a hard segmentation mask (0 or 1) using a threshold (e.g. 0.5). Otherwise, it outputs soft probabilities.
-    """
-    super().__init__() 
-    
-    self.concept_dim = hidden_dim
-    self.use_hard_segmentation = use_hard_segmentation
+               theta_prior_shape: float=1.0, 
+               theta_prior_rate: float=1.0, 
+               use_similarity: bool = False, 
+               similarity_threshold: float=0.0): 
+    super().__init__()
 
-    # The segmentation decision is defined for tokens 2...L. For token 1, we fix it as a segment start.
-    self.theta = PyroSample(lambda self: dist.Gamma(1.0, 1.0))
+    self.theta = PyroSample(lambda self: dist.Gamma(concentration=theta_prior_shape, 
+                                                    rate=theta_prior_rate)
+                                                    )
+    self.use_similarity = use_similarity
+    self.similarity_threshold = similarity_threshold
 
-  def guide(self, x: Tensor, segmentation_obs: Tensor = None) -> Tensor: 
-    """
+  
+  def model(self, concept_tokens: Tensor, segmentation_obs: Tensor = None) -> Tensor: 
+
+    batch_size, seq_len, _ = concept_tokens.shape
     
-    Args: 
-      x (Tensor): (batch_size, seq_len, hi) Input sequence of tokens 
-    """
-    batch_size, seq_len, concept_dim = x.shape 
+    # Initialize segmentation by forcing the first token to be a segment start. 
+    # Note the zero-index to set the first token to be a segment start; this differs from the mathematical notation used earlier.
+    segmentation = torch.zeros(batch_size, seq_len, device=concept_tokens.device)
+    segmentation[:, 0] = 1
 
     with pyro.plate("batch", batch_size): 
+      # Sample theta from prior 
+      theta = pyro.sample("theta", self.theta) 
+
+      for i in range(1, seq_len): 
+        # Compute base CRP probability at position i 
+        base_probability = theta / (i + theta)
+        if self.use_similarity: 
+          diff = concept_tokens[:, i, :] - concept_tokens[:, i-1, :]
+          dist_norm = torch.norm(diff, dim=-1) # (batch_size,)
+
+          similarity_factor = torch.sigmoid(dist_norm - self.similarity_threshold)
+          p_boundary = base_probability * similarity_factor
+          p_boundary = torch.clamp(p_boundary, 0.0, 1.0)
+        else: 
+          p_boundary = base_probability
+        # Sample segmentation decision b_i
+        b_i = pyro.sample(f"b_{i}", dist.Bernoulli(p_boundary).to_event(1),
+                          obs=segmentation_obs[:, i:i + 1] if segmentation_obs is not None else None
+        )
+        segmentation[:, i] = b_i.squeeze(-1)
+
+    return segmentation.unsqueeze(-1)
+  
+  def guide(self, concept_tokens: Tensor, segmentation_obs: Optional[Tensor] = None) -> Tensor: 
+    batch_len, seq_len, concept_dim = concept_tokens.shape
+    segmentation = torch.zeros(batch_len, seq_len, device=concept_tokens.device)
+    segmentation[:, 0] = 1
+
+    with pyro.plate("batch", batch_len): 
       # Variational parameters for theta 
-      theta_loc = pyro.param("theta_loc", torch.tensor(1.0, device=x.device), constraint=dist.constraints.positive)
-      theta_scale = pyro.param("theta_scale", torch.tensor(0.1, device=x.device), constraint=dist.constraints.positive) 
+      theta_loc = pyro.param("theta_loc", torch.tensor(1.0, device=concept_tokens.device), 
+                             constraint=constraints.positive)
+      theta_scale = pyro.param("theta_scale", torch.tensor(0.1, device=concept_tokens.device), 
+                               constraint=constraints.positive)
       theta = pyro.sample("theta", dist.Gamma(theta_loc, theta_scale))
 
-      # NOTE: Directly operates on concept tokens 
+      for i in range(1, seq_len): 
+        base_probability = theta / (i + theta)
 
-      # The variational distribution for the segmentation decisions is a Bernoulli distribution
-      q_segmentation = dist.Bernoulli(logits=logits).to_event(1) 
-      segmentation = pyro.sample("b", q_segmentation, obs=segmentation_obs) # (batch_size, seq_len)
+        if self.use_similarity:
+          diff = concept_tokens[:, i, :] - concept_tokens[:, i-1, :]
+          dist_norm = torch.norm(diff, dim=-1)
 
-      if self.use_hard_segmentation: 
-        segmentation = (segmentation >= 0.5).float() 
-
-      return segmentation
+          similarity_factor = torch.sigmoid(dist_norm - self.similarity_threshold)
+          p_boundary = base_probability * similarity_factor
+          p_boundary = torch.clamp(p_boundary, 0.0, 1.0)
+        else: 
+          p_boundary = base_probability
+        
+        b_i = pyro.sample(f"b_{i}", dist.Bernoulli(p_boundary).to_event(1),
+                          obs=segmentation_obs[:, i:i + 1] if segmentation_obs is not None else None
+        )
+        segmentation[:, i] = b_i.squeeze(-1)
     
-  def forward(self, x: Tensor, segmentation_obs: Tensor = None) -> Tensor: 
-    """ 
-    Runs the guide and obtains the segmentation 
-
-    Args: 
-      x (Tensor): (batch_size, seq_len, input_dim): Input sequence of tokens
-      segmentation_obs (Tensor, Optional): Observed segmentation mask 
-
-    Returns: 
-      segmentation (Tensor): (batch_size, seq_len) Segmentation decisions
-    """
-    segmentation = self.guide(x, segmentation_obs=segmentation_obs)
+    return segmentation.unsqueeze(-1)
+  
+  def forward(self, concept_tokens: Tensor, segmentation_obs: Optional[Tensor] = None) -> Tensor: 
+    segmentation = self.guide(concept_tokens, segmentation_obs=segmentation_obs)
     return segmentation
