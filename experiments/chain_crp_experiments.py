@@ -1,18 +1,3 @@
-"""
-Consider a token sequence x_1, x_2, ..., x_n, where each x_i is a token, and define a binary indicator (random variable) b_i for each position i. 
-To enforce contiguity, we adopt the following convention:
-  - The first token is always a segment start (b_1 = 1).
-  - For every token x_i with i >= 2, b_i ∈ {0, 1}, where:
-      * b_i = 0 indicates that x_i attaches to x_{i-1} (continuing the current segment),
-      * b_i = 1 indicates that x_i starts a new segment.
-  - The segmentation decisions are determined by a restricted binary distance-dependent Chinese Restaurant Process (CRP) with concentration parameter theta. 
-  - The CRP looks at the latent vector, i.e. concept tokens and determines how to segment the input tokens, as prescribed by the `segment()` method in 
-  SerpentVAE. 
-
-The entire segmentation decisions are represented by a vector B = (b_1, b_2, ..., b_n).
-We define the number of segments as K = 1 + sum_{i=2}^n b_i.
-"""
-
 import torch
 from torch import Tensor
 import pyro
@@ -24,7 +9,7 @@ from typing import Optional
 
 class ChainCRP(PyroModule): 
   """
-  
+  Copied from ChainCRP implementation.
   """
   def __init__(self, 
                theta_prior_shape: float=1.0, 
@@ -69,11 +54,7 @@ class ChainCRP(PyroModule):
         b_i = pyro.sample(f"b_{i}", dist.Bernoulli(p_boundary).to_event(1),
                           obs=segmentation_obs[:, i:i + 1] if segmentation_obs is not None else None
         )
-
-        if b_i.dim() > 1:
-          b_i = b_i.view(batch_size)
-
-        segmentation[:, i] = b_i
+        segmentation[:, i] = b_i.squeeze(-1)
 
     return segmentation.unsqueeze(-1)
   
@@ -103,19 +84,27 @@ class ChainCRP(PyroModule):
         else: 
           p_boundary = base_probability
         
-        # Sample boundary decision for token i 
         b_i = pyro.sample(f"b_{i}", dist.Bernoulli(p_boundary).to_event(1),
-                          obs=segmentation_obs[:, i : i + 1] if segmentation_obs is not None else None
+                          obs=segmentation_obs[:, i:i + 1] if segmentation_obs is not None else None
         )
-        
-        # Ensure b_i is reshaped to (batch,) regardless of its shape 
-        if b_i.dim() > 1: 
-          b_i = b_i.view(batch_len)
-        
-        segmentation[:, i] = b_i
+        segmentation[:, i] = b_i.squeeze(-1)
     
-    return segmentation.unsqueeze(-1) # (batch_len, seq_len, 1)
+    return segmentation.unsqueeze(-1)
   
   def forward(self, concept_tokens: Tensor, segmentation_obs: Optional[Tensor] = None) -> Tensor: 
     segmentation = self.guide(concept_tokens, segmentation_obs=segmentation_obs)
     return segmentation
+  
+def runChainCRP(): 
+  batch_size, seq_len, concept_dim = 2, 10, 16 
+
+  dummy_concept_tokens = torch.randn(batch_size, seq_len, concept_dim)
+
+  print("=== Test 1: Basic test (no similarity modulation) ===")
+  # Initialize ChainCRP 
+  chain_crp = ChainCRP(theta_prior_shape=1.0, theta_prior_rate=1.0, use_similarity=False)
+  segmentation = chain_crp(dummy_concept_tokens)
+  print("input shape: ", dummy_concept_tokens.shape)
+  print("output segmentation shape: ", segmentation.shape)
+  print("segmentation mask: ")
+  print(segmentation)
