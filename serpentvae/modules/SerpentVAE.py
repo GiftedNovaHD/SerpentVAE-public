@@ -19,6 +19,7 @@ from serpentvae.modules.confidencemodule import ConfidenceModule
 from serpentvae.modules.qnet import QNet # Auxiliary Network
 from serpentvae.modules.segment_predictor import SegmentPredictor
 from serpentvae.ops.sigmoid_focal_loss import sigmoid_focal_loss
+from serpentvae.modules.module_utils.subseq_len_utils import count_whitelisted_tokens, filter_index
 
 class SerpentVAE(nn.Module):
   def __init__(self,
@@ -673,6 +674,96 @@ class SerpentVAE(nn.Module):
 
     return decoded_logits, mu, logvar, sampled_latents, segmentation_indices, predicted_segments, predicted_confidence
   
+  def avg_subseq_length(self,
+                        correct_input_ids: Tensor,
+                        segmentation_indices: Tensor
+                       ) -> int:
+    """
+    Calculate the average subsequence length
+
+    We need to do some special handling to remove the EOS tokens at the front used for padding
+
+    Args:
+      correct_input_ids (Tensor): This is the ids from the tokenizer(batch_size, seq_len, 1)
+      segmentation_indices (Tensor):  This is a bitmask where 1 represents the start of a subsequence (batch_size, seq_len, 1)
+
+    Returns:
+        avg_subseq_length (int): Average subsequence length
+
+    NOTE:
+    BOS token_id: 0
+    EOS token_id: 1
+    _pad_ token_id: 2
+    """
+    # DEBUG:
+    #print(f"correct_input_ids: {correct_input_ids}")
+
+    # Calculate the number of content tokens
+    num_content_tokens = count_whitelisted_tokens(tensor = correct_input_ids, blacklist = [1, 2], device = self.device)
+
+    #print(f"num_content_tokens: {num_content_tokens}")
+
+    sentence_start_indices = filter_index(tensor = correct_input_ids.clone(), blacklist = 1, device = self.device)
+
+    #print(f"sentence_start_indices: {sentence_start_indices}")
+
+    batch_size, seq_len, _ = correct_input_ids.shape
+
+    total_num_subsequences = 0
+
+    for batch_idx in range(batch_size):
+      batch_start_idx = sentence_start_indices[batch_idx] # (1, )
+      batch_segmentation_indices = segmentation_indices[batch_idx].squeeze(-1) # (seq_len, 1) -> (seq_len,)
+
+      # Remove the EOS tokens at the front
+      batch_segmentation_indices = batch_segmentation_indices[batch_start_idx:]
+
+      # Remove all non-subsequence starts
+      batch_segmentation_indices = batch_segmentation_indices[batch_segmentation_indices == 1]
+
+      # Count the number of subsequences
+      num_subsequences = batch_segmentation_indices.sum().item()
+      total_num_subsequences += num_subsequences
+    
+    avg_subseq_length = num_content_tokens / total_num_subsequences
+
+    return avg_subseq_length
+  
+  def num_active_units(self,
+                       mu: Tensor,
+                       threshold: float = 1e-2
+                      ) -> int:
+    """
+    Calculate number of active units in latent variables
+    We basically calculate the covariance between the latent variables and see if they are above a threshold 
+
+    A_u = Cov_x(E_u~q(u|x)[u])
+
+    Args:
+      mu (List[Tensor]): (batch_size, num_subseq, concept_dim) Mean of the approximate posterior distribution 
+      threshold (float): Threshold for considering a unit active
+
+    Returns:
+      num_active_units: Number of active units
+    """
+    # Center the means
+    all_mu = torch.tensor([], device=self.device)
+
+    for mu_i in mu:
+      all_mu = torch.cat((all_mu, mu_i), dim=0) # (batch_size, num_subseq, concept_dim) ->  (batch_size * num_subseq, concept_dim)
+
+    centered_mu = all_mu - all_mu.mean(dim=0, keepdim=True)
+
+    # Compute covariance matrix
+    cov = torch.matmul(centered_mu.T, centered_mu) / (all_mu.size(0) - 1)
+
+    # Compute the variance of each latent variable
+    variances = torch.diag(cov)
+
+    # Compute the number of active units
+    num_active_units = torch.sum(variances > threshold)
+
+    return num_active_units
   def metrics(self,
               input_ids: Tensor,
               z: Tensor,
@@ -720,7 +811,6 @@ class SerpentVAE(nn.Module):
     dedup_mu = [] # (batch_size, num_subseq, concept_dim)
     dedup_logvar = [] # (batch_size, num_subseq, concept_dim)
 
-
     # Remove unnecessary elements in mu and logvar
     start_indices = bitmask_to_start_indices(segmentation_indices)
     # NOTE: Inclusive is set to True as we are directly indexing for the end index
@@ -766,6 +856,10 @@ class SerpentVAE(nn.Module):
     full_mutual_info = self.statistical_mi(mu = dedup_mu,
                                            logvar = dedup_logvar
                                           )
+
+    # Calculate the average subsequence length
+    avg_subseq_length = self.avg_subseq_length(correct_input_ids = input_ids,
+                                               segmentation_indices = segmentation_indices)
     
     # Calculate the confidence error
     confidence_error = self.confidence_loss(confidence_estimates = confidence_estimates,
@@ -793,6 +887,7 @@ class SerpentVAE(nn.Module):
                  prefix + "kl_divergence": kl_divergence.item(),
                  prefix + "recon_error": reconstruction_error.item(),
                  prefix + "perplexity": torch.exp(reconstruction_error).item(),
+                 prefix + "avg_subsequence_len": avg_subseq_length,
                  prefix + "confidence_error": confidence_error.item(),
                  prefix + "segment_prediction_error": segmentation_prediction_error.item(),
                  prefix + "total_loss": total_loss.item(),
@@ -803,48 +898,13 @@ class SerpentVAE(nn.Module):
                  prefix + "kl_divergence": kl_divergence.item(),
                  prefix + "recon_error": reconstruction_error.item(),
                  prefix + "perplexity": torch.exp(reconstruction_error).item(),
+                 prefix + "avg_subsequence_len": avg_subseq_length,
                  prefix + "confidence_error": confidence_error.item(),
                  prefix + "segment_prediction_error": segmentation_prediction_error.item(),
                  prefix + "total_loss": total_loss.item()
                 }
     
     return metrics
-  
-  def num_active_units(self,
-                       mu: Tensor,
-                       threshold: float = 1e-2
-                      ) -> int:
-    """
-    Calculate number of active units in latent variables
-    We basically calculate the covariance between the latent variables and see if they are above a threshold 
-
-    A_u = Cov_x(E_u~q(u|x)[u])
-
-    Args:
-      mu (List[Tensor]): (batch_size, num_subseq, concept_dim) Mean of the approximate posterior distribution 
-      threshold (float): Threshold for considering a unit active
-
-    Returns:
-      num_active_units: Number of active units
-    """
-    # Center the means
-    all_mu = torch.tensor([], device=self.device)
-
-    for mu_i in mu:
-      all_mu = torch.cat((all_mu, mu_i), dim=0) # (batch_size, num_subseq, concept_dim) ->  (batch_size * num_subseq, concept_dim)
-
-    centered_mu = all_mu - all_mu.mean(dim=0, keepdim=True)
-
-    # Compute covariance matrix
-    cov = torch.matmul(centered_mu.T, centered_mu) / (all_mu.size(0) - 1)
-
-    # Compute the variance of each latent variable
-    variances = torch.diag(cov)
-
-    # Compute the number of active units
-    num_active_units = torch.sum(variances > threshold)
-
-    return num_active_units
 
   def train_step(self, correct_input_ids: Tensor):
     """
@@ -874,7 +934,6 @@ class SerpentVAE(nn.Module):
     end_indices = bitmask_to_end_indices(segmentation_indices, inclusive = True)
     # end_indices (batch_size, num_subseq)
 
-
     # Format sampled_latents, mu and logvar
     formatted_sampled_latents = []
     formatted_mu = []
@@ -882,16 +941,16 @@ class SerpentVAE(nn.Module):
 
     # Iterate over batch elements
     for batch_idx, seq_end_indices in enumerate(end_indices):
-      seq_sampled_latents = torch.tensor([], device = self.device)
-      seq_mu = torch.tensor([], device = self.device)
-      seq_logvar = torch.tensor([], device = self.device)
+      seq_sampled_latents = torch.tensor([], device = self.device) # (num_subseq, concept_dim)
+      seq_mu = torch.tensor([], device = self.device) # (num_subseq, concept_dim)
+      seq_logvar = torch.tensor([], device = self.device) # (num_subseq, concept_dim)
       
       for end_index in seq_end_indices:
         # NOTE: To correctly index batch elements, we use the batch_idx batch element and the end_index in the sequence dimension
         seq_sampled_latents = torch.cat((seq_sampled_latents, sampled_latents[batch_idx, end_index].unsqueeze(0)), dim = 0)
         seq_mu = torch.cat((seq_mu, mu[batch_idx, end_index].unsqueeze(0)), dim = 0)
         seq_logvar = torch.cat((seq_logvar, logvar[batch_idx, end_index].unsqueeze(0)), dim = 0)
-      
+
       formatted_sampled_latents.append(seq_sampled_latents)
       formatted_mu.append(seq_mu)
       formatted_logvar.append(seq_logvar)
@@ -908,6 +967,13 @@ class SerpentVAE(nn.Module):
     print(f"Reconstruction loss: {reconstruction_loss.item()}")
     print(f"Perplexity: {torch.exp(reconstruction_loss).item()}")
     print(f"KL loss: {kl_loss.item()}")
+
+    # Calculate the average subsequence length
+    avg_subseq_length = self.avg_subseq_length(correct_input_ids = correct_input_ids,
+                                               segmentation_indices = segmentation_indices
+                                              )
+
+    print(f"Average subsequence length: {avg_subseq_length}")
     
     if self.enable_qnet == True:
       print(f"VMI loss: {vmi_loss_term.item()}")
