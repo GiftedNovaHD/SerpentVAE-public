@@ -42,6 +42,6 @@ class SegmentPredictor(nn.Module):
     """
     x = self.mlp(decoder_last_hidden_state) # (batch_size, seq_len, hidden_dim) -> (batch_size, seq_len, hidden_dim)
     x = self.out_project(x) # (batch_size, seq_len, hidden_dim) -> (batch_size, seq_len, 1)
-    x = F.tanh(x)
+    x = F.sigmoid(x)
 
     return x
