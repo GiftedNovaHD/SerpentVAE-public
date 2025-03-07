@@ -1,0 +1,33 @@
+{ 
+  "name": "Production/Debug",
+
+  "build": {
+    "dockerfile": "prod_config.dockerfile"
+  },
+
+  "features": {
+    // Download latest version of Anaconda
+    "ghcr.io/devcontainers/features/anaconda:1": {
+      "version": "latest"
+    },
+
+    // Download latest version of CUDA and related tools
+    "ghcr.io/devcontainers/features/nvidia-cuda:1": { 
+      "installCudnn": true,
+      "installNvtx": true,
+      "installToolkit": true,
+      "cudaVersion": "12.8",
+      "cudnnVersion": "9.8.0"
+    },
+
+    // Install GitHub CLI
+    "ghcr.io/devcontainers/features/github-cli:1": {
+      "version": "latest",
+      "installDirectlyFromGitHubRelease": true
+    }
+  },
+    
+  "hostRequirements": {
+    "gpu": "optional" // To enable GPU passthrough
+  }
+}
