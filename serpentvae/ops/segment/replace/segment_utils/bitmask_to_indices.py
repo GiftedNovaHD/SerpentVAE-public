@@ -9,7 +9,7 @@ def bitmask_to_start_indices(bitmask:Tensor,
   Convert the bitmask of segmentation methods of shape (batch_size, seq_len, 1) to indices of the start of subsequences
   
   Args:
-    bitmask (Tensor): Tensor of shape (batch_size, seq_len, 1)
+    bitmask (Tensor): Tensor of shape (batch_size, seq_len, 1) bitmask of end of subsequences
     value_to_index (bool): If True, returns indices of True values. If False, returns indices of False values.
       
   Returns:
@@ -26,9 +26,17 @@ def bitmask_to_start_indices(bitmask:Tensor,
   for batch_idx in range(batch_size):
     seq_bitmask = bitmask[batch_idx] # Shape is (seq_len,)
 
-    # Get the indices of True values
+    # Get the indices of True values - These are the end indices
     seq_indices = torch.nonzero(seq_bitmask, as_tuple=True)[0]
     seq_indices = seq_indices.int()
+
+    seq_indices = seq_indices[:-1] # Remove the last end
+    seq_indices = seq_indices + 1 # Add 1 to get the start by shifting all elements to the right
+    seq_indices = torch.cat(tensors=(torch.tensor([0], dtype=torch.int32, device=seq_bitmask.device),
+                                     seq_indices
+                                    ), 
+                            dim = 0
+                           ) # Add 0 as the first start index
 
     batch_indices.append(seq_indices)
   
@@ -42,7 +50,7 @@ def bitmask_to_end_indices(bitmask: Tensor,
   Convert the bitmask of segmentation methods of shape (batch_size, seq_len, 1) to indices of the end of subsequences
 
   Args:
-    bitmask (Tensor): Tensor of shape (batch_size, seq_len, 1)
+    bitmask (Tensor): Tensor of shape (batch_size, seq_len, 1) bitmask of end of subsequences
     value_to_index (bool): If True, returns indices of True values. If False, returns indices of False values.
     inclusive (bool): If True, returns the index of the last element of the subsequence. If False, returns the index of the element after the last element of the subsequence
   
@@ -65,16 +73,8 @@ def bitmask_to_end_indices(bitmask: Tensor,
     seq_indices = torch.nonzero(seq_bitmask, as_tuple=True)[0]
     seq_indices = seq_indices.int()
 
-    seq_indices = torch.cat(
-                    (seq_indices,
-                             torch.tensor([seq_len], dtype=torch.int32, device=seq_bitmask.device)
-                            )
-                           )
-    
-    seq_indices = seq_indices[1:] # Remove the first start
-
-    if inclusive:
-      seq_indices = seq_indices - 1
+    if not inclusive:
+      seq_indices = seq_indices + 1
 
     batch_indices.append(seq_indices)
   
@@ -83,8 +83,8 @@ def bitmask_to_end_indices(bitmask: Tensor,
 # Example usage
 if __name__ == "__main__":
   bitmask = torch.tensor(
-                    [[[True], [False], [True], [False], [False]],
-                          [[True], [True], [True], [False], [True]]
+                    [[[False], [True], [True], [False], [True]],
+                          [[True], [True], [False], [False], [True]]
                          ]) # Dimension is (batch, seq_len, 1)
   dim = 1
   value_to_index = True

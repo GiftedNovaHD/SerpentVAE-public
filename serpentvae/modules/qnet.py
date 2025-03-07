@@ -105,7 +105,7 @@ class QNet(nn.Module):
       decoder_output (Tensor): (batch_size, seq_len, hidden_dim / vocab_size) Output of the decoder
       NOTE: Will be logits if using discrete tokens, else will be the hidden states of the decoder
       input_ids (Tensor): (batch_size, seq_len, 1) Input ground truth token IDs
-      segmentation_indices (Tensor): (batch_size, seq_len, 1) Binary mask indicating segment start positions
+      segmentation_indices (Tensor): (batch_size, seq_len, 1) Binary mask indicating segment end positions
     
     Returns: 
       mu_q (List[Tensor]): (batch_size, num_subseq, latent_dim) Predicted mean of the Gaussian over z

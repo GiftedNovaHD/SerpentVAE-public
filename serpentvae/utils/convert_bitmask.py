@@ -1,32 +1,33 @@
 import torch
 from torch import Tensor
 
-def convert_bitmask(input_bitmask: Tensor):
+def convert_bitmask(end_bitmask: Tensor):
   """
-  Convert a bitmask that signifies the start of each subsequence into a bitmask that signifies the end of each subsequence
+  Convert a bitmask that signifies the end of each subsequence into a bitmask that signifies the start of each subsequence
 
   Args:
-    input_bitmask (Tensor): (batch_size, seq_len, 1)
+    end_bitmask (Tensor): (batch_size, seq_len, 1)
   
   Returns:
-    end_bitmask (Tensor): (batch_size, seq_len, 1)
+    start_bitmask (Tensor): (batch_size, seq_len, 1)
   """
-  batch_size, seq_len, _ = input_bitmask.size()
+  batch_size, seq_len, _ = end_bitmask.size()
 
-  end_bitmask = torch.zeros_like(input_bitmask)
+  start_bitmask = torch.zeros_like(end_bitmask)
+  
+  # Shift every element to the right by 1
+  start_bitmask[:, 1:, :] = end_bitmask[: , :-1, :]
 
-  end_bitmask[:, :-1, :] = input_bitmask[:, 1:, :] # Shift every element to the left by 1 along the seq_len dimension
+  start_bitmask[:, 0, :] = 1 
 
-  end_bitmask[:, -1, :] = 1 
-
-  return end_bitmask
+  return start_bitmask
 
 def test_convert_bitmask():
     # Test 1: Single batch, sequence length 5.
-    # Input: [1, 0, 1, 0, 0]
-    # Expected output: [0, 1, 0, 0, 1]
-    input_tensor = torch.tensor([[[1], [0], [1], [0], [0]]], dtype=torch.float)
-    expected_output = torch.tensor([[[0], [1], [0], [0], [1]]], dtype=torch.float)
+    # Input: [0, 1, 0, 0, 1]
+    # Expected output: [1, 0, 1, 0, 0]
+    input_tensor = torch.tensor([[[0], [1], [0], [0], [1]]], dtype=torch.float)
+    expected_output = torch.tensor([[[1], [0], [1], [0], [0]]], dtype=torch.float)
     output = convert_bitmask(input_tensor)
     assert torch.equal(output, expected_output), f"Test 1 Failed: expected {expected_output}, got {output}"
 
@@ -39,15 +40,15 @@ def test_convert_bitmask():
     assert torch.equal(output, expected_output), f"Test 2 Failed: expected {expected_output}, got {output}"
 
     # Test 3: Multiple batches.
-    # Batch 1: Input: [1, 0, 1, 0] -> Expected: [0, 1, 0, 1]
-    # Batch 2: Input: [1, 1, 0, 1] -> Expected: [1, 0, 1, 1]
+    # Batch 1: Input: [0, 1, 0, 1] -> Expected: [1, 0, 1, 0]
+    # Batch 2: Input: [1, 0, 1, 1] -> Expected: [1, 1, 0, 1]
     input_tensor = torch.tensor([
-        [[1], [0], [1], [0]],
-        [[1], [1], [0], [1]]
-    ], dtype=torch.float)
-    expected_output = torch.tensor([
         [[0], [1], [0], [1]],
         [[1], [0], [1], [1]]
+    ], dtype=torch.float)
+    expected_output = torch.tensor([
+        [[1], [0], [1], [0]],
+        [[1], [1], [0], [1]]
     ], dtype=torch.float)
     output = convert_bitmask(input_tensor)
     assert torch.equal(output, expected_output), f"Test 3 Failed: expected {expected_output}, got {output}"
