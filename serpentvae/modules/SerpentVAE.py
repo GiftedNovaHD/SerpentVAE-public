@@ -7,10 +7,15 @@ from torch.nn import functional as F
 
 from einops import rearrange
 
+# Import utilities for bitmask
 from serpentvae.utils.convert_bitmask import convert_bitmask
 
+# Import helper operations
 from serpentvae.ops.segment.replace.segment_utils.bitmask_to_indices import bitmask_to_start_indices, bitmask_to_end_indices
+from serpentvae.ops.sigmoid_focal_loss import sigmoid_focal_loss
+from serpentvae.ops.segment.replace.use_last import use_last_replacement
 
+# Import modules
 from serpentvae.modules.tied_linear import TiedLinear
 from serpentvae.modules.encoder import Encoder
 from serpentvae.modules.decoder import Decoder
@@ -18,7 +23,9 @@ from serpentvae.modules.distributions.scaled_normal import ScaledNormal
 from serpentvae.modules.confidencemodule import ConfidenceModule
 from serpentvae.modules.qnet import QNet # Auxiliary Network
 from serpentvae.modules.segment_predictor import EncoderSegmentPredictor, DecoderSegmentPredictor
-from serpentvae.ops.sigmoid_focal_loss import sigmoid_focal_loss
+from serpentvae.ops.segment.boundary.chaincrp_grad import ChainCRP
+
+# Import module utils for calculating average subsequence length
 from serpentvae.modules.module_utils.subseq_len_utils import count_whitelisted_tokens, filter_index
 
 class SerpentVAE(nn.Module):
@@ -36,6 +43,7 @@ class SerpentVAE(nn.Module):
                mlp_inner_dim: int,
                confidence_module_inner_dim: int,
                segment_predictor_inner_dim: int,
+               use_odds_ratio: bool = False,
                enable_qnet: bool = True,
                num_qnet_layers: Optional[int] = None,
                qnet_conv_length: Optional[int] = None,
@@ -67,6 +75,9 @@ class SerpentVAE(nn.Module):
     self.confidence_module_inner_dim = confidence_module_inner_dim
     self.segment_predictor_inner_dim = segment_predictor_inner_dim
 
+    # Segmentation configuration settings
+    self.use_odds_ratio = use_odds_ratio
+
     # Q-Net configuration settings
     self.enable_qnet = enable_qnet
     self.num_qnet_layers = num_qnet_layers
@@ -84,6 +95,8 @@ class SerpentVAE(nn.Module):
     self.residual_in_fp32 = residual_in_fp32
     self.device = torch.device(device) if device is not None else torch.device('cuda')
     self.dtype = dtype if dtype is not None else torch.float16
+
+    
 
     factory_kwargs = {"device": self.device, "dtype": self.dtype}
 
@@ -162,9 +175,17 @@ class SerpentVAE(nn.Module):
                        device = self.device,
                        dtype = self.dtype
                       )
-                     
+    
+    # Instantiate ChainCRP
+    self.chain_crp = ChainCRP(use_odds_ratio = self.use_odds_ratio,
+                              dtype = self.dtype,
+                              device = self.device
+                             )
+    
+    # Set previous batch reconstruction loss 
+    self.prev_batch_recon_loss = torch.tensor([50], dtype = self.dtype, device = self.device)
 
-    # Instatiate the segment predictor
+    # Instantiate the segment predictor
     self.encoder_segment_predictor = EncoderSegmentPredictor(hidden_dim = hidden_dim,
                                                              inner_dim = segment_predictor_inner_dim,
                                                              device = self.device,
@@ -183,9 +204,9 @@ class SerpentVAE(nn.Module):
              hidden_states: Tensor,
              inference_params=None,
              **kwargs
-            ) -> Tuple[Tensor, Tensor]:
+            ) -> Tensor:
     """
-    Produce mu and logvar for each token, segmentation decisions do not occur here
+    Produce hidden states for each token
 
     Args:
       hidden_states (Tensor): (batch_size, seq_len, hidden_dim)
@@ -195,8 +216,6 @@ class SerpentVAE(nn.Module):
       **kwargs: Additional keyword arguments
 
     Returns:
-      mu (Tensor): (batch_size, seq_len, concept_dim)
-      logvar (Tensor): (batch_size, seq_len, concept_dim)
       hidden_states (Tensor): (batch_size, seq_len, hidden_dim)
     """
     
@@ -224,29 +243,44 @@ class SerpentVAE(nn.Module):
   
   def segment(self,
               concept_tokens: Tensor,
-              boundary_function: Callable,
-              replacement_function: Callable
+              encoder_segment_predictions: Tensor,
+              boundary_function: nn.Module,
+              replacement_function: Callable,
+              padding_mask: Tensor
              ) -> Tuple[Tensor, Tensor]:
     """
     Decides how to segment a sequence of input tokens based on the concept tokens
 
     Args:
       concept_tokens (Tensor): (batch_size, seq_len, concept_dim)
-      boundary_function (Callable): Function that decides whether to segment or not
+      encoder_segment_predictions (Tensor): (batch_size, seq_len, 1)
+      boundary_function (nn.Module): Pytorch module that decides whether to segment or not
       replacement_function (Callable): Function that decides how to replace the concept tokens for decoding
+      padding_mask (Tensor): Bitmask to handle so that model learns how to correctly predict the end of a sequence
     
     Returns: 
       segmented_concept_tokens (Tensor): (batch_size, seq_len, concept_dim)
       segment_indices (Tensor): (batch_size, seq_len, 1)
     """
-    batch_size = concept_tokens.size(0)
-    seq_len = concept_tokens.size(1)
-    # TODO: Wait for confirmation on NetCRP implementation
+    batch_size, seq_len, _ = encoder_segment_predictions.shape
+    
+    # Obtain bitmask
+    segmentation_indices = boundary_function(encoder_segment_predictions = encoder_segment_predictions,
+                                             prev_batch_recon_loss = self.prev_batch_recon_loss
+                                            )
+
+    # Perform a bitwise OR operation to correctly mark padding EOS tokens at ends of subsequences
+    segmentation_indices = segmentation_indices | padding_mask
+
+    # Apply bitmask to replace concept tokens
+    replaced_concept_tokens = replacement_function(concept_tokens = concept_tokens,
+                                                   segment_indices = segmentation_indices
+                                                  )
 
     # NOTE: This direct return is for testing purposes only
-    return concept_tokens, torch.ones(batch_size, seq_len, 1, device=concept_tokens.device)
+    # return concept_tokens, torch.ones(batch_size, seq_len, 1, device=concept_tokens.device)
     
-    raise NotImplementedError
+    return replaced_concept_tokens, segmentation_indices
   
   def confidence(self,
                  enc_hidden_states: Tensor,
@@ -523,8 +557,8 @@ class SerpentVAE(nn.Module):
     Calculates the loss for the segmentation prediction module
 
     Here, we use a binary focal loss with 2 classes 
-     -1 for staying on the current concept token(s) 
-     -1 for changing to the next concept token
+      0 for staying on the current concept token(s) 
+      1 for changing to the next concept token
     Note that we assume that the higher level model decides when to stop generating concept tokens
     So we just keep decoding as long as we have not run out of concept tokens
     
@@ -652,6 +686,13 @@ class SerpentVAE(nn.Module):
       decoder_predicted_segments (Tensor): (batch_size, seq_len, 1)
       predicted_confidence (Tensor): (batch_size, seq_len, 1)
     """
+    # Generate padding mask for ChainCRP
+    # NOTE: 
+    # EOS token_id: 1
+    # _pad_ token_id: 2
+    padding_mask = torch.isin(input_ids.clone(), torch.tensor([1, 2]))
+    padding_mask = padding_mask.int()
+
     # Transform with embeddings
     if self.share_input_embeddings:
       enc_hidden_states = self.embeddings(input_ids).squeeze(2) # (batch_size, seq_len, 1) -> (batch_size, seq_len, hidden_dim)
@@ -664,20 +705,22 @@ class SerpentVAE(nn.Module):
     hidden_states = self.encode(enc_hidden_states) # (batch_size, seq_len, hidden_dim) -> mu: (batch_size, seq_len, hidden_dim), logvar: (batch_size, seq_len, hidden_dim)
 
     # Sample the concept tokens from the latent 
-    sampled_latents, mu, logvar = self.sample(hidden_states) # mu: (batch_size, seq_len, hidden_dim), logvar: (batch_size, seq_len, hidden_dim) -> (batch_size, seq_len, hidden_dim)
+    sampled_latents, mu, logvar = self.sample(hidden_states) # mu: (batch_size, seq_len, concept_dim), logvar: (batch_size, seq_len, concept_dim) -> (batch_size, seq_len, concept_dim)
     # across seq_len, we have a different mu and logvar
-
-    # Segment the concepts 
-    def dummy():
-      return None
-
-    segmented_concept_tokens, segmentation_indices = self.segment(concept_tokens = sampled_latents,
-                                                                  boundary_function = dummy, 
-                                                                  replacement_function = dummy
-                                                                 ) # (batch_size, seq_len, hidden_dim) -> (batch_size, seq_len, hidden_dim)
 
     # Predict encoder segmentation
     encoder_predicted_segments = self.encoder_segmentation_predictions(hidden_states) # (batch_size, seq_len, hidden_dim) -> (batch_size, seq_len, 1)
+
+    # Segment the concepts (originally for testing)
+    # def dummy():
+    #  return None
+
+    segmented_concept_tokens, segmentation_indices = self.segment(concept_tokens = sampled_latents,
+                                                                  encoder_segment_predictions = encoder_predicted_segments,
+                                                                  boundary_function = self.chain_crp, 
+                                                                  replacement_function = use_last_replacement,
+                                                                  padding_mask = padding_mask
+                                                                 ) # (batch_size, seq_len, concept_dim) -> (batch_size, seq_len, concept_dim)
 
     # Predict reconstruction error (Confidence) 
     predicted_confidence = self.confidence(hidden_states, sampled_latents) # (batch_size, seq_len, 1)
@@ -999,6 +1042,9 @@ class SerpentVAE(nn.Module):
                              segmentation_indices = segmentation_indices,
                              decoder_output = predicted_logits
                             )
+
+    # Update previous batch reconstruction loss
+    self.prev_batch_recon_loss = reconstruction_loss
    
     print(f"Reconstruction loss: {reconstruction_loss.item()}")
     print(f"Perplexity: {torch.exp(reconstruction_loss).item()}")

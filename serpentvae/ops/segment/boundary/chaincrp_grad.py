@@ -1,67 +1,106 @@
+"""
+Consider a token sequence x_1, x_2, ..., x_n, where each x_i is a token, and define a binary indicator (random variable) b_i for each position i. 
+To enforce contiguity, we adopt the following convention:
+  - The first token is always a segment start (b_1 = 1).
+  - For every token x_i with i >= 2, b_i ∈ {0, 1}, where:
+      * b_i = 0 indicates that x_i attaches to x_{i-1} (continuing the current segment),
+      * b_i = 1 indicates that x_i starts a new segment.
+"""
+
 import torch
-from torch import Tensor
-from torch import nn
 import torch.nn.functional as F
 
-import pyro 
-from pyro import distributions as dist
-from pyro.distributions import constraints, RelaxedBernoulli
-from pyro.nn import PyroSample, PyroModule
+from torch import Tensor
+from torch import nn
+from torch.distributions import ContinuousBernoulli
 
 from typing import Optional 
 
-class ChainCRP(PyroModule): 
+# Import module utils for ensuring EOS padding tokens at the front are handled correctly
+from serpentvae.modules.module_utils.subseq_len_utils import count_whitelisted_tokens, filter_index
+
+class ChainCRP(nn.Module): 
   def __init__(self, 
-               theta_init: float=1.0, 
-               tau: float=0.1, 
-               use_similarity: bool = False,
-               similarity_threshold: float=0.0
-               ):
+               use_odds_ratio: bool = True,
+               dtype: torch.dtype = None,
+               device: torch.device = None
+               ): 
+    """
+    Initializes a differentiable ChainCRP module that takes in the concentration parameter as well as the probability of a boundary between the current 
+    token and the next token. 
+    """
     super().__init__()
 
-    self.log_theta = nn.Parameter( # Make theta a learnable parameter
-      torch.log( # Enforce positivity of theta
-        torch.tensor(theta_init) # Pyro's relaxed Bernoulli needs this
-        )
-      )
+    self.use_odds_ratio = use_odds_ratio 
+    self.dtype = dtype
+    self.device = device
     
-    self.tau = tau 
-    self.use_similarity = use_similarity
-    self.similarity_threshold = similarity_threshold
-
-  def forward(self, concept_tokens: Tensor) -> Tensor: 
+  def forward(self,
+              encoder_segmentation_predictions: Tensor,
+              prev_batch_recon_loss: Tensor
+              ): 
     """
-    Computes the segmentation decisions for a batch of (concept) token sequences
-
-    """
-    batch_size, seq_len, _ = concept_tokens.shape
-    device = concept_tokens.device 
-
-    theta = F.softplus(self.log_theta) # Scalar 
-
-    indices = torch.arange(1, seq_len, device=device, dtype=theta.dtype)
-
-    base_probability = theta / (indices + theta) # (seq_len - 1,)
-    base_probability = base_probability.unsqueeze(0).expand(batch_size, -1)
-
-    if self.use_similarity: 
-      diff = concept_tokens[:, 1:, :] - concept_tokens[:, :-1, :] # (batch_size, seq_len - 1, concept_dim)
-
-      dist_norm = torch.norm(diff, dim=-1) 
+    Given a batch of encoder segmentation predictions
+    1. For each token in the sequence, obtain the probability p_{i} of a boundary between the current token and the next token from
+    the encoder segmentation predictions, i.e. NeuralPredictor. 
+    2. Derive the concetration parameter theta from the previous batch's reconstruction loss. Note that theta is inversely relatedto
+    to the reconstruction loss. 
+    
+    IF use_odds_ratio: 
+      3. Compute Odds_{NeuralPredictor} * Odds_{CRP} 
+      How it works: 
+        - When NeuralPredictor is confident that a boundary should occur, (p_{n} * theta) becomes large relative to the denominator, so 
+        overall probability approaches 1. The converse is trivial when NeuralPredictor is confident that a boundary should not occur.
       
-      similarity_factor = torch.sigmoid(dist_norm - self.similarity_threshold) 
-
-      probability_boundary = base_probability * similarity_factor
-      probability_boundary = torch.clamp(probability_boundary, 0.0, 1.0)
-    else: 
-      probability_boundary = base_probability
     
-    relaxed_bernoulli = RelaxedBernoulli(temperature=self.tau, probs=probability_boundary)
+    ELSE: 
+      3. P(b_{i} = 1) = p_{i} * [ theta / (i + theta) ]
+      How it works: 
 
-    samples = relaxed_bernoulli.rsample()
+    Args: 
+      encoder_segmentation_predictions (Tensor): (batch_size, seq_len, 1) 
+      prev_batch_recon_loss (Tensor): (1, )
+      
+    Returns: 
+      segmentation_decisions (Tensor): (batch_size, seq_len, 1)
+    """
+    batch_size, seq_len, _ = encoder_segmentation_predictions.shape
+    
+    p_n_squeezed = encoder_segmentation_predictions.squeeze(-1) # (batch_size, seq_len, 1) -> (batch_size, seq_len)
+    
+    segmentation = torch.zeros(batch_size, seq_len, device = self.device, dtype = self.dtype)
+    segmentation[:, 0] = 1
 
-    first_token = torch.ones(batch_size, 1, device=device, dtype=samples.dtype)
+    eps = 1e-8
+    # Differentiable scalar parameter theta
+    theta = 1.0 / (prev_batch_recon_loss + eps) # (1, ) -> (1, ) 
+    theta = torch.log(theta) # Clamp theta to prevent it from exploding too much
 
-    segmentation = torch.cat([first_token, samples], dim=1)
+    # Prepare indices for tokens 1,..., L - 1 (0-indexing, but for CRP math notation, we use 1-indexed positions.
+    # NOTE: Might want to do some subscript notation when writing paper to make this clear.
+    indices = torch.arange(1, seq_len, device=self.device, dtype=theta.dtype) # (seq_len - 1, )
 
-    return segmentation.unsqueeze(-1)
+    if self.use_odds_ratio: 
+      p_n_squeezed_sub = p_n_squeezed[:, 1:] # (batch_size, seq_len) -> (batch_size, seq_len - 1)
+      
+      # Compute the odds ratio for for each p_{n} 
+      neural_odds = p_n_squeezed_sub / (1 - p_n_squeezed_sub + eps) # (batch_size, seq_len - 1)
+
+      # Compute the CRP odds which is given by odds = theta / i 
+      crp_odds = theta / indices # (seq_len - 1, )
+      crp_odds = crp_odds.unsqueeze(0).expand(batch_size, -1) # (seq_len - 1, ) -> (batch_size, seq_len - 1)
+
+      # Combine odds multiplicatively 
+      effective_odds = neural_odds * crp_odds
+      effective_prob = effective_odds / (1 + effective_odds)
+    else: 
+      p_n_squeezed_sub = p_n_squeezed[:, 1:] # (batch_size, seq_len) -> (batch_size, seq_len - 1)
+      crp_factor = 1 - (theta / (indices + theta)) # (seq_len - 1, )
+      crp_factor = crp_factor.unsqueeze(0).expand(batch_size, -1) # (seq_len - 1, ) -> (batch_size, seq_len - 1)
+      effective_prob = p_n_squeezed_sub * crp_factor # (batch_size, seq_len - 1)
+
+    relaxed_samples = ContinuousBernoulli(probs=effective_prob).rsample()
+
+    segmentation[:, 1:] = relaxed_samples # (batch_size, seq_len - 1) -> (batch_size, seq_len)
+    
+    return segmentation.unsqueeze(-1) # (batch_size, seq_len, 1)
