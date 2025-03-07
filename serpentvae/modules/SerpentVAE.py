@@ -523,8 +523,8 @@ class SerpentVAE(nn.Module):
     Calculates the loss for the segmentation prediction module
 
     Here, we use a binary focal loss with 2 classes 
-     -1 for staying on the current concept token(s) 
-     -1 for changing to the next concept token
+      0 for staying on the current concept token(s) 
+      1 for changing to the next concept token
     Note that we assume that the higher level model decides when to stop generating concept tokens
     So we just keep decoding as long as we have not run out of concept tokens
     
