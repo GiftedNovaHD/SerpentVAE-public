@@ -269,8 +269,8 @@ class SerpentVAE(nn.Module):
     return confidence_estimates
 
   def encoder_segmentation_predictions(self,
-                               hidden_states: Tensor
-                              ):
+                                       hidden_states: Tensor
+                                      ) -> Tensor:
     """
     Predicts when the segment should end for the encoder
 
