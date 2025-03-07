@@ -524,9 +524,6 @@ class SerpentVAE(nn.Module):
 
     weighing_factor = count_ends / (batch_size * seq_len)
     
-    # Replace 0 with -1 in segmentation indices as segmentation predictions are from -1 to 1 due to the sigmoid function
-    end_indices = torch.where(end_indices > 0.5, 1.0, -1.0)
-    
     # Ensure targets are of float type for BCE 
     end_indices = end_indices.float()
 
