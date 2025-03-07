@@ -17,7 +17,7 @@ from serpentvae.modules.decoder import Decoder
 from serpentvae.modules.distributions.scaled_normal import ScaledNormal
 from serpentvae.modules.confidencemodule import ConfidenceModule
 from serpentvae.modules.qnet import QNet # Auxiliary Network
-from serpentvae.modules.segment_predictor import EncoderSegmentPredictor
+from serpentvae.modules.segment_predictor import EncoderSegmentPredictor, DecoderSegmentPredictor
 from serpentvae.ops.sigmoid_focal_loss import sigmoid_focal_loss
 from serpentvae.modules.module_utils.subseq_len_utils import count_whitelisted_tokens, filter_index
 
@@ -165,11 +165,19 @@ class SerpentVAE(nn.Module):
                      
 
     # Instatiate the segment predictor
-    self.segment_predictor = EncoderSegmentPredictor(hidden_dim = hidden_dim,
-                                                     inner_dim = segment_predictor_inner_dim,
-                                                     device = self.device,
-                                                     dtype = self.dtype
-                                                    )
+    self.encoder_segment_predictor = EncoderSegmentPredictor(hidden_dim = hidden_dim,
+                                                             inner_dim = segment_predictor_inner_dim,
+                                                             device = self.device,
+                                                             dtype = self.dtype
+                                                            )
+
+    self.decoder_segment_predictor = DecoderSegmentPredictor(hidden_dim = hidden_dim,
+                                                             concept_dim = concept_dim,
+                                                             inner_dim = segment_predictor_inner_dim,
+                                                             device = self.device,
+                                                             dtype = self.dtype
+                                                            )
+                                                             
   
   def encode(self,
              hidden_states: Tensor,
@@ -264,7 +272,7 @@ class SerpentVAE(nn.Module):
                                hidden_states: Tensor
                               ):
     """
-    Predicts when the segment should end
+    Predicts when the segment should end for the encoder
 
     Args:
       hidden_states (Tensor): (batch_size, seq_len, hidden_dim)
@@ -272,10 +280,27 @@ class SerpentVAE(nn.Module):
     Returns:
       segment_preds (Tensor): (batch_size, seq_len, 1)
     """
-    segment_preds = self.segment_predictor(hidden_states)
+    segment_preds = self.encoder_segment_predictor(hidden_states)
 
     return segment_preds
-    
+  
+  def decoder_segmentation_predictions(self,
+                                       hidden_states: Tensor,
+                                       concept_tokens: Tensor
+                                      ) -> Tensor:
+    """
+    Predicts when the segment should end for the decoder
+
+    Args:
+      hidden_states (Tensor): (batch_size, seq_len, hidden_dim)
+      concept_tokens (Tensor): (batch_size, seq_len, concept_dim)
+
+    Returns:
+      segment_preds (Tensor): (batch_size, seq_len, 1)
+    """
+    segment_preds = self.decoder_segment_predictor(hidden_states, concept_tokens)
+
+    return segment_preds
 
   def decode(self,
              hidden_states: Tensor,
@@ -623,7 +648,8 @@ class SerpentVAE(nn.Module):
       logvar (Tensor): (batch_size, seq_len, latent_dim)
       sampled_latents (Tensor): (batch_size, seq_len, latent_dim)
       segmentation_indices (Tensor): (batch_size, seq_len, 1)
-      predicted_segments (Tensor): (batch_size, seq_len, 1)
+      encoder_predicted_segments (Tensor): (batch_size, seq_len, 1)
+      decoder_predicted_segments (Tensor): (batch_size, seq_len, 1)
       predicted_confidence (Tensor): (batch_size, seq_len, 1)
     """
     # Transform with embeddings
@@ -650,8 +676,8 @@ class SerpentVAE(nn.Module):
                                                                   replacement_function = dummy
                                                                  ) # (batch_size, seq_len, hidden_dim) -> (batch_size, seq_len, hidden_dim)
 
-    # Predict segmentation
-    predicted_segments = self.encoder_segmentation_predictions(hidden_states) # (batch_size, seq_len, hidden_dim) -> (batch_size, seq_len, 1)
+    # Predict encoder segmentation
+    encoder_predicted_segments = self.encoder_segmentation_predictions(hidden_states) # (batch_size, seq_len, hidden_dim) -> (batch_size, seq_len, 1)
 
     # Predict reconstruction error (Confidence) 
     predicted_confidence = self.confidence(hidden_states, sampled_latents) # (batch_size, seq_len, 1)
@@ -659,6 +685,9 @@ class SerpentVAE(nn.Module):
     # Decode the hidden states based on the segmented concept tokens
     # NOTE: We are doing teacher forcing here
     decoded_hidden_tokens = self.decode(dec_hidden_states, segmented_concept_tokens) # hidden_states: (batch_size, seq_len, hidden_dim), concept_tokens: (batch_size, seq_len, hidden_dim) -> (batch_size, seq_len, hidden_dim)
+
+    # Predict decoder segmentation
+    decoder_predicted_segments = self.decoder_segmentation_predictions(decoded_hidden_tokens, segmented_concept_tokens) # (batch_size, seq_len, hidden_dim) -> (batch_size, seq_len, 1)
 
     #print(f"Decoded hidden tokens max: {decoded_hidden_tokens.max()}, min: {decoded_hidden_tokens.min()}")
 
@@ -669,7 +698,7 @@ class SerpentVAE(nn.Module):
 
     #print(f"Decoded logits max: {decoded_logits.max()}, min: {decoded_logits.min()}")
 
-    return decoded_logits, mu, logvar, sampled_latents, segmentation_indices, predicted_segments, predicted_confidence
+    return decoded_logits, mu, logvar, sampled_latents, segmentation_indices, encoder_predicted_segments, decoder_predicted_segments, predicted_confidence
   
   def avg_subseq_length(self,
                         correct_input_ids: Tensor,
@@ -769,7 +798,8 @@ class SerpentVAE(nn.Module):
               segmentation_indices: Tensor,
               decoder_output: Tensor,
               confidence_estimates: Tensor,
-              segmentation_predictions: Tensor,
+              encoder_segmentation_predictions: Tensor,
+              decoder_segmentation_predictions: Tensor,
               threshold: float = 1e-2,
               is_test: bool = True
              ):
@@ -794,7 +824,8 @@ class SerpentVAE(nn.Module):
       segmentation_indices (Tensor): (batch_size, seq_len, 1)
       decoder_output (Tensor): (batch_size, seq_len, vocab_size)
       confidence_estimates (Tensor): (batch_size, seq_len, 1)
-      segmentation_predictions (Tensor): (batch_size, seq_len, 1)
+      encoder_segmentation_predictions (Tensor): (batch_size, seq_len, 1)
+      decoder_segmentation_predictions (Tensor): (batch_size, seq_len, 1)
       threshold (float): Threshold for considering a unit active
       is_test (bool): Specifies if prefix for metrics dictionary should be "test" or "validation"
 
@@ -866,9 +897,13 @@ class SerpentVAE(nn.Module):
                                            )
     
     # Calculate the segmentation prediction error
-    segmentation_prediction_error = self.segment_prediction_loss(segmentation_predictions=segmentation_predictions,
-                                                                 segmentation_indices = segmentation_indices
-                                                                )
+    encoder_segmentation_prediction_error = self.segment_prediction_loss(segmentation_predictions=encoder_segmentation_predictions,
+                                                                         segmentation_indices = segmentation_indices
+                                                                        )
+    
+    decoder_segmentation_prediction_error = self.segment_prediction_loss(segmentation_predictions=decoder_segmentation_predictions,
+                                                                         segmentation_indices = segmentation_indices
+                                                                        )
     
     # Prepare prefix for metrics dictionary
     if is_test == True:
@@ -886,7 +921,8 @@ class SerpentVAE(nn.Module):
                  prefix + "perplexity": torch.exp(reconstruction_error).item(),
                  prefix + "avg_subsequence_len": avg_subseq_length,
                  prefix + "confidence_error": confidence_error.item(),
-                 prefix + "segment_prediction_error": segmentation_prediction_error.item(),
+                 prefix + "encoder_segment_prediction_error": encoder_segmentation_prediction_error.item(),
+                 prefix + "decoder_segment_prediction_error": decoder_segmentation_prediction_error.item(),
                  prefix + "total_loss": total_loss.item(),
                 }
     else:
@@ -897,7 +933,8 @@ class SerpentVAE(nn.Module):
                  prefix + "perplexity": torch.exp(reconstruction_error).item(),
                  prefix + "avg_subsequence_len": avg_subseq_length,
                  prefix + "confidence_error": confidence_error.item(),
-                 prefix + "segment_prediction_error": segmentation_prediction_error.item(),
+                 prefix + "encoder_segment_prediction_error": encoder_segmentation_prediction_error.item(),
+                 prefix + "decoder_segment_prediction_error": decoder_segmentation_prediction_error.item(),
                  prefix + "total_loss": total_loss.item()
                 }
     
@@ -914,7 +951,8 @@ class SerpentVAE(nn.Module):
       total_loss (Tensor): (1,)
       vae_loss (Tensor): (1,)
       confidence_loss (Tensor): (1,)
-      segment_prediction_loss (Tensor): (1,)
+      encoder_segment_prediction_error (Tensor): (1,)
+      decoder_segment_prediction_error (Tensor): (1,)
     """
     # Note:
     # predicted_logits: (batch_size, seq_len, vocab_size)
@@ -922,10 +960,11 @@ class SerpentVAE(nn.Module):
     # logvar: (batch_size, seq_len, concept_dim)
     # sampled_latents: (batch_size, seq_len, concept_dim)
     # segmentation_indices: (batch_size, seq_len, 1)
-    # predicted_segments: (batch_size, seq_len, 1)
+    # encoder_predicted_segments: (batch_size, seq_len, 1)
+    # decoder_predicted_segments: (batch_size, seq_len, 1)
     # predicted_confidence: (batch_size, seq_len, 1)
 
-    predicted_logits, mu, logvar, sampled_latents, segmentation_indices, predicted_segments, predicted_confidence = self.forward(correct_input_ids)
+    predicted_logits, mu, logvar, sampled_latents, segmentation_indices, encoder_predicted_segments, decoder_predicted_segments, predicted_confidence = self.forward(correct_input_ids)
 
     # Change mu, logvar, sampled_latents based on segmentation_indices
     end_indices = bitmask_to_end_indices(segmentation_indices, inclusive = True)
@@ -987,20 +1026,27 @@ class SerpentVAE(nn.Module):
     print(f"Confidence loss: {confidence_loss.item()}")
     
     # Calculate the loss of the segment prediction network
-    segment_prediction_loss = self.segment_prediction_loss(segmentation_predictions = predicted_segments,
-                                                           segmentation_indices = segmentation_indices
-                                                          )
+    encoder_segment_prediction_loss = self.segment_prediction_loss(segmentation_predictions = encoder_predicted_segments,
+                                                                   segmentation_indices = segmentation_indices
+                                                                  )
     
-    print(f"Segment prediction loss: {segment_prediction_loss.item()}")
+    print(f"Encoder Segment prediction loss: {encoder_segment_prediction_loss.item()}")
+
+    decoder_segment_prediction_loss = self.segment_prediction_loss(segmentation_predictions = decoder_predicted_segments,
+                                                                   segmentation_indices = segmentation_indices
+                                                                  )
+    
+    print(f"Decoder Segment prediction loss: {decoder_segment_prediction_loss.item()}")
+
     
     # Calculate total loss
-    total_loss = loss_objective + confidence_loss + segment_prediction_loss
+    total_loss = loss_objective + confidence_loss + encoder_segment_prediction_loss + decoder_segment_prediction_loss
 
-    return total_loss, loss_objective, confidence_loss, segment_prediction_loss
+    return total_loss, loss_objective, confidence_loss, encoder_segment_prediction_loss, decoder_segment_prediction_loss
   
   def eval_step(self, correct_input_ids: Tensor, is_test: bool = True):
     with torch.no_grad():
-      predicted_logits, mu, logvar, sampled_latents, segmentation_indices, predicted_segments, predicted_confidence = self.forward(correct_input_ids)
+      predicted_logits, mu, logvar, sampled_latents, segmentation_indices, encoder_predicted_segments, decoder_predicted_segments, predicted_confidence = self.forward(correct_input_ids)
 
       # Get metrics
       metrics = self.metrics(input_ids = correct_input_ids,
@@ -1010,7 +1056,8 @@ class SerpentVAE(nn.Module):
                              segmentation_indices = segmentation_indices,
                              decoder_output = predicted_logits,
                              confidence_estimates = predicted_confidence,
-                             segmentation_predictions = predicted_segments,
+                             encoder_segmentation_predictions = encoder_predicted_segments,
+                             decoder_segmentation_predictions = decoder_predicted_segments,
                              is_test = is_test
                             )
       
