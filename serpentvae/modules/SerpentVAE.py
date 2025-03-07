@@ -17,7 +17,7 @@ from serpentvae.modules.decoder import Decoder
 from serpentvae.modules.distributions.scaled_normal import ScaledNormal
 from serpentvae.modules.confidencemodule import ConfidenceModule
 from serpentvae.modules.qnet import QNet # Auxiliary Network
-from serpentvae.modules.segment_predictor import SegmentPredictor
+from serpentvae.modules.segment_predictor import EncoderSegmentPredictor
 from serpentvae.ops.sigmoid_focal_loss import sigmoid_focal_loss
 from serpentvae.modules.module_utils.subseq_len_utils import count_whitelisted_tokens, filter_index
 
@@ -165,11 +165,11 @@ class SerpentVAE(nn.Module):
                      
 
     # Instatiate the segment predictor
-    self.segment_predictor = SegmentPredictor(hidden_dim = hidden_dim,
-                                              inner_dim = segment_predictor_inner_dim,
-                                              device = self.device,
-                                              dtype = self.dtype
-                                             )
+    self.segment_predictor = EncoderSegmentPredictor(hidden_dim = hidden_dim,
+                                                     inner_dim = segment_predictor_inner_dim,
+                                                     device = self.device,
+                                                     dtype = self.dtype
+                                                    )
   
   def encode(self,
              hidden_states: Tensor,
@@ -260,7 +260,7 @@ class SerpentVAE(nn.Module):
 
     return confidence_estimates
 
-  def segmentation_predictions(self,
+  def encoder_segmentation_predictions(self,
                                hidden_states: Tensor
                               ):
     """
@@ -651,7 +651,7 @@ class SerpentVAE(nn.Module):
                                                                  ) # (batch_size, seq_len, hidden_dim) -> (batch_size, seq_len, hidden_dim)
 
     # Predict segmentation
-    predicted_segments = self.segmentation_predictions(hidden_states) # (batch_size, seq_len, hidden_dim) -> (batch_size, seq_len, 1)
+    predicted_segments = self.encoder_segmentation_predictions(hidden_states) # (batch_size, seq_len, hidden_dim) -> (batch_size, seq_len, 1)
 
     # Predict reconstruction error (Confidence) 
     predicted_confidence = self.confidence(hidden_states, sampled_latents) # (batch_size, seq_len, 1)
@@ -866,7 +866,7 @@ class SerpentVAE(nn.Module):
                                            )
     
     # Calculate the segmentation prediction error
-    segmentation_prediction_error = self.segment_prediction_loss(segmentation_predictions = segmentation_predictions,
+    segmentation_prediction_error = self.segment_prediction_loss(segmentation_predictions=segmentation_predictions,
                                                                  segmentation_indices = segmentation_indices
                                                                 )
     

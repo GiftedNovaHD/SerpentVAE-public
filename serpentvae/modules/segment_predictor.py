@@ -4,7 +4,7 @@ from torch import Tensor
 import torch.nn.functional as F 
 from serpentvae.modules.mlp import MLP
 
-class SegmentPredictor(nn.Module):
+class EncoderSegmentPredictor(nn.Module):
   """
   Predicts segment boundaries from hidden states.
   This module takes the hidden states from a decoder layer and predicts segmentation information representing boundaries in the sequence.
