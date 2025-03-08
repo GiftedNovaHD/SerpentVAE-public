@@ -4,7 +4,7 @@ This is a helper function used for segmentation
 import torch
 from torch import Tensor
 from typing import Callable
-from segment_utils.bitmask_to_indices import bitmask_to_start_indices
+from segment_utils.bitmask_to_indices import bitmask_to_start_indices, bitmask_to_end_indices
 
 def helper_function(concept_tokens: Tensor,
                     segment_indices: Tensor,
@@ -12,7 +12,7 @@ def helper_function(concept_tokens: Tensor,
                    ) -> Tensor:
   """
   Helper function that allows for different modifying functions to be used in segmentation
-  NOTE: segment_indices is a bitmask where 1 represents the start of a subsequence
+  NOTE: segment_indices is a bitmask where 1 represents the end of a subsequence
 
   NOTE: modifying_function takes in a subsequence and returns the modified subsequence with both having shape (subseq_len, concept_dim)
 
@@ -32,26 +32,29 @@ def helper_function(concept_tokens: Tensor,
   # Find the start of each subsequence
   start_indices = bitmask_to_start_indices(segment_indices) # List of tensors of shape (num_subseqs,)
   
+  # Find the end of each subsequence
+  end_indices = bitmask_to_end_indices(segment_indices, inclusive = False) # List of tensors of shape (num_subseqs,)
+  
   replace_concept_tokens = torch.tensor([])
 
   for batch_idx in range(batch_size):
     batch_start_indices = start_indices[batch_idx]
+    batch_end_indices = end_indices[batch_idx]
     batch_concept_tokens = concept_tokens[batch_idx] # Shape is (seq_len, concept_dim)
+    
     batch_replace_concept_tokens = torch.tensor([]) # Shape is (seq_len, concept_dim)
-
-    batch_end_indices = torch.cat(
-                          (batch_start_indices[1:],
-                                   torch.tensor([seq_len], dtype=torch.int32)
-                                  )
-                                 ) # Shape: (num_subseqs,)
 
     # NOTE: end_idx is non-inclusive
     for start_idx, end_idx in zip(batch_start_indices, batch_end_indices):
+      print(f"start_idx: {start_idx}, end_idx: {end_idx}")
       subseq = batch_concept_tokens[start_idx:end_idx]
       
       out = modifying_function(subseq) # Shape: (subseq_len, concept_dim)
 
       batch_replace_concept_tokens = torch.cat((batch_replace_concept_tokens, out))
+    
+    print(replace_concept_tokens.size())
+    print(batch_replace_concept_tokens.unsqueeze(0).size())
 
     replace_concept_tokens = torch.cat((replace_concept_tokens, batch_replace_concept_tokens.unsqueeze(0)))
     

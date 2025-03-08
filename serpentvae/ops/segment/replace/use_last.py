@@ -10,7 +10,7 @@ def use_last_replacement(concept_tokens: Tensor,
                         ) -> Tensor:
   """
   Replaces each subsequence of concept tokens with the last element of the subsequence
-  NOTE: segment_indices is a bitmask where 1 represents the start of a subsequence
+  NOTE: segment_indices is a bitmask where 1 represents the end of a subsequence
 
   Args:
     concept_tokens (Tensor): (batch_size, seq_len, concept_dim)
@@ -47,8 +47,8 @@ if __name__ == "__main__":
   ])
 
   segment_indices = torch.tensor([
-    [[1],[0],[1],[0],[0]],
-    [[1],[0],[0],[0],[0]]
+    [[0],[1],[0],[0],[1]],
+    [[0],[0],[0],[0],[1]]
   ])
 
   replaced_concept_tokens = use_last_replacement(concept_tokens, segment_indices)
