@@ -46,15 +46,11 @@ def helper_function(concept_tokens: Tensor,
 
     # NOTE: end_idx is non-inclusive
     for start_idx, end_idx in zip(batch_start_indices, batch_end_indices):
-      print(f"start_idx: {start_idx}, end_idx: {end_idx}")
       subseq = batch_concept_tokens[start_idx:end_idx]
       
       out = modifying_function(subseq) # Shape: (subseq_len, concept_dim)
 
       batch_replace_concept_tokens = torch.cat((batch_replace_concept_tokens, out))
-    
-    print(replace_concept_tokens.size())
-    print(batch_replace_concept_tokens.unsqueeze(0).size())
 
     replace_concept_tokens = torch.cat((replace_concept_tokens, batch_replace_concept_tokens.unsqueeze(0)))
     
