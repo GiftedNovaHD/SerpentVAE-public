@@ -101,7 +101,8 @@ class ChainCRP(nn.Module):
       effective_prob = p_n_squeezed_sub * crp_factor # (batch_size, seq_len - 1)
 
     relaxed_samples = ContinuousBernoulli(probs=effective_prob).rsample()
+    hard_samples = (relaxed_samples >= 0.5).to(self.dtype)
 
-    segmentation[:, 1:] = relaxed_samples # (batch_size, seq_len - 1) -> (batch_size, seq_len)
+    segmentation[:, 1:] = hard_samples # (batch_size, seq_len - 1) -> (batch_size, seq_len)
     
     return segmentation.unsqueeze(-1) # (batch_size, seq_len, 1)
