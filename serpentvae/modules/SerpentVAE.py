@@ -571,8 +571,8 @@ class SerpentVAE(nn.Module):
     """
     batch_size, seq_len, _ = segmentation_indices.size()
 
-    # Convert segmentation indices from start indices to end indices
-    end_indices = convert_bitmask(segmentation_indices)
+    # Make end indices the same as the segmentation indices
+    end_indices = segmentation_indices
 
     # Flatten 3D tensors to 1D so each prediction / target pair corresponds to a single element
     segmentation_predictions = rearrange(segmentation_predictions, "batch_size seq_len 1 -> (batch_size seq_len)")
@@ -606,7 +606,7 @@ class SerpentVAE(nn.Module):
     Calculate the loss for the confidence module using Mean Squared Error (MSE)
 
     NOTE: seq_len and sub_seq_len are not the same,
-    segmentation_indices is a bitmask where 1 represents the start of a subsequence
+    segmentation_indices is a bitmask where 1 represents the end of a subsequence
     confidence_estimates has to be modified to so that only the estimates for which we have ground truth remain.
     This is done using segmentation indices which are returned by the segment method.
 
@@ -753,8 +753,8 @@ class SerpentVAE(nn.Module):
     We need to do some special handling to remove the EOS tokens at the front used for padding
 
     Args:
-      correct_input_ids (Tensor): This is the ids from the tokenizer(batch_size, seq_len, 1)
-      segmentation_indices (Tensor):  This is a bitmask where 1 represents the start of a subsequence (batch_size, seq_len, 1)
+      correct_input_ids (Tensor): This is the ids from the tokenizer (batch_size, seq_len, 1)
+      segmentation_indices (Tensor):  This is a bitmask where 1 represents the end of a subsequence (batch_size, seq_len, 1)
 
     Returns:
         avg_subseq_length (int): Average subsequence length
@@ -765,16 +765,16 @@ class SerpentVAE(nn.Module):
     _pad_ token_id: 2
     """
     # DEBUG:
-    #print(f"correct_input_ids: {correct_input_ids}")
+    # print(f"correct_input_ids: {correct_input_ids}")
 
     # Calculate the number of content tokens
     num_content_tokens = count_whitelisted_tokens(tensor = correct_input_ids, blacklist = [1, 2], device = self.device)
 
-    #print(f"num_content_tokens: {num_content_tokens}")
+    # print(f"num_content_tokens: {num_content_tokens}")
 
     sentence_start_indices = filter_index(tensor = correct_input_ids.clone(), blacklist = 1, device = self.device)
 
-    #print(f"sentence_start_indices: {sentence_start_indices}")
+    # print(f"sentence_start_indices: {sentence_start_indices}")
 
     batch_size, seq_len, _ = correct_input_ids.shape
 
@@ -784,14 +784,17 @@ class SerpentVAE(nn.Module):
       batch_start_idx = sentence_start_indices[batch_idx] # (1, )
       batch_segmentation_indices = segmentation_indices[batch_idx].squeeze(-1) # (seq_len, 1) -> (seq_len,)
 
-      # Remove the EOS tokens at the front
-      batch_segmentation_indices = batch_segmentation_indices[batch_start_idx:]
+      # Remove the EOS tokens at the front and the BOS token at the front
+      batch_segmentation_indices = batch_segmentation_indices[batch_start_idx: ]
 
-      # Remove all non-subsequence starts
-      batch_segmentation_indices = batch_segmentation_indices[batch_segmentation_indices == 1]
+      # print(f"batch_segmentation_indices: {batch_segmentation_indices}")
+      # print(f"batch_segmentation_indices sum: {batch_segmentation_indices.sum()}")
 
       # Count the number of subsequences
       num_subsequences = batch_segmentation_indices.sum().item()
+      
+      # print(f"num_subsequences: {num_subsequences}")  
+      
       total_num_subsequences += num_subsequences
     
     avg_subseq_length = num_content_tokens / total_num_subsequences
