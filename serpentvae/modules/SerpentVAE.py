@@ -23,7 +23,7 @@ from serpentvae.modules.distributions.scaled_normal import ScaledNormal
 from serpentvae.modules.confidencemodule import ConfidenceModule
 from serpentvae.modules.qnet import QNet # Auxiliary Network
 from serpentvae.modules.segment_predictor import EncoderSegmentPredictor, DecoderSegmentPredictor
-from serpentvae.ops.segment.boundary.chaincrp_grad import ChainCRP
+from serpentvae.ops.segment.boundary.ChainCRP_grad import ChainCRP
 
 # Import module utils for calculating average subsequence length
 from serpentvae.modules.module_utils.subseq_len_utils import count_whitelisted_tokens, filter_index
