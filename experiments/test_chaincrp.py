@@ -18,12 +18,12 @@ def test_torchscript():
   try: 
     compiled_model = torch.compile(model)
     out = compiled_model(dummy_encoder_predictions, dummy_recon_loss)
-    print("TorchScript compilation successful") 
+    print("Torch compilation successful") 
     print("Output segmentation shape: ", out.shape)
     print("Output segmentation")
     print(out) 
   except Exception as e: 
-    print("failed")
+    print("Compilation failed")
     print(e)
 
 if __name__ == "__main__":
