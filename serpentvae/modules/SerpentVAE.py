@@ -243,7 +243,7 @@ class SerpentVAE(nn.Module):
   
   def segment(self,
               concept_tokens: Tensor,
-              encoder_segment_predictions: Tensor,
+              encoder_segmentation_predictions: Tensor,
               boundary_function: nn.Module,
               replacement_function: Callable,
               padding_mask: Tensor
@@ -253,7 +253,7 @@ class SerpentVAE(nn.Module):
 
     Args:
       concept_tokens (Tensor): (batch_size, seq_len, concept_dim)
-      encoder_segment_predictions (Tensor): (batch_size, seq_len, 1)
+      encoder_segmentation_predictions (Tensor): (batch_size, seq_len, 1)
       boundary_function (nn.Module): Pytorch module that decides whether to segment or not
       replacement_function (Callable): Function that decides how to replace the concept tokens for decoding
       padding_mask (Tensor): Bitmask to handle so that model learns how to correctly predict the end of a sequence
@@ -262,15 +262,16 @@ class SerpentVAE(nn.Module):
       segmented_concept_tokens (Tensor): (batch_size, seq_len, concept_dim)
       segment_indices (Tensor): (batch_size, seq_len, 1)
     """
-    batch_size, seq_len, _ = encoder_segment_predictions.shape
+    batch_size, seq_len, _ = encoder_segmentation_predictions.shape
     
     # Obtain bitmask
-    segmentation_indices = boundary_function(encoder_segment_predictions = encoder_segment_predictions,
+    segmentation_indices = boundary_function(encoder_segmentation_predictions = encoder_segmentation_predictions,
                                              prev_batch_recon_loss = self.prev_batch_recon_loss
                                             )
 
     # Perform a bitwise OR operation to correctly mark padding EOS tokens at ends of subsequences
-    segmentation_indices = segmentation_indices | padding_mask
+    segmentation_indices = segmentation_indices.bool() | padding_mask.bool()
+    segmentation_indices = segmentation_indices.int()
 
     # Apply bitmask to replace concept tokens
     replaced_concept_tokens = replacement_function(concept_tokens = concept_tokens,
@@ -690,7 +691,7 @@ class SerpentVAE(nn.Module):
     # NOTE: 
     # EOS token_id: 1
     # _pad_ token_id: 2
-    padding_mask = torch.isin(input_ids.clone(), torch.tensor([1, 2]))
+    padding_mask = torch.isin(input_ids.clone(), torch.tensor([1, 2], device = self.device))
     padding_mask = padding_mask.int()
 
     # Transform with embeddings
@@ -716,7 +717,7 @@ class SerpentVAE(nn.Module):
     #  return None
 
     segmented_concept_tokens, segmentation_indices = self.segment(concept_tokens = sampled_latents,
-                                                                  encoder_segment_predictions = encoder_predicted_segments,
+                                                                  encoder_segmentation_predictions = encoder_predicted_segments,
                                                                   boundary_function = self.chain_crp, 
                                                                   replacement_function = use_last_replacement,
                                                                   padding_mask = padding_mask

@@ -3,7 +3,7 @@ This is an example of a replacement function used in segmentation
 """
 import torch
 from torch import Tensor
-from helper_function import helper_function
+from serpentvae.ops.segment.replace.helper_function import helper_function
 
 def mean_replacement(concept_tokens: Tensor,
                      segment_indices: Tensor
