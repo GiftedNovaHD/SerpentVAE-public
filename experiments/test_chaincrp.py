@@ -16,8 +16,8 @@ def test_torchscript():
   model = ChainCRP(use_odds_ratio=True, dtype=torch.bfloat16)
 
   try: 
-    scripted_model = torch.compile(model)
-    out = scripted_model(dummy_encoder_predictions, dummy_recon_loss)
+    compiled_model = torch.compile(model)
+    out = compiled_model(dummy_encoder_predictions, dummy_recon_loss)
     print("TorchScript compilation successful") 
     print("Output segmentation shape: ", out.shape)
     print("Output segmentation")
