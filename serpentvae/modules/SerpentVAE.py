@@ -729,6 +729,12 @@ class SerpentVAE(nn.Module):
 
     # Decode the hidden states based on the segmented concept tokens
     # NOTE: We are doing teacher forcing here
+    #hidden_state_batch, hidden_state_seq_len, hidden_state_dim = hidden_states.shape
+    #segmented_concept_tokens_batch, segmented_concept_tokens_seq_len, segmented_concept_tokens_dim = segmented_concept_tokens.shape
+
+    #assert hidden_state_batch == segmented_concept_tokens_batch
+    #assert hidden_state_seq_len == segmented_concept_tokens_seq_len, f"hidden_state_seq_len: {hidden_state_seq_len}, segmented_concept_tokens_seq_len: {segmented_concept_tokens_seq_len}"
+
     decoded_hidden_tokens = self.decode(dec_hidden_states, segmented_concept_tokens) # hidden_states: (batch_size, seq_len, hidden_dim), concept_tokens: (batch_size, seq_len, hidden_dim) -> (batch_size, seq_len, hidden_dim)
 
     # Predict decoder segmentation
