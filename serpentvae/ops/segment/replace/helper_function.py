@@ -50,7 +50,13 @@ def helper_function(concept_tokens: Tensor,
     for start_idx, end_idx in zip(batch_start_indices, batch_end_indices):
       subseq = batch_concept_tokens[start_idx:end_idx]
       
+      #print(f"subseq: {subseq.shape}")
+
       out = modifying_function(subseq) # Shape: (subseq_len, concept_dim)
+
+      #print(f"out: {out.shape}")
+
+      #assert subseq.shape == out.shape, "subseq and out must have the same shape"
 
       batch_replace_concept_tokens = torch.cat((batch_replace_concept_tokens, out))
 
