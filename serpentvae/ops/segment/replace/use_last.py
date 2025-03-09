@@ -6,7 +6,8 @@ from torch import Tensor
 from serpentvae.ops.segment.replace.helper_function import helper_function
 
 def use_last_replacement(concept_tokens: Tensor,
-                         segment_indices: Tensor
+                         segment_indices: Tensor,
+                         device: torch.device
                         ) -> Tensor:
   """
   Replaces each subsequence of concept tokens with the last element of the subsequence
@@ -15,6 +16,7 @@ def use_last_replacement(concept_tokens: Tensor,
   Args:
     concept_tokens (Tensor): (batch_size, seq_len, concept_dim)
     segment_indices (Tensor): (batch_size, seq_len, 1)
+    device (torch.device): Device to use for computation
   
   Returns:
     replaced_concept_tokens (Tensor): (batch_size, seq_len, concept_dim)
@@ -27,7 +29,10 @@ def use_last_replacement(concept_tokens: Tensor,
 
     return repeated_last_token
   
-  replace_concept_tokens = helper_function(concept_tokens, segment_indices, use_last)
+  replace_concept_tokens = helper_function(concept_tokens = concept_tokens,
+                                           segment_indices = segment_indices,
+                                           modifying_function = use_last,
+                                           device = device)
     
   return replace_concept_tokens # Shape: (batch_size, seq_len, concept_dim)
 

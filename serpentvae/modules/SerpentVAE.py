@@ -275,7 +275,8 @@ class SerpentVAE(nn.Module):
 
     # Apply bitmask to replace concept tokens
     replaced_concept_tokens = replacement_function(concept_tokens = concept_tokens,
-                                                   segment_indices = segmentation_indices
+                                                   segment_indices = segmentation_indices,
+                                                   device = self.device
                                                   )
 
     # NOTE: This direct return is for testing purposes only
