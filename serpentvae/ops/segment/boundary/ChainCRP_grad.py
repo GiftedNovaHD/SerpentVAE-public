@@ -14,6 +14,9 @@ from torch import Tensor
 from torch import nn
 from torch.distributions import ContinuousBernoulli
 
+# Custom int8 definition since this is used way too much
+int8 = torch.int8
+
 from typing import Optional 
 
 # Import module utils for ensuring EOS padding tokens at the front are handled correctly
@@ -69,8 +72,7 @@ class ChainCRP(nn.Module):
     
     p_n_squeezed = encoder_segmentation_predictions.squeeze(-1) # (batch_size, seq_len, 1) -> (batch_size, seq_len)
     
-    segmentation = torch.zeros(batch_size, seq_len, device = self.device, dtype = self.dtype)
-    segmentation[:, 0] = 1
+    segmentation = torch.zeros(batch_size, seq_len, device = self.device).to(int8)
 
     eps = 1e-8
     # Differentiable scalar parameter theta
@@ -101,9 +103,12 @@ class ChainCRP(nn.Module):
       effective_prob = p_n_squeezed_sub * crp_factor # (batch_size, seq_len - 1)
 
     relaxed_samples = ContinuousBernoulli(probs=effective_prob).rsample()
-    hard_samples = (relaxed_samples >= 0.5).to(self.dtype)
+    hard_samples = (relaxed_samples >= 0.5).to(int8) # (batch_size, seq_len - 1)
+
 
     # Segmentation decisions. Note that the first and last tokens are always segment starts and segment ends respectively.
-    segmentation[:, 1:] = torch.cat([hard_samples[:, :-1], torch.ones((batch_size, 1), device=self.device, dtype=self.dtype)], dim=1)
+    segmentation[:, :-1] = hard_samples # (batch_size, seq_len)
+    # NOTE: This ensures that the last token is always a segment end
+    segmentation[:, -1] = 1 # (batch_size, seq_len)
 
-    return segmentation.unsqueeze(-1) # (batch_size, seq_len, 1)
+    return segmentation.to(int8).unsqueeze(-1) # (batch_size, seq_len, 1)
