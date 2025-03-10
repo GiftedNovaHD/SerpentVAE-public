@@ -103,6 +103,7 @@ class ChainCRP(nn.Module):
     relaxed_samples = ContinuousBernoulli(probs=effective_prob).rsample()
     hard_samples = (relaxed_samples >= 0.5).to(self.dtype)
 
-    segmentation[:, 1:] = hard_samples # (batch_size, seq_len - 1) -> (batch_size, seq_len)
-    
+    # Segmentation decisions. Note that the first and last tokens are always segment starts and segment ends respectively.
+    segmentation[:, 1:] = torch.cat([hard_samples[:, :-1], torch.ones((batch_size, 1), device=self.device, dtype=self.dtype)], dim=1)
+
     return segmentation.unsqueeze(-1) # (batch_size, seq_len, 1)
