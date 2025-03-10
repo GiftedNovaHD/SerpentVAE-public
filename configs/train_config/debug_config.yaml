@@ -10,7 +10,7 @@ learning_rate: 1e-4
 min_learning_rate: 1e-8
 weight_decay: 1e-2
 max_seq_len: 64
-batch_size: 1
+batch_size: 2
 parallelism_strategy: "fsdp"
 compile_model: true
 seed: 6969
@@ -21,7 +21,7 @@ seed: 6969
 
 # Model configuration settings
 hidden_dim: 512
-concept_dim: 384
+concept_dim: 512
 vocab_size: 129280
 dist_desired_std: 1.0
 num_encoder_layers: 2

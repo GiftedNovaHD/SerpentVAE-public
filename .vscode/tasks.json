@@ -13,7 +13,7 @@
             "problemMatcher": [],
             "group": {
                 "kind": "test",
-                "isDefault": true
+                "isDefault": false
             }
         },
         {
@@ -28,7 +28,7 @@
             "problemMatcher": [],
             "group": {
                 "kind": "test",
-                "isDefault": false
+                "isDefault": true
             }
         }
     ]
