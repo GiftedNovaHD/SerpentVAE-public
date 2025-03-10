@@ -240,6 +240,30 @@ class SerpentVAE(nn.Module):
     sampled_latents, mu, logvar = self.distribution(hidden_states)
     
     return sampled_latents, mu, logvar
+
+  def generate_padding_mask(self,
+                            input_ids: Tensor
+                           ) -> Tensor:
+    """
+    Generate a padding mask for the input tokens to ensure proper segmentation
+
+    Args:
+      input_ids (Tensor): (batch_size, seq_len, 1)
+    
+    Returns:
+      padding_mask (Tensor): (batch_size, seq_len, 1)
+    """
+    # NOTE: 
+    # EOS token_id: 1
+    # _pad_ token_id: 2
+    # Make EOS tokens and _pad_ tokens end of subsequences
+    padding_mask = torch.isin(input_ids.clone(), torch.tensor([1, 2], device = self.device))
+    padding_mask = padding_mask.int()
+    
+    # Make sure that last token is the end of a subsequence in the event it is not an EOS token due to truncation
+    padding_mask[:, -1, :] = 1
+
+    return padding_mask
   
   def segment(self,
               concept_tokens: Tensor,
@@ -256,7 +280,7 @@ class SerpentVAE(nn.Module):
       encoder_segmentation_predictions (Tensor): (batch_size, seq_len, 1)
       boundary_function (nn.Module): Pytorch module that decides whether to segment or not
       replacement_function (Callable): Function that decides how to replace the concept tokens for decoding
-      padding_mask (Tensor): Bitmask to handle so that model learns how to correctly predict the end of a sequence
+      padding_mask (Tensor): (batch_size, seq_len, 1)
     
     Returns: 
       segmented_concept_tokens (Tensor): (batch_size, seq_len, concept_dim)
@@ -689,11 +713,7 @@ class SerpentVAE(nn.Module):
       predicted_confidence (Tensor): (batch_size, seq_len, 1)
     """
     # Generate padding mask for ChainCRP
-    # NOTE: 
-    # EOS token_id: 1
-    # _pad_ token_id: 2
-    padding_mask = torch.isin(input_ids.clone(), torch.tensor([1, 2], device = self.device))
-    padding_mask = padding_mask.int()
+    padding_mask = self.generate_padding_mask(input_ids = input_ids) # (batch_size, seq_len, 1)
 
     # Transform with embeddings
     if self.share_input_embeddings:

@@ -33,7 +33,9 @@ def use_last_replacement(concept_tokens: Tensor,
                                            segment_indices = segment_indices,
                                            modifying_function = use_last,
                                            device = device)
-    
+  
+  # assert replace_concept_tokens.size() == concept_tokens.size(), "Replaced concept tokens should have the same shape as the original concept tokens"
+
   return replace_concept_tokens # Shape: (batch_size, seq_len, concept_dim)
 
 # Example usage
