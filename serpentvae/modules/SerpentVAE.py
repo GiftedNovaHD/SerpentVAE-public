@@ -864,6 +864,7 @@ class SerpentVAE(nn.Module):
     num_active_units = torch.sum(variances > threshold)
 
     return num_active_units
+
   def metrics(self,
               input_ids: Tensor,
               z: Tensor,

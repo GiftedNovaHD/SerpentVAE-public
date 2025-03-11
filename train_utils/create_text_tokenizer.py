@@ -1,6 +1,6 @@
 from transformers import AutoTokenizer
 
-def create_tokenizer():
+def create_text_tokenizer():
   """
   Create and returns the DeepSeek-V3 tokenizer
 

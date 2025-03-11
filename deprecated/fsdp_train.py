@@ -51,7 +51,7 @@ from serpentvae.utils.prep_optimizer import prep_optimizer
 from serpentvae.modules.SerpentVAE import SerpentVAE
 from train_utils.config_utils import load_config # For loading configs
 from train_utils.prep_dataloaders import prep_dataset
-from train_utils.create_tokenizer import create_tokenizer
+from train_utils.create_text_tokenizer import create_text_tokenizer
 
 # Distributed training setup 
 def setup_distributed(): 
@@ -310,7 +310,7 @@ if __name__ == "__main__":
   #print(config)
 
   # Create tokenizer
-  tokenizer = create_tokenizer()
+  tokenizer = create_text_tokenizer()
 
   # Load data
   train_dataloader, test_dataloader, val_dataloader = prep_dataset(config = config, tokenizer = tokenizer)
