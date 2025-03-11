@@ -22,7 +22,6 @@ from typing import Optional
 # Import module utils for ensuring EOS padding tokens at the front are handled correctly
 from serpentvae.modules.module_utils.subseq_len_utils import count_whitelisted_tokens, filter_index
 
-
 class ChainCRP(nn.Module): 
   def __init__(self, 
                use_odds_ratio: bool = True,
