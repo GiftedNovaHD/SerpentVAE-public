@@ -8,6 +8,7 @@ from serpentvae.modules.mlp import MLP
 from mamba_ssm import Mamba, Mamba2
 from mamba_ssm.ops.triton.layer_norm import RMSNorm as RMSNorm, rms_norm_fn
 from serpentvae.modules.module_utils.init_weight import _init_weights
+from serpentvae.modules.sequence_mixers.block import create_block, SeqMixerBlock
 
 class DecoderLayer(nn.Module):
   def __init__(self,
