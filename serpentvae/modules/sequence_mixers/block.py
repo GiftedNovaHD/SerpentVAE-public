@@ -43,8 +43,8 @@ def create_block(seq_mixer_name: str, seq_mixer_kwargs: Dict) -> nn.Module:
                         dtype = seq_mixer_kwargs["dtype"]
                        )
     
-    elif seq_mixer_name == "Attention":
-      raise NotImplementedError("Attention is not implemented yet")
+    elif seq_mixer_name == "MultiLatentAttention":
+      raise NotImplementedError("MultiLatentAttention is not implemented yet")
     
     elif seq_mixer_name == "NativeSparseAttention":
       raise NotImplementedError("NativeSparseAttention is not implemented yet")
