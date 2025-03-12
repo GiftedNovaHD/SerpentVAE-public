@@ -9,6 +9,6 @@ def create_text_tokenizer():
   """
   # Create tokenizer - This is basically the DeepSeek-V3 tokeniser
   # NOTE: Vocab size is 129280
-  tokenizer = AutoTokenizer.from_pretrained("configs/tokenizer_config")
+  tokenizer = AutoTokenizer.from_pretrained("configs/text_tokenizer_config")
 
   return tokenizer
