@@ -126,33 +126,34 @@ def layer_parser(layer_config: str, aliases: Dict):
   # Parse the input string
   expanded_list, _ = parse_expression(layer_config)
 
-  final_list = []
+  unaliased_list = []
 
   # Convert from aliases to standardised model names
   for layer_name in expanded_list:
       if layer_name in aliases.keys():
-          final_list.append(aliases[layer_name])
+          unaliased_list.append(aliases[layer_name])
       else:
-          final_list.append(layer_name)
+          unaliased_list.append(layer_name)
 
-  return expanded_list
+  return unaliased_list
 
-aliases = get_aliases({
-    "mamba2": {
-       "alias": "M2"
-    },
-    "mamba1": {
-      "dummy": 1,
-       "alias": "M1"
-    },
-    "multiheadattention": {
-       "alias": "MHA",
-       "dummy": 1
-    },
-    "attention": {
-       "alias": "Attn"
-    },
-    "test comment": 123
-})
-lst = layer_parser("Attn, 3 (M2, 2(M1, MHA)), Attn, Unaliased", aliases)
-print(lst)
+if __name__ == "__main__":
+  aliases = get_aliases({
+      "mamba2": {
+         "alias": "M2"
+      },
+      "mamba1": {
+        "dummy": 1,
+         "alias": "M1"
+      },
+      "multiheadattention": {
+         "alias": "MHA",
+         "dummy": 1
+      },
+      "attention": {
+         "alias": "Attn"
+      },
+      "test comment": 123
+  })
+  lst = layer_parser("Attn, 3 (M2, 2(M1, MHA)), Attn, Unaliased", aliases)
+  print(lst)
