@@ -40,10 +40,10 @@ distribution:
 encoder:
   Mamba2:
     alias: M2
-    state_dim: 8
-    conv_length: 4
-    expand: 2
-    head_dim: 64 # (hidden_dim * mamba_expand / mamba_head_dim = 64 = 8 * 8)
+    mamba2_state_dim: 8
+    mamba2_conv_length: 4
+    mamba2_expand: 2
+    mamba2_head_dim: 64 # (hidden_dim * mamba_expand / mamba_head_dim = 64 = 8 * 8)
   
   layer_config: "2 (M2)" 
   mlp_inner_dim: 768
@@ -52,10 +52,10 @@ encoder:
 
 decoder:
   Mamba2:
-    state_dim: 8
-    conv_length: 4
-    expand: 2
-    head_dim: 64 # (hidden_dim * mamba_expand / mamba_head_dim = 64 = 8 * 8)
+    mamba2_state_dim: 8
+    mamba2_conv_length: 4
+    mamba2_expand: 2
+    mamba2_head_dim: 64 # (hidden_dim * mamba_expand / mamba_head_dim = 64 = 8 * 8)
 
   # Non-sequence mixer settings
   layer_config: "2 (Mamba2)"
@@ -67,10 +67,10 @@ decoder:
 enable_qnet: true # We advise Q-Net to be enabled to reduce the chance of posterior collapse
 qnet:
   Mamba2:
-    conv_length: 4
-    mamba_expand: 1
-    mamba_head_dim: 48 # (concept_dim * mamba_expand / qnet_mamba_head_dim = 48 = 8 * 6)
-    mamba_state_dim: 8
+    mamba2_conv_length: 4
+    mamba2_expand: 1
+    mamba2_head_dim: 48 # (concept_dim * mamba_expand / qnet_mamba_head_dim = 48 = 8 * 6)
+    mamba2_state_dim: 8
   
   layer_config: "Mamba2"
   qnet_mlp_inner_dim: 384
