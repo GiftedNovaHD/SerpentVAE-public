@@ -46,7 +46,7 @@ encoder:
     expand: 2
     head_dim: 64 # (hidden_dim * mamba_expand / mamba_head_dim = 64 = 8 * 8)
   
-  layer_config: "2 (Mamba2)" 
+  layer_config: "2 (M2)" 
   mlp_inner_dim: 768
   confidence_inner_dim: 768
   segment_pred_inner_dim: 768
