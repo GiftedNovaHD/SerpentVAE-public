@@ -19,29 +19,10 @@ seed: 6969
 # Notes on model configuration:
 # For Mamba2 head_dims, hidden_dim/concept_dim * mamba_expand / head_dim must be a multiple of 8
 
-# Model configuration settings
+# Global variables
 hidden_dim: 512
 concept_dim: 512
 vocab_size: 129280
-dist_desired_std: 1.0
-num_encoder_layers: 2
-num_decoder_layers: 2
-mamba_state_dim: 8
-mamba_conv_length: 4
-mamba_expand: 2
-mamba_head_dim: 64 # (hidden_dim * mamba_expand / mamba_head_dim = 64 = 8 * 8)
-mlp_inner_dim: 768
-confidence_inner_dim: 768
-segment_pred_inner_dim: 768
-
-# Q-Net configuration
-enable_qnet: true # We advise Q-Net to be enabled to reduce the chance of posterior collapse
-num_qnet_layers: 1
-qnet_conv_length: 4
-qnet_mamba_expand: 1
-qnet_mamba_head_dim: 64 # (concept_dim * mamba_expand / qnet_mamba_head_dim = 48 = 8 * 6)
-qnet_mlp_inner_dim: 384
-qnet_mamba_state_dim: 8
 
 # Embedding configuration
 share_input_embeddings: true
@@ -51,3 +32,47 @@ tie_embeddings: true
 residual_in_fp32: false
 device: "cuda"
 dtype: "bf16"
+
+# Model configuration settings
+dist_desired_std: 1.0
+
+num_decoder_layers: 2
+
+encoder:
+  Mamba2:
+    alias: M2
+    state_dim: 8
+    conv_length: 4
+    expand: 2
+    head_dim: 64 # (hidden_dim * mamba_expand / mamba_head_dim = 64 = 8 * 8)
+  
+  layer_config: "2 (Mamba2)" 
+  mlp_inner_dim: 768
+  confidence_inner_dim: 768
+  segment_pred_inner_dim: 768
+
+decoder:
+  Mamba2:
+    state_dim: 8
+    conv_length: 4
+    expand: 2
+    head_dim: 64 # (hidden_dim * mamba_expand / mamba_head_dim = 64 = 8 * 8)
+
+  # Non-sequence mixer settings
+  layer_config: "2 (Mamba2)"
+  mlp_inner_dim: 768
+  confidence_inner_dim: 768
+  segment_pred_inner_dim: 768
+
+# Q-Net configuration
+enable_qnet: true # We advise Q-Net to be enabled to reduce the chance of posterior collapse
+qnet:
+  Mamba2:
+    conv_length: 4
+    mamba_expand: 1
+    mamba_head_dim: 48 # (concept_dim * mamba_expand / qnet_mamba_head_dim = 48 = 8 * 6)
+    mamba_state_dim: 8
+  
+  layer_config: "Mamba2"
+  qnet_mlp_inner_dim: 384
+
