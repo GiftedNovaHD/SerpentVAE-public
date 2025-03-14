@@ -34,9 +34,8 @@ device: "cuda"
 dtype: "bf16"
 
 # Model configuration settings
-dist_desired_std: 1.0
-
-num_decoder_layers: 2
+distribution:
+  dist_desired_std: 1.0
 
 encoder:
   Mamba2:
