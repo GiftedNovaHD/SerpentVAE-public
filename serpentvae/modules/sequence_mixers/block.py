@@ -24,6 +24,8 @@ def create_block(seq_mixer_name: str, seq_mixer_kwargs: Dict) -> nn.Module:
   # Create sequence mixer
   try:
     if seq_mixer_name == "Mamba2":
+      assert (seq_mixer_kwargs["hidden_dim"] * (seq_mixer_kwargs["mamba2_expand"] / seq_mixer_kwargs["mamba2_head_dim"])) % 8 == 0, "Hidden dim * Expand / head_dim must be a multiple of 8 for kernels to work"
+
       seq_mixer = Mamba2(d_model = seq_mixer_kwargs["hidden_dim"],
                          d_state = seq_mixer_kwargs["mamba2_state_dim"],
                          d_conv = seq_mixer_kwargs["mamba2_conv_length"],
@@ -48,6 +50,11 @@ def create_block(seq_mixer_name: str, seq_mixer_kwargs: Dict) -> nn.Module:
     
     elif seq_mixer_name == "NativeSparseAttention":
       raise NotImplementedError("NativeSparseAttention is not implemented yet")
+    
+    else:
+      raise ValueError(f"{seq_mixer_name} is not a valid sequence mixer")
+    
+    return SeqMixerBlock(seq_mixer)
 
   except:
     raise ValueError(f"Could not create sequence mixer {seq_mixer_name}")
