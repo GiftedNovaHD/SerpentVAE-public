@@ -52,8 +52,6 @@ encoder:
     mamba2_conv_length: 4
     mamba2_expand: 2
     mamba2_head_dim: 64 # (hidden_dim * mamba_expand / mamba_head_dim = 64 = 8 * 8)
-  
-  
 
 decoder:
   # Non-sequence mixer settings
