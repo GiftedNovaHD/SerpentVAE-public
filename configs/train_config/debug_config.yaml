@@ -66,8 +66,6 @@ decoder:
     mamba2_expand: 2
     mamba2_head_dim: 64 # (hidden_dim * mamba_expand / mamba_head_dim = 64 = 8 * 8)
 
-  
-
 # Q-Net configuration
 enable_qnet: true # We advise Q-Net to be enabled to reduce the chance of posterior collapse
 qnet:
