@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, List
 
 def get_aliases(module_config: Dict) -> Dict:
   """Returns a dict containing a mapping of `alias:model`"""
@@ -11,7 +11,7 @@ def get_aliases(module_config: Dict) -> Dict:
 
   return aliases
 
-def validate_brackets(equation):
+def validate_brackets(layer_config: str) -> bool:
     """
     Validates if brackets in the compressed layer configuration are balanced.
     
@@ -36,7 +36,7 @@ def validate_brackets(equation):
     # Stack to keep track of opening brackets
     stack = []
     
-    for char in equation:
+    for char in layer_config:
         # If it's an opening bracket, push it onto the stack
         if char in brackets_map:
             stack.append(char)
@@ -58,7 +58,7 @@ def validate_brackets(equation):
     # If not empty, there are unmatched opening brackets
     return len(stack) == 0
 
-def layer_parser(layer_config: str, aliases: Dict):
+def layer_parser(layer_config: str, aliases: Dict) -> List[str]:
   """
   Expands an compressed layer configuration string into an expanded list of layers
   
