@@ -4,12 +4,12 @@ from serpentvae.modules.module_utils.layer_parser import layer_parser, get_alias
 
 config = load_config("debug_config")
 
-print(f"Encoder config:{config["encoder"]}")
+print(f"qnet config:{config["qnet"]}")
 
 aliases = get_aliases(config["encoder"])
 
 print(f"Aliases: {aliases}")
 
-layer_config = layer_parser(config["encoder"]["layer_config"], aliases)
+layer_config = layer_parser(config["qnet"]["layer_config"], aliases)
 
 print(f"Layer config: {layer_config}")
