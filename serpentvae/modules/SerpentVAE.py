@@ -14,6 +14,7 @@ from serpentvae.utils.convert_bitmask import convert_bitmask
 from serpentvae.ops.segment.replace.segment_utils.bitmask_to_indices import bitmask_to_start_indices, bitmask_to_end_indices
 from serpentvae.ops.sigmoid_focal_loss import sigmoid_focal_loss
 from serpentvae.ops.segment.replace.use_last import use_last_replacement
+from serpentvae.ops.segment.replace.mean import mean_replacement
 
 # Import modules
 from serpentvae.modules.tied_linear import TiedLinear
