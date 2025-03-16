@@ -5,7 +5,7 @@ from torch import nn as nn
 # Import sequence mixers
 from mamba_ssm import Mamba2, Mamba
 
-def create_block(seq_mixer_name: str, seq_mixer_kwargs: Dict) -> nn.Module:
+def create_block(seq_mixer_name: str, seq_mixer_kwargs: Dict, hidden_dim: int, device: torch.device, dtype: torch.dtype) -> nn.Module:
   """
   Creates a sequence mixer block based on the name and kwargs
 
@@ -24,25 +24,26 @@ def create_block(seq_mixer_name: str, seq_mixer_kwargs: Dict) -> nn.Module:
   # Create sequence mixer
   try:
     if seq_mixer_name == "Mamba2":
+      # Assert that head dimension is valid
       assert (seq_mixer_kwargs["hidden_dim"] * (seq_mixer_kwargs["mamba2_expand"] / seq_mixer_kwargs["mamba2_head_dim"])) % 8 == 0, "Hidden dim * Expand / head_dim must be a multiple of 8 for kernels to work"
 
-      seq_mixer = Mamba2(d_model = seq_mixer_kwargs["hidden_dim"],
+      seq_mixer = Mamba2(d_model = hidden_dim,
                          d_state = seq_mixer_kwargs["mamba2_state_dim"],
                          d_conv = seq_mixer_kwargs["mamba2_conv_length"],
                          expand = seq_mixer_kwargs["mamba2_expand"],
                          headdim = seq_mixer_kwargs["mamba2_head_dim"],
                          rmsnorm = False,
-                         device = seq_mixer_kwargs["device"],
-                         dtype = seq_mixer_kwargs["dtype"]
+                         device = device,
+                         dtype = dtype
                         )
     
     elif seq_mixer_name == "Mamba1":
-      seq_mixer = Mamba(d_model = seq_mixer_kwargs["hidden_dim"],
+      seq_mixer = Mamba(d_model = hidden_dim,
                         d_state = seq_mixer_kwargs["mamba1_state_dim"],
                         d_conv = seq_mixer_kwargs["mamba1_conv_length"],
                         expand = seq_mixer_kwargs["mamba1_expand"],
-                        device = seq_mixer_kwargs["device"],
-                        dtype = seq_mixer_kwargs["dtype"]
+                        device = device,
+                        dtype = dtype
                        )
     
     elif seq_mixer_name == "MultiLatentAttention":
