@@ -1,21 +1,20 @@
 import torch
 import torch.nn as nn
 from torch import Tensor
-from typing import Optional, Tuple
+from typing import Optional, Dict
 from serpentvae.modules.mlp import MLP
-from mamba_ssm import Mamba, Mamba2
 from mamba_ssm.ops.triton.layer_norm import RMSNorm as RMSNorm, rms_norm_fn
 from functools import partial
 from serpentvae.modules.module_utils.init_weight import _init_weights
 from serpentvae.modules.sequence_mixers.block import create_block, SeqMixerBlock
+from serpentvae.modules.module_utils.layer_parser import layer_parser, get_aliases
+
 
 class EncoderLayer(nn.Module):
   def __init__(self,
                hidden_dim: int,
-               state_dim: int,
-               conv_length: int,
-               mamba_expand: int,
-               head_dim: int,
+               seq_mixer_name: str,
+               seq_mixer_kwargs: Dict,
                mlp_inner_dim: int,
                layer_idx: int,
                residual_in_fp32: bool = False,
@@ -26,20 +25,17 @@ class EncoderLayer(nn.Module):
 
     super().__init__()
     self.hidden_dim = hidden_dim
-    self.state_dim = state_dim
-    self.conv_length = conv_length
-    self.mamba_expand = mamba_expand
-    self.head_dim = head_dim
+    self.seq_mixer_name = seq_mixer_name
+    self.seq_mixer_kwargs = seq_mixer_kwargs
     self.mlp_inner_dim = mlp_inner_dim
     self.layer_idx = layer_idx
     self.residual_in_fp32 = residual_in_fp32
+    self.device = device
+    self.dtype = dtype
 
-    # Calculate head dimension for Mamba
-    assert (hidden_dim * (mamba_expand / head_dim)) % 8 == 0, "Hidden dim * Expand / head_dim must be a multiple of 8 for kernels to work"
-
-    self.ssm = Mamba2(d_model = hidden_dim, d_state = state_dim, d_conv = conv_length, expand = mamba_expand, headdim = head_dim, rmsnorm = False, device = device, dtype = dtype)
+    self.seq_mixer = create_block(seq_mixer_name = seq_mixer_name, seq_mixer_kwargs = seq_mixer_kwargs, hidden_dim = hidden_dim, device = device, dtype = dtype)
     self.mlp = MLP(hidden_dim = hidden_dim, inner_dim = mlp_inner_dim, device = device, dtype = dtype)
-    self.ssm_rms_norm = RMSNorm(hidden_dim)
+    self.seq_mixer_rms_norm = RMSNorm(hidden_dim)
     self.mlp_rms_norm = RMSNorm(hidden_dim)
   
   def forward(self,
@@ -55,22 +51,22 @@ class EncoderLayer(nn.Module):
     Args:
       hidden_states: the sequence to the decoder layer (required) Training: (batch, sequence_length, hidden_dim) Inference: (batch, 1, hidden_dim)
       residual: hidden_states = Mixer(LN(residual)) Training: (batch, sequence_length, hidden_dim) Inference: (batch, 1, hidden_dim)
-      inference_params: the inference parameters for the SSM (optional)
+      inference_params: the inference parameters for the Sequence Mixer (optional)
     """ 
-    # SSM Pass
+    # Sequence Mixer Pass
     # Norm Pass
     hidden_states, residual = rms_norm_fn(
     hidden_states,
-    self.ssm_rms_norm.weight,
-    self.ssm_rms_norm.bias,
+    self.seq_mixer_rms_norm.weight,
+    self.seq_mixer_rms_norm.bias,
     residual=residual,
     prenorm=True,
     residual_in_fp32=self.residual_in_fp32,
-    eps=self.ssm_rms_norm.eps,
+    eps=self.seq_mixer_rms_norm.eps,
     )
 
-    # Mixer Pass
-    hidden_states = self.ssm(hidden_states, inference_params=inference_params, **mixer_kwargs)
+    # Sequence Mixer Pass
+    hidden_states = self.seq_mixer(hidden_states, inference_params=inference_params, **mixer_kwargs)
     
     # MLP Pass
     # Norm Pass
@@ -84,64 +80,63 @@ class EncoderLayer(nn.Module):
     eps=self.mlp_rms_norm.eps,
     )
 
-    # Mixer Pass
+    # Channel Mixer Pass
     hidden_states = self.mlp(hidden_states)
         
     return hidden_states, residual
 
   def allocate_inference_cache(self, batch_size, max_seqlen, dtype=None, **kwargs):
-    return self.ssm.allocate_inference_cache(batch_size, max_seqlen, dtype=dtype, **kwargs)
+    return self.seq_mixer.allocate_inference_cache(batch_size, max_seqlen, dtype=dtype, **kwargs)
 
 class Encoder(nn.Module):
   """
     Adapted from: https://github.com/state-spaces/mamba/blob/main/mamba_ssm/models/mixer_seq_simple.py
   """
   def __init__(self,
-               num_layers: int,
                hidden_dim: int,
-               state_dim: int,
-               conv_length: int,
-               mamba_expand: int,
-               head_dim: int,
-               mlp_inner_dim: int,
+               encoder_config: Dict,
                residual_in_fp32: bool = False,
                device: torch.device = None, 
                dtype: torch.dtype = None
                ):
     factory_kwargs = {"device": device, "dtype": dtype}
     
-    assert (hidden_dim * (mamba_expand / head_dim)) % 8 == 0, "Hidden dim * Expand / head_dim must be a multiple of 8 for kernels to work"
     super().__init__() 
-    self.num_layers = num_layers
-    self.hidden_dim = hidden_dim
-    self.state_dim = state_dim
-    self.conv_length = conv_length
-    self.mamba_expand = mamba_expand
-    self.head_dim = head_dim
-    self.mlp_inner_dim = mlp_inner_dim
+    # Hardware settings
     self.residual_in_fp32 = residual_in_fp32
+    self.device = device
+    self.dtype = dtype
 
-    self.layers = nn.ModuleList([EncoderLayer(
-      hidden_dim = hidden_dim,
-      state_dim = state_dim,
-      conv_length = conv_length,
-      mamba_expand = mamba_expand,
-      head_dim = head_dim,
-      mlp_inner_dim = mlp_inner_dim,
-      layer_idx = idx,
-      residual_in_fp32 = residual_in_fp32,
-      device = device,
-      dtype = dtype
-    ) for idx in range(num_layers)])
+    # Model settings
+    self.hidden_dim = hidden_dim
+    self.aliases = get_aliases(module_config = encoder_config)
+    self.layers_lst = layer_parser(layer_config = encoder_config["layer_config"], aliases = self.aliases)
+
+
+    self.layers = []
+
+    for layer_idx, layer_name in enumerate(self.layers_lst):
+      self.layers.append(EncoderLayer(hidden_dim = hidden_dim,
+                                             seq_mixer_name = layer_name,
+                                             seq_mixer_kwargs = encoder_config[layer_name],
+                                             mlp_inner_dim = encoder_config["mlp_inner_dim"],
+                                             layer_idx = layer_idx,
+                                             residual_in_fp32 = self.residual_in_fp32,
+                                             device = self.device,
+                                             dtype = self.dtype
+                                            )
+                        )
+      
+    self.layers = nn.ModuleList(self.layers)
     
     self.last_hidden_rms_norm = RMSNorm(hidden_dim)
     
     self.apply(
       partial(
         _init_weights,
-        num_layer=num_layers,
+        num_layer=len(self.layers_lst),
         **({}),
-        n_residuals_per_layer=1 if mlp_inner_dim == 0 else 2,  # 2 if we have MLP
+        n_residuals_per_layer = 2,  # 2 if we have MLP
         )
       )
     
@@ -159,7 +154,7 @@ class Encoder(nn.Module):
     """
     Args:
       hidden_states: the sequence to the decoder layer (required) Training: (batch, sequence_length, hidden_dim) Inference: (batch, 1, hidden_dim)
-      inference_params: the inference params for the SSM (optional)
+      inference_params: the inference params for the Sequence Mixer (optional)
 
     """
     # Setting up initial residual

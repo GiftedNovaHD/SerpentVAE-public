@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 #from torch.nested
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, List, Dict
 
 from serpentvae.modules.encoder import Encoder
 from serpentvae.modules.tied_linear import TiedLinear
@@ -11,12 +11,7 @@ from serpentvae.ops.segment.replace.segment_utils.bitmask_to_indices import bitm
 class QNet(nn.Module):
   def __init__(self,
                latent_dim: int,
-               num_layers: int,
-               conv_length: int, 
-               mamba_expand: int, 
-               mamba_head_dim: int,
-               mlp_inner_dim: int, 
-               state_dim: int = None, 
+               qnet_config: Dict,
                residual_in_fp32: bool = False, 
                device: torch.device = None, 
                dtype: torch.dtype = None, 
@@ -35,7 +30,6 @@ class QNet(nn.Module):
     super(QNet, self).__init__() 
     self.device = device
     self.dtype = dtype
-    state_dim = state_dim if state_dim is not None else latent_dim
 
     # Make sure that only vocab_size or hidden_dim is enabled at a single time
     assert (vocab_size is not None) ^ (hidden_dim is not None), "Either vocab_size or hidden_dim must be provided, but not both at the same time"
@@ -57,18 +51,12 @@ class QNet(nn.Module):
     elif self.discrete is False: # We are not using discrete tokens - Set hidden_dim if using semi-sparse vectors eg from Poisson-VAE or dense vectors
       self.input_proj = nn.Linear(hidden_dim, latent_dim, device = self.device, dtype = dtype)
 
-    # NOTE: Since context latent dim is same as current latent dim, we concatenate them (hence multiply by 2) and pass it through the MLP
     self.seq_mixer = Encoder(
-      num_layers = num_layers, 
       hidden_dim = latent_dim,
-      state_dim = state_dim,
-      conv_length = conv_length,
-      mamba_expand = mamba_expand,
-      head_dim = mamba_head_dim,
-      mlp_inner_dim = mlp_inner_dim,
+      encoder_config = qnet_config,
       residual_in_fp32 = residual_in_fp32,
-      device = device,
-      dtype = dtype
+      device = self.device,
+      dtype = self.dtype
     ) # Aggregate information over each subsequence 
 
     # TODO: Refactor to generalize to other distributions
@@ -128,7 +116,7 @@ class QNet(nn.Module):
       decoder_embeddings = self.input_proj(decoder_output) # (batch_size, seq_len, hidden_dim) -> (batch_size, seq_len, latent_dim) 
 
     """
-    Step 2: Extract correct SSM/Attention states for each context
+    Step 2: Extract correct Sequence Mixer states for each context
 
     We are definitely taking the easy way out by manually appending the correct context for each subsequence
     If we have time it would be good to extract the correct states generated from the context so that we do not keep reprocessing the context
