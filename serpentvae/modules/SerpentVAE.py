@@ -35,24 +35,13 @@ class SerpentVAE(nn.Module):
                hidden_dim: int,
                concept_dim: int,
                vocab_size: int,
-               distribution_desired_std: float,
-               num_encoder_layers: int,
-               num_decoder_layers: int,
-               state_dim: int,
-               conv_length: int,
-               mamba_expand: int,
-               mamba_head_dim: int,
-               mlp_inner_dim: int,
-               confidence_module_inner_dim: int,
-               segment_predictor_inner_dim: int,
+               distribution_config: Dict,
+               encoder_config: Dict,
+               decoder_config: Dict,
+               confidence_module_config: Dict,
                use_odds_ratio: bool = False,
                enable_qnet: bool = True,
-               num_qnet_layers: Optional[int] = None,
-               qnet_conv_length: Optional[int] = None,
-               qnet_mamba_expand: Optional[int] = None,
-               qnet_mamba_head_dim: Optional[int] = None,
-               qnet_mlp_inner_dim: Optional[int] = None,
-               qnet_mamba_state_dim: Optional[int] = None,
+               qnet_config: Optional[Dict] = None,
                share_input_embeddings: bool = True,
                tie_embeddings: bool = True,
                residual_in_fp32: bool = False,
@@ -66,28 +55,17 @@ class SerpentVAE(nn.Module):
     self.hidden_dim = hidden_dim
     self.concept_dim = concept_dim
     self.vocab_size = vocab_size
-    self.distribution_desired_std = distribution_desired_std
-    self.num_encoder_layers = num_encoder_layers
-    self.num_decoder_layers = num_decoder_layers
-    self.state_dim = state_dim
-    self.conv_length = conv_length
-    self.mamba_expand = mamba_expand
-    self.mamba_head_dim = mamba_head_dim
-    self.mlp_inner_dim = mlp_inner_dim
-    self.confidence_module_inner_dim = confidence_module_inner_dim
-    self.segment_predictor_inner_dim = segment_predictor_inner_dim
+    self.distribution_config = distribution_config
+    self.encoder_config = encoder_config
+    self.decoder_config = decoder_config
+    self.confidence_module_config = confidence_module_config
 
     # Segmentation configuration settings
     self.use_odds_ratio = use_odds_ratio
 
     # Q-Net configuration settings
     self.enable_qnet = enable_qnet
-    self.num_qnet_layers = num_qnet_layers
-    self.qnet_conv_length = qnet_conv_length
-    self.qnet_mamba_expand = qnet_mamba_expand
-    self.qnet_mamba_head_dim = qnet_mamba_head_dim
-    self.qnet_mlp_inner_dim = qnet_mlp_inner_dim
-    self.qnet_mamba_state_dim = qnet_mamba_state_dim
+    self.qnet_config = qnet_config
 
     # Other configuration settings
     self.share_input_embeddings = share_input_embeddings
@@ -102,6 +80,7 @@ class SerpentVAE(nn.Module):
 
     factory_kwargs = {"device": self.device, "dtype": self.dtype}
 
+    # TODO: Need to check how to modify this
     if self.enable_qnet == True:
       assert self.num_qnet_layers is not None, "num_qnet_layers must be specified if Q-Net is enabled"
       assert self.qnet_conv_length is not None, "qnet_conv_length must be specified if Q-Net is enabled"
@@ -127,22 +106,23 @@ class SerpentVAE(nn.Module):
       self.decoder_head = nn.Linear(hidden_dim, vocab_size)
     
     self.encoder = Encoder(hidden_dim = hidden_dim,
-                           encoder_config = 
+                           encoder_config = encoder_config,
                            residual_in_fp32 = residual_in_fp32,
                            device = self.device,
                            dtype = self.dtype
                            )
     
-    self.distribution = create_distribution(dist_name = 
+    self.distribution = create_distribution(dist_name =
                                             dist_kwargs = 
                                             hidden_dim = hidden_dim
                                             latent_dim = concept_dim,
                                             device = self.device,
-                                            dtype = self.dtype)
+                                            dtype = self.dtype
+                                           )
     
     self.decoder = Decoder(hidden_dim = hidden_dim,
                            concept_dim = concept_dim, 
-                           decoder_config = 
+                           decoder_config = decoder_config,
                            residual_in_fp32 = self.residual_in_fp32,
                            device = self.device,
                            dtype = self.dtype
@@ -150,7 +130,7 @@ class SerpentVAE(nn.Module):
     
     self.confidence_module = ConfidenceModule(hidden_dim = hidden_dim,
                                               concept_dim =concept_dim,
-                                              inner_dim = confidence_module_inner_dim,
+                                              inner_dim = confidence_module_config["mlp_inner_dim"],
                                               device = self.device,
                                               dtype = self.dtype
                                               )
@@ -158,7 +138,7 @@ class SerpentVAE(nn.Module):
     # Instantiate the auxiliary network Q 
     if self.enable_qnet == True:
       self.qnet = QNet(latent_dim = concept_dim,
-                       qnet_config = 
+                       qnet_config = qnet_config,
                        vocab_size = vocab_size,
                        residual_in_fp32 = self.residual_in_fp32,
                        device = self.device,
@@ -176,14 +156,14 @@ class SerpentVAE(nn.Module):
 
     # Instantiate the segment predictor
     self.encoder_segment_predictor = EncoderSegmentPredictor(hidden_dim = hidden_dim,
-                                                             inner_dim = segment_predictor_inner_dim,
+                                                             inner_dim = encoder_config["segment_pred_inner_dim"],
                                                              device = self.device,
                                                              dtype = self.dtype
                                                             )
 
     self.decoder_segment_predictor = DecoderSegmentPredictor(hidden_dim = hidden_dim,
                                                              concept_dim = concept_dim,
-                                                             inner_dim = segment_predictor_inner_dim,
+                                                             inner_dim = decoder_config["segment_pred_inner_dim"],
                                                              device = self.device,
                                                              dtype = self.dtype
                                                             )
