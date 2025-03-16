@@ -11,37 +11,18 @@ min_learning_rate:
 weight_decay:
 max_seq_len:
 batch_size:
-parallelism_strategy: 
+parallelism_strategy: "fsdp"
 compile_model: true
-seed: 6969
+seed:
 
 # Model configuration
 # Notes on model configuration:
 # For Mamba2 head_dims, hidden_dim/concept_dim * mamba_expand / head_dim must be a multiple of 8
 
-# Model configuration settings
+# Global variables
 hidden_dim:
 concept_dim:
-vocab_size: 129280
-dist_desired_std:
-num_encoder_layers:
-num_decoder_layers:
-mamba_state_dim:
-mamba_conv_length:
-mamba_expand:
-mamba_head_dim:
-mlp_inner_dim:
-confidence_inner_dim:
-segment_pred_inner_dim:
-
-# Q-Net configuration
-enable_qnet: true # We advise Q-Net to be enabled to reduce the chance of posterior collapse
-num_qnet_layers:
-qnet_conv_length:
-qnet_mamba_expand:
-qnet_mamba_head_dim:
-qnet_mlp_inner_dim:
-qnet_mamba_state_dim:
+vocab_size: # NOTE: Vocab size can be left blank to take in continuous inputs
 
 # Embedding configuration
 share_input_embeddings: true
@@ -50,4 +31,39 @@ tie_embeddings: true
 # Hardware configuration
 residual_in_fp32: false
 device: "cuda"
-dtype: "bf16"
+dtype:
+
+# Model configuration settings
+distribution:
+  
+
+encoder:
+  # Non-sequence mixer settings
+  layer_config: 
+  mlp_inner_dim:
+  segment_pred_inner_dim: # Encoder segment predictor inner dimension
+
+  # Sequence mixer configuration
+
+decoder:
+  # Non-sequence mixer settings
+  layer_config:
+  mlp_inner_dim:
+  segment_pred_inner_dim: # Decoder segment predictor inner dimension
+
+  # Sequence mixer configuration
+  
+
+# Confidence Module configuration
+confidence_module:
+  mlp_inner_dim:
+
+# Q-Net configuration
+enable_qnet: true # We advise Q-Net to be enabled to reduce the chance of posterior collapse
+qnet:
+  # Non-sequence mixer settings
+  layer_config:
+  mlp_inner_dim:
+  
+  # Sequence mixer configuration
+  
