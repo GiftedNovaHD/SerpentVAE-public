@@ -43,6 +43,7 @@ class LightningSerpentVAE(pl.LightningModule):
     self.log_dict(metrics, sync_dist = True)
 
     return total_loss
+
   def validation_step(self, batch: Tensor, batch_idx: int):
     correct_input_ids = batch["input_ids"].unsqueeze(-1)
 
