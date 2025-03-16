@@ -267,7 +267,8 @@ class SerpentVAE(nn.Module):
     # Apply bitmask to replace concept tokens
     replaced_concept_tokens = replacement_function(concept_tokens = concept_tokens,
                                                    segment_indices = segmentation_indices,
-                                                   device = self.device
+                                                   device = self.device,
+                                                   dtype = self.dtype
                                                   )
 
     # NOTE: This direct return is for testing purposes only
@@ -692,7 +693,7 @@ class SerpentVAE(nn.Module):
 
     # Encode tokens
     hidden_states = self.encode(enc_hidden_states) # (batch_size, seq_len, hidden_dim) -> mu: (batch_size, seq_len, hidden_dim), logvar: (batch_size, seq_len, hidden_dim)
-
+    
     # Sample the concept tokens from the latent 
     sampled_latents, mu, logvar = self.sample(hidden_states) # mu: (batch_size, seq_len, concept_dim), logvar: (batch_size, seq_len, concept_dim) -> (batch_size, seq_len, concept_dim)
     # across seq_len, we have a different mu and logvar

@@ -9,7 +9,8 @@ from serpentvae.ops.segment.replace.segment_utils.bitmask_to_indices import bitm
 def helper_function(concept_tokens: Tensor,
                     segment_indices: Tensor,
                     modifying_function: Callable,
-                    device: torch.device
+                    device: torch.device,
+                    dtype: torch.dtype,
                    ) -> Tensor:
   """
   Helper function that allows for different modifying functions to be used in segmentation
@@ -39,14 +40,14 @@ def helper_function(concept_tokens: Tensor,
   # Find the end of each subsequence
   end_indices = bitmask_to_end_indices(segment_indices, inclusive = False) # List of tensors of shape (num_subseqs,)
   
-  replace_concept_tokens = torch.tensor([], device = device)
+  replace_concept_tokens = torch.tensor([], device = device, dtype = dtype) # Shape is (seq_len, concept_dim)
 
   for batch_idx in range(batch_size):
     batch_start_indices = start_indices[batch_idx]
     batch_end_indices = end_indices[batch_idx]
     batch_concept_tokens = concept_tokens[batch_idx] # Shape is (seq_len, concept_dim)
     
-    batch_replace_concept_tokens = torch.tensor([], device = device) # Shape is (seq_len, concept_dim)
+    batch_replace_concept_tokens = torch.tensor([], device = device, dtype = dtype) # Shape is (seq_len, concept_dim)
 
     # print(f"batch_start_indices: {batch_start_indices}")
     # print(f"batch_end_indices: {batch_end_indices}")

@@ -89,7 +89,7 @@ class DecoderLayer(nn.Module):
     )
 
     # Concept Mixer Pass
-    hidden_states = self.concept_mixer(hidden_states,concept_tokens)
+    hidden_states = self.concept_mixer(hidden_states, concept_tokens)
     
     # MLP Pass
     # Norm Pass

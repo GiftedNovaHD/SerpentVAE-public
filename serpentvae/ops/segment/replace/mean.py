@@ -7,7 +7,8 @@ from serpentvae.ops.segment.replace.helper_function import helper_function
 
 def mean_replacement(concept_tokens: Tensor,
                      segment_indices: Tensor,
-                     device: torch.device
+                     device: torch.device,
+                     dtype: torch.dtype
                     ) -> Tensor:
   """
   Replaces each subsequence of concept tokens with the mean of the subsequence
@@ -17,6 +18,7 @@ def mean_replacement(concept_tokens: Tensor,
     concept_tokens (Tensor): (batch_size, seq_len, concept_dim)
     segment_indices (Tensor): (batch_size, seq_len, 1)
     device (torch.device): Device to use for computation
+    dtype (torch.dtype): Data type to use for computation
   
   Returns:
     replaced_concept_tokens (Tensor): (batch_size, seq_len, concept_dim)
@@ -35,7 +37,8 @@ def mean_replacement(concept_tokens: Tensor,
   replace_concept_tokens = helper_function(concept_tokens = concept_tokens,
                                            segment_indices = segment_indices,
                                            modifying_function = mean,
-                                           device = device)
+                                           device = device,
+                                           dtype = dtype)
     
   return replace_concept_tokens # Shape: (batch_size, seq_len, concept_dim)
 
