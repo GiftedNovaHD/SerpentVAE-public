@@ -36,7 +36,7 @@ dtype: "bf16"
 
 # Model configuration settings
 distribution:
-  ScaleVAE:
+  ScaledNormal:
     dist_desired_std: 1.0
 
 encoder:
