@@ -140,7 +140,8 @@ class SerpentVAE(nn.Module):
     self.distribution = ScaledNormal(hidden_dim = hidden_dim,
                                      latent_dim = concept_dim,
                                      des_std = distribution_desired_std,
-                                     **factory_kwargs
+                                     device = self.device,
+                                     dtype = self.dtype
                                     )
     
     self.decoder = Decoder(num_layers = num_decoder_layers,
