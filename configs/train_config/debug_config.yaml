@@ -2,7 +2,7 @@
 dataset_path: "salesforce/wikitext"
 dataset_name: "wikitext-2-raw-v1"
 num_epochs: 10
-eval_freq: 1
+eval_freq: 0.001
 model_save_folder_path:
 metrics_save_folder_path: 
 training_path: 
