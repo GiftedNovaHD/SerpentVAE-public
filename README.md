@@ -1,5 +1,5 @@
 # SerpentVAE
-A method to dynamically segment and compress information into latent tokens across the time domain. Compared to other methods to segment such as using perplexity of a separate model, we directly use the reconstruction error as a proxy for how we should segment the data, based on the observation that if the next event/word is likely to follow, the increase in reconstruction error will not be significant.
+A method to dynamically segment and compress information into latent tokens across the time domain. Compared to other methods to segment such as using perplexity of a separate model, we directly use the reconstruction error of the VAE itself as a proxy for how we should segment the data, based on the observation that if reconstruction error is low, that subsequence likely represents a concept and thus can be easily compressed.
 
 # Table of Contents
 - [SerpentVAE](#serpentvae)
@@ -13,13 +13,13 @@ A method to dynamically segment and compress information into latent tokens acro
 - [Future Plans](#future-plans)
 
 # Encoder
-- Mamba-1 based encoder
+- Mamba-2 based encoder
 
 # Quantisation Scheme
 - Scale-VAE
 
 # Decoder
-- Mamba-1 based decoder with Mamba-1 being used to replace self attention, and a gating mechanism is used to control information passed to the hidden token being decoded
+- Mamba-2 based decoder with Mamba-2 being used to replace self attention, and a gating mechanism is used to control information passed to the hidden token being decoded
 
 # SerpentVAE Training Scheme
 - Randomly sample contiguous segements and train the model to reconstruct the data
@@ -44,7 +44,7 @@ A method to dynamically segment and compress information into latent tokens acro
   - [x] Model trains (on a single GPU) as expected using FSDP implementation
   - [ ] Multi-GPU training works properly as expected. 
 - [x] Extend SerpentVAE to the Conditional VAE case where the context from previous contexts is used as the conditional input - We made this the default for faster training
-- [ ] ChainCRP Segmenter
+- [x] ChainCRP Segmenter
 
 ### Training Checklist 
 - [x] Core training loop 

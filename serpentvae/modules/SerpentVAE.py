@@ -130,7 +130,7 @@ class SerpentVAE(nn.Module):
                            device = self.device,
                            dtype = self.dtype
                            )
-    
+
     # Instantiate ChainCRP
     self.chain_crp = ChainCRP(use_odds_ratio = self.use_odds_ratio,
                               dtype = self.dtype,
@@ -1114,6 +1114,10 @@ class SerpentVAE(nn.Module):
                              is_test = is_test
                             )
       
+      # Print out the metrics
+      for key, value in metrics.items():
+        print(f"{key}: {value}")
+
       return metrics
   
   def infer_step(self,):
