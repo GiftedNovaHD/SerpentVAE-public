@@ -126,34 +126,24 @@ class SerpentVAE(nn.Module):
     else:
       self.decoder_head = nn.Linear(hidden_dim, vocab_size)
     
-    self.encoder = Encoder(num_layers = num_encoder_layers,
-                           hidden_dim = hidden_dim,
-                           state_dim = state_dim,
-                           conv_length = conv_length,
-                           mamba_expand = mamba_expand,
-                           head_dim = mamba_head_dim,
-                           mlp_inner_dim = mlp_inner_dim,
+    self.encoder = Encoder(hidden_dim = hidden_dim,
+                           encoder_config = 
                            residual_in_fp32 = residual_in_fp32,
                            device = self.device,
                            dtype = self.dtype
                            )
     
-    self.distribution = ScaledNormal(hidden_dim = hidden_dim,
-                                     latent_dim = concept_dim,
-                                     des_std = distribution_desired_std,
-                                     device = self.device,
-                                     dtype = self.dtype
-                                    )
+    self.distribution = create_distribution(dist_name = 
+                                            dist_kwargs = 
+                                            hidden_dim = hidden_dim
+                                            latent_dim = concept_dim,
+                                            device = self.device,
+                                            dtype = self.dtype)
     
-    self.decoder = Decoder(num_layers = num_decoder_layers,
-                           hidden_dim = hidden_dim,
+    self.decoder = Decoder(hidden_dim = hidden_dim,
                            concept_dim = concept_dim, 
-                           state_dim = state_dim,
-                           conv_length = conv_length,
-                           mamba_expand = mamba_expand,
-                           head_dim = mamba_head_dim,
-                           mlp_inner_dim = mlp_inner_dim,
-                           residual_in_fp32 = residual_in_fp32,
+                           decoder_config = 
+                           residual_in_fp32 = self.residual_in_fp32,
                            device = self.device,
                            dtype = self.dtype
                            )
@@ -168,13 +158,9 @@ class SerpentVAE(nn.Module):
     # Instantiate the auxiliary network Q 
     if self.enable_qnet == True:
       self.qnet = QNet(latent_dim = concept_dim,
-                       num_layers = num_qnet_layers,
-                       conv_length = qnet_conv_length,
-                       mamba_expand = qnet_mamba_expand,
-                       mamba_head_dim = qnet_mamba_head_dim,
-                       mlp_inner_dim = qnet_mlp_inner_dim,
-                       state_dim = qnet_mamba_state_dim,
+                       qnet_config = 
                        vocab_size = vocab_size,
+                       residual_in_fp32 = self.residual_in_fp32,
                        device = self.device,
                        dtype = self.dtype
                       )
