@@ -43,5 +43,3 @@ def create_distribution(dist_name: str, dist_kwargs: Dict, hidden_dim: int, late
   
   except Exception as e:
     raise ValueError(f"Error creating distribution: {e}")
-
-  return None
