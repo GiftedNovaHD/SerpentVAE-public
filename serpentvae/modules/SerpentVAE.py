@@ -82,12 +82,7 @@ class SerpentVAE(nn.Module):
 
     # TODO: Need to check how to modify this
     if self.enable_qnet == True:
-      assert self.num_qnet_layers is not None, "num_qnet_layers must be specified if Q-Net is enabled"
-      assert self.qnet_conv_length is not None, "qnet_conv_length must be specified if Q-Net is enabled"
-      assert self.qnet_mamba_expand is not None, "qnet_mamba_expand must be specified if Q-Net is enabled"
-      assert self.qnet_mamba_head_dim is not None, "qnet_mamba_head_dim must be specified if Q-Net is enabled"
-      assert self.qnet_mlp_inner_dim is not None, "qnet_mlp_inner_dim must be specified if Q-Net is enabled"
-      assert self.qnet_mamba_state_dim is not None, "qnet_mamba_state_dim must be specified if Q-Net is enabled"
+      assert self.qnet_config is not None, "qnet_config must be provided if enable_qnet is True"
     
     # Defining model components
     # NOTE: We constrain  the embedding weights to have a maximum norm of 1.0 for training stability.
@@ -111,10 +106,13 @@ class SerpentVAE(nn.Module):
                            device = self.device,
                            dtype = self.dtype
                            )
+
+    dist_name = list(distribution_config.keys())[0]
+    dist_kwargs = list(distribution_config.values())[0]
     
-    self.distribution = create_distribution(dist_name =
-                                            dist_kwargs = 
-                                            hidden_dim = hidden_dim
+    self.distribution = create_distribution(dist_name = dist_name,
+                                            dist_kwargs = dist_kwargs,
+                                            hidden_dim = hidden_dim,
                                             latent_dim = concept_dim,
                                             device = self.device,
                                             dtype = self.dtype
@@ -129,8 +127,8 @@ class SerpentVAE(nn.Module):
                            )
     
     self.confidence_module = ConfidenceModule(hidden_dim = hidden_dim,
-                                              concept_dim =concept_dim,
-                                              inner_dim = confidence_module_config["mlp_inner_dim"],
+                                              concept_dim = concept_dim,
+                                              confidence_module_config = confidence_module_config,
                                               device = self.device,
                                               dtype = self.dtype
                                               )

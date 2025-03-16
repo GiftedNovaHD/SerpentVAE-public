@@ -28,7 +28,7 @@ def create_block(seq_mixer_name: str, seq_mixer_kwargs: Dict, hidden_dim: int, d
   try:
     if seq_mixer_name == "Mamba2":
       # Assert that head dimension is valid
-      assert (seq_mixer_kwargs["hidden_dim"] * (seq_mixer_kwargs["mamba2_expand"] / seq_mixer_kwargs["mamba2_head_dim"])) % 8 == 0, "Hidden dim * Expand / head_dim must be a multiple of 8 for kernels to work"
+      assert (hidden_dim * (seq_mixer_kwargs["mamba2_expand"] / seq_mixer_kwargs["mamba2_head_dim"])) % 8 == 0, "Hidden dim * Expand / head_dim must be a multiple of 8 for kernels to work"
 
       seq_mixer = Mamba2(d_model = hidden_dim,
                          d_state = seq_mixer_kwargs["mamba2_state_dim"],
@@ -61,7 +61,7 @@ def create_block(seq_mixer_name: str, seq_mixer_kwargs: Dict, hidden_dim: int, d
     return SeqMixerBlock(seq_mixer)
 
   except Exception as e:
-    raise ValueError(f"Error creating sequence mixer: {e}")
+    raise Exception(f"Error creating sequence mixer: {e}")
 
   return None
 

@@ -3,12 +3,13 @@ from torch import Tensor
 from torch import nn
 from serpentvae.modules.mlp import MLP
 import einx
+from typing import Dict
 
 class ConfidenceModule(nn.Module):
   def __init__(self,
                hidden_dim: int,
                concept_dim: int,
-               inner_dim: int,
+               confidence_module_config: Dict,
                device: torch.device = None,
                dtype: torch.dtype = None
               ):
@@ -19,6 +20,8 @@ class ConfidenceModule(nn.Module):
     
     super().__init__()
     self.concept_dim = concept_dim
+
+    inner_dim = confidence_module_config["mlp_inner_dim"]
 
     self.hidden_state_mlp = MLP(hidden_dim,  inner_dim, **factory_kwargs)
     self.hidden_state_up_proj = nn.Linear(hidden_dim, concept_dim, **factory_kwargs)
