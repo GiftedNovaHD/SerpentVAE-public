@@ -135,7 +135,7 @@ class Decoder(nn.Module):
     self.hidden_dim = hidden_dim
     self.concept_dim = concept_dim
     self.aliases = get_aliases(module_config = decoder_config)
-    self.layers_lst = layer_parser(layers_config = decoder_config["layer_config"], aliases = self.aliases)
+    self.layers_lst = layer_parser(layer_config = decoder_config["layer_config"], aliases = self.aliases)
 
     self.layers = []
 
