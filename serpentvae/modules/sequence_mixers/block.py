@@ -12,6 +12,9 @@ def create_block(seq_mixer_name: str, seq_mixer_kwargs: Dict, hidden_dim: int, d
   Args:
     seq_mixer_name (str): The name of the sequence mixer
     seq_mixer_kwargs (Dict): The kwargs for the sequence mixer
+    hidden_dim (int): The hidden dimension of the model
+    device (torch.device): The device to use
+    dtype (torch.dtype): The dtype to use
   Returns:
     seq_mixer (nn.Module): The sequence mixer block
   """
@@ -57,8 +60,11 @@ def create_block(seq_mixer_name: str, seq_mixer_kwargs: Dict, hidden_dim: int, d
     
     return SeqMixerBlock(seq_mixer)
 
-  except:
-    raise ValueError(f"Could not create sequence mixer {seq_mixer_name}")
+  except Exception as e:
+    raise ValueError(f"Error creating sequence mixer: {e}")
+
+  return None
+
 
 
 
