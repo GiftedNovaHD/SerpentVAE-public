@@ -20,8 +20,6 @@ def create_distribution(dist_name: str, dist_kwargs: Dict, hidden_dim: int, late
   Returns:
     dist (nn.Module): The distribution module
   """
-  # Factory kwargs
-  factory_kwargs = {"device": device, "dtype": dtype}
   # Check possible distributions
   dist_lst = ["ScaledNormal"]
 
@@ -34,7 +32,8 @@ def create_distribution(dist_name: str, dist_kwargs: Dict, hidden_dim: int, late
       dist = ScaledNormal(latent_dim = latent_dim,
                           hidden_dim = hidden_dim,
                           des_std = dist_kwargs["dist_desired_std"],
-                          **factory_kwargs
+                          device = device,
+                          dtype = dtype
                          )
     
     else:

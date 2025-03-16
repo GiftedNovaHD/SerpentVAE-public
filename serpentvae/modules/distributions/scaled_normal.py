@@ -10,7 +10,8 @@ class ScaledNormal(nn.Module):
       hidden_dim: int,
       latent_dim: int, 
       des_std: float,
-      **factory_kwargs
+      device: torch.device,
+      dtype: torch.dtype
       ):
     super(ScaledNormal, self).__init__()
     
@@ -18,10 +19,12 @@ class ScaledNormal(nn.Module):
     self.latent_dim = latent_dim
     self.des_std = des_std
     # NOTE: We do NOT use f_epo here as instead of training in mini-batches, we train in full batch
+    self.device = device
+    self.dtype = dtype
 
     # Linear layers to transform encoder hidden states to mean and log variance of latent normal distribution
-    self.encode_mu = nn.Linear(hidden_dim, latent_dim, **factory_kwargs)
-    self.encode_logvar = nn.Linear(hidden_dim, latent_dim, **factory_kwargs)
+    self.encode_mu = nn.Linear(hidden_dim, latent_dim, device=self.device, dtype=self.dtype)
+    self.encode_logvar = nn.Linear(hidden_dim, latent_dim, device=self.device, dtype=self.dtype)
 
   def encode_dist_params(self,
                          hidden_states: Tensor
