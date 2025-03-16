@@ -47,8 +47,8 @@ def prep_dataset(config: Dict,tokenizer) -> Tuple[DataLoader, DataLoader, DataLo
     """
     return tokenizer(batch, padding = True, truncation = True, max_length = config["max_seq_len"], return_tensors = "pt")
 
-  train_dataloader = DataLoader(train_texts, batch_size=config["batch_size"], shuffle=True, collate_fn=collate, num_workers = 0)
-  test_dataloader = DataLoader(test_texts, batch_size=config["batch_size"], shuffle=False, collate_fn=collate, num_workers = 0)
-  val_dataloader = DataLoader(val_texts, batch_size=config["batch_size"], shuffle=False, collate_fn=collate, num_workers = 0)
+  train_dataloader = DataLoader(train_texts, batch_size=config["batch_size"], shuffle=True, collate_fn=collate, num_workers = config["dataloader_num_workers"])
+  test_dataloader = DataLoader(test_texts, batch_size=config["batch_size"], shuffle=False, collate_fn=collate, num_workers = config["dataloader_num_workers"])
+  val_dataloader = DataLoader(val_texts, batch_size=config["batch_size"], shuffle=False, collate_fn=collate, num_workers = config["dataloader_num_workers"])
 
   return train_dataloader, test_dataloader, val_dataloader
