@@ -1,29 +1,21 @@
 # SerpentVAE
-A method to dynamically segment and compress information into latent tokens across the time domain. Compared to other methods to segment such as using perplexity of a separate model, we directly use the reconstruction error of the VAE itself as a proxy for how we should segment the data, based on the observation that if reconstruction error is low, that subsequence likely represents a concept and thus can be easily compressed.
+A method to dynamically segment and compress information into latent tokens across the time domain. Compared to other methods to segment such as using perplexity of a separate model (LCM 2024), we directly use the reconstruction error of the VAE itself as a proxy for how we should segment the data, based on the observation that if reconstruction error is low, that subsequence likely represents a concept and thus can be easily compressed.
+
+## Architecture Details 
+SerpentVAE uses a Mamba-2 based encoder and decoder. In the decoder module, Mamba-2 is used to replace self-attention, and we also add a gating mechanism to modulate the information that's being passed to the hidden token that is being decoded. 
+
+During training, we randomly sample continuous segments and train the model to reconstruct the data. We slowly increase the length of the segments. 
 
 # Table of Contents
 - [SerpentVAE](#serpentvae)
-- [Encoder](#encoder)
 - [Quantisation Scheme](#quantisation-scheme)
-- [Decoder](#decoder)
-- [SerpentVAE Training Scheme](#serpentvae-training-scheme)
 - [SerpentVAE Inference Scheme](#serpentvae-inference-scheme)
 - [Kernels](#kernels)
 - [Checklist](#checklist)
 - [Future Plans](#future-plans)
 
-# Encoder
-- Mamba-2 based encoder
-
 # Quantisation Scheme
 - Scale-VAE
-
-# Decoder
-- Mamba-2 based decoder with Mamba-2 being used to replace self attention, and a gating mechanism is used to control information passed to the hidden token being decoded
-
-# SerpentVAE Training Scheme
-- Randomly sample contiguous segements and train the model to reconstruct the data
-- Slowly increase the length of the segments
 
 # SerpentVAE Inference Scheme
 - Greedily increase the length of the segment until reconstruction error increases alot
