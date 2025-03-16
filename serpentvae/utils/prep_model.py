@@ -19,6 +19,7 @@ def prep_model(config: Dict) -> SerpentVAE:
                      distribution_config = config["distribution"],
                      encoder_config = config["encoder"],
                      decoder_config = config["decoder"],
+                     enable_confidence_module = config["enable_confidence_module"],
                      confidence_module_config = config["confidence_module"],
                      enable_qnet = config["enable_qnet"],
                      qnet_config = config["qnet"],

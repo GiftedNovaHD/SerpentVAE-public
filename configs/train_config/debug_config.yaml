@@ -66,6 +66,7 @@ decoder:
     mamba2_head_dim: 64 # (hidden_dim * mamba_expand / mamba_head_dim = 64 = 8 * 8)
 
 # Confidence Module configuration
+enable_confidence_module: true # This module is used for Stochastic Varitional Inference (not implemented yet)
 confidence_module:
   mlp_inner_dim: 768
 

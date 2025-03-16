@@ -20,7 +20,6 @@ from serpentvae.ops.segment.replace.mean import mean_replacement
 from serpentvae.modules.tied_linear import TiedLinear
 from serpentvae.modules.encoder import Encoder
 from serpentvae.modules.decoder import Decoder
-from serpentvae.modules.distributions.scaled_normal import ScaledNormal
 from serpentvae.modules.confidencemodule import ConfidenceModule
 from serpentvae.modules.qnet import QNet # Auxiliary Network
 from serpentvae.modules.segment_predictor import EncoderSegmentPredictor, DecoderSegmentPredictor
@@ -38,8 +37,9 @@ class SerpentVAE(nn.Module):
                distribution_config: Dict,
                encoder_config: Dict,
                decoder_config: Dict,
-               confidence_module_config: Dict,
                use_odds_ratio: bool = False,
+               enable_confidence_module: bool = True,
+               confidence_module_config: Optional[Dict] = None,
                enable_qnet: bool = True,
                qnet_config: Optional[Dict] = None,
                share_input_embeddings: bool = True,
@@ -58,10 +58,13 @@ class SerpentVAE(nn.Module):
     self.distribution_config = distribution_config
     self.encoder_config = encoder_config
     self.decoder_config = decoder_config
-    self.confidence_module_config = confidence_module_config
 
     # Segmentation configuration settings
     self.use_odds_ratio = use_odds_ratio
+
+    # Confidence module configuration settings
+    self.enable_confidence_module = enable_confidence_module
+    self.confidence_module_config = confidence_module_config
 
     # Q-Net configuration settings
     self.enable_qnet = enable_qnet
@@ -80,7 +83,9 @@ class SerpentVAE(nn.Module):
 
     factory_kwargs = {"device": self.device, "dtype": self.dtype}
 
-    # TODO: Need to check how to modify this
+    if self.enable_confidence_module == True:
+      assert self.confidence_module_config is not None, "confidence_module_config must be provided if enable_confidence_module is True"
+
     if self.enable_qnet == True:
       assert self.qnet_config is not None, "qnet_config must be provided if enable_qnet is True"
     
@@ -126,30 +131,13 @@ class SerpentVAE(nn.Module):
                            dtype = self.dtype
                            )
     
-    self.confidence_module = ConfidenceModule(hidden_dim = hidden_dim,
-                                              concept_dim = concept_dim,
-                                              confidence_module_config = confidence_module_config,
-                                              device = self.device,
-                                              dtype = self.dtype
-                                              )
-
-    # Instantiate the auxiliary network Q 
-    if self.enable_qnet == True:
-      self.qnet = QNet(latent_dim = concept_dim,
-                       qnet_config = qnet_config,
-                       vocab_size = vocab_size,
-                       residual_in_fp32 = self.residual_in_fp32,
-                       device = self.device,
-                       dtype = self.dtype
-                      )
-    
     # Instantiate ChainCRP
     self.chain_crp = ChainCRP(use_odds_ratio = self.use_odds_ratio,
                               dtype = self.dtype,
                               device = self.device
                              )
     
-    # Set previous batch reconstruction loss 
+    # Set previous batch reconstruction loss for ChainCRP
     self.prev_batch_recon_loss = torch.tensor([50], dtype = self.dtype, device = self.device)
 
     # Instantiate the segment predictor
@@ -165,8 +153,27 @@ class SerpentVAE(nn.Module):
                                                              device = self.device,
                                                              dtype = self.dtype
                                                             )
-                                                             
-  
+    
+    # Optional Modules
+    # Instantiate the confidence module
+    if self.enable_confidence_module == True:
+      self.confidence_module = ConfidenceModule(hidden_dim = hidden_dim,
+                                                concept_dim = concept_dim,
+                                                confidence_module_config = confidence_module_config,
+                                                device = self.device,
+                                                dtype = self.dtype
+                                                )
+
+    # Instantiate the auxiliary network Q 
+    if self.enable_qnet == True:
+      self.qnet = QNet(latent_dim = concept_dim,
+                       qnet_config = qnet_config,
+                       vocab_size = vocab_size,
+                       residual_in_fp32 = self.residual_in_fp32,
+                       device = self.device,
+                       dtype = self.dtype
+                      )
+
   def encode(self,
              hidden_states: Tensor,
              inference_params=None,
@@ -713,7 +720,10 @@ class SerpentVAE(nn.Module):
                                                                  ) # (batch_size, seq_len, concept_dim) -> (batch_size, seq_len, concept_dim)
 
     # Predict reconstruction error (Confidence) 
-    predicted_confidence = self.confidence(hidden_states, sampled_latents) # (batch_size, seq_len, 1)
+    if self.enable_confidence_module == True:
+      predicted_confidence = self.confidence(hidden_states, sampled_latents) # (batch_size, seq_len, 1)
+    else:
+      predicted_confidence = None
 
     # Decode the hidden states based on the segmented concept tokens
     # NOTE: We are doing teacher forcing here
@@ -933,11 +943,12 @@ class SerpentVAE(nn.Module):
                                                segmentation_indices = segmentation_indices)
     
     # Calculate the confidence error
-    confidence_error = self.confidence_loss(confidence_estimates = confidence_estimates,
-                                            segmentation_indices = segmentation_indices,
-                                            input_ids = input_ids,
-                                            decoder_output = decoder_output
-                                           )
+    if self.enable_confidence_module == True:
+      confidence_error = self.confidence_loss(confidence_estimates = confidence_estimates,
+                                              segmentation_indices = segmentation_indices,
+                                              input_ids = input_ids,
+                                              decoder_output = decoder_output
+                                             )
     
     # Calculate the segmentation prediction error
     encoder_segmentation_prediction_error = self.segment_prediction_loss(segmentation_predictions=encoder_segmentation_predictions,
@@ -955,31 +966,23 @@ class SerpentVAE(nn.Module):
       prefix = "validation_"
 
     # Initialize the metrics dictionary
+    metrics = {prefix + "num_active_units": num_active_units.item(),
+               prefix + "full_mi": full_mutual_info.item(),
+               prefix + "kl_divergence": kl_divergence.item(),
+               prefix + "recon_error": reconstruction_error.item(),
+               prefix + "perplexity": torch.exp(reconstruction_error).item(),
+               prefix + "avg_subsequence_len": avg_subseq_length,
+               prefix + "encoder_segment_prediction_error": encoder_segmentation_prediction_error.item(),
+               prefix + "decoder_segment_prediction_error": decoder_segmentation_prediction_error.item(),
+               prefix + "total_loss": total_loss.item()
+              }
+    
+    # Add optional metrics
+    if self.enable_confidence_module == True:
+      metrics[prefix + "confidence_loss"] = confidence_error.item()
+    
     if self.enable_qnet == True:
-      metrics = {prefix + "num_active_units": num_active_units.item(),
-                 prefix + "vmi": vmi_loss.item(),
-                 prefix + "full_mi": full_mutual_info.item(),
-                 prefix + "kl_divergence": kl_divergence.item(),
-                 prefix + "recon_error": reconstruction_error.item(),
-                 prefix + "perplexity": torch.exp(reconstruction_error).item(),
-                 prefix + "avg_subsequence_len": avg_subseq_length,
-                 prefix + "confidence_error": confidence_error.item(),
-                 prefix + "encoder_segment_prediction_error": encoder_segmentation_prediction_error.item(),
-                 prefix + "decoder_segment_prediction_error": decoder_segmentation_prediction_error.item(),
-                 prefix + "total_loss": total_loss.item(),
-                }
-    else:
-      metrics = {prefix + "num_active_units": num_active_units.item(),
-                 prefix + "full_mi": full_mutual_info.item(),
-                 prefix + "kl_divergence": kl_divergence.item(),
-                 prefix + "recon_error": reconstruction_error.item(),
-                 prefix + "perplexity": torch.exp(reconstruction_error).item(),
-                 prefix + "avg_subsequence_len": avg_subseq_length,
-                 prefix + "confidence_error": confidence_error.item(),
-                 prefix + "encoder_segment_prediction_error": encoder_segmentation_prediction_error.item(),
-                 prefix + "decoder_segment_prediction_error": decoder_segmentation_prediction_error.item(),
-                 prefix + "total_loss": total_loss.item()
-                }
+      metrics[prefix + "vmi_loss"] = vmi_loss.item()
     
     return metrics
 
@@ -1057,20 +1060,6 @@ class SerpentVAE(nn.Module):
 
     print(f"Average subsequence length: {avg_subseq_length}")
     
-    if self.enable_qnet == True:
-      print(f"VMI loss: {vmi_loss_term.item()}")
-    else:
-      print(f"VMI is disabled")
-
-    # Calculate the loss of the confidence network
-    confidence_loss = self.confidence_loss(confidence_estimates = predicted_confidence,
-                                           segmentation_indices = segmentation_indices,
-                                           input_ids = correct_input_ids,
-                                           decoder_output = predicted_logits
-                                          )
-    
-    print(f"Confidence loss: {confidence_loss.item()}")
-    
     # Calculate the loss of the segment prediction network
     encoder_segment_prediction_loss = self.segment_prediction_loss(segmentation_predictions = encoder_predicted_segments,
                                                                    segmentation_indices = segmentation_indices
@@ -1084,7 +1073,25 @@ class SerpentVAE(nn.Module):
     
     print(f"Decoder Segment prediction loss: {decoder_segment_prediction_loss.item()}")
 
-    
+    # Calculate the loss of the confidence network
+    if self.enable_confidence_module == True:
+      confidence_loss = self.confidence_loss(confidence_estimates = predicted_confidence,
+                                             segmentation_indices = segmentation_indices,
+                                             input_ids = correct_input_ids,
+                                             decoder_output = predicted_logits
+                                            )
+
+      print(f"Confidence loss: {confidence_loss.item()}")
+
+    else:
+      confidence_loss = torch.tensor([0.0], device = self.device, dtype = self.dtype)
+      print(f"Confidence module is disabled")
+
+    if self.enable_qnet == True:
+      print(f"VMI loss: {vmi_loss_term.item()}")
+    else:
+      print(f"VMI is disabled")
+
     # Calculate total loss
     total_loss = loss_objective + confidence_loss + encoder_segment_prediction_loss + decoder_segment_prediction_loss
 
