@@ -5,7 +5,7 @@ from typing import Dict, Tuple
 from datasets import load_dataset_builder, load_dataset
 from torch.utils.data import DataLoader
 
-def prep_dataset(config: Dict, tokenizer) -> Tuple[DataLoader, DataLoader, DataLoader]:
+def prep_text_dataset(config: Dict,tokenizer) -> Tuple[DataLoader, DataLoader, DataLoader]:
   """
   Takes in the configuration and returns dataloaders for the training, testing, and validation datasets.
 
