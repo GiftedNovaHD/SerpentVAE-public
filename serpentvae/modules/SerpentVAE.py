@@ -159,8 +159,7 @@ class SerpentVAE(nn.Module):
     self.confidence_module = ConfidenceModule(hidden_dim = hidden_dim,
                                               concept_dim =concept_dim,
                                               inner_dim = confidence_module_inner_dim,
-                                              device = self.device,
-                                              dtype = self.dtype
+                                              **factory_kwargs
                                               )
 
     # Instantiate the auxiliary network Q 
@@ -1140,6 +1139,10 @@ class SerpentVAE(nn.Module):
                              is_test = is_test
                             )
       
+      # Print out the metrics
+      for key, value in metrics.items():
+        print(f"{key}: {value}")
+
       return metrics
   
   def infer_step(self,):
