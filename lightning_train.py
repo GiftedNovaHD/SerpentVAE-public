@@ -70,7 +70,8 @@ if __name__ == "__main__":
                        strategy=parallelism_strategy, # FSDP Strategy
                        use_distributed_sampler = True,
                        max_epochs = config["num_epochs"],
-                       check_val_every_n_epoch = config["eval_freq"],
+                       val_check_interval = config["eval_freq"],
+                       limit_val_batches = 1,
                        default_root_dir= config["training_path"],
                        profiler = "pytorch",
                        fast_dev_run = 5

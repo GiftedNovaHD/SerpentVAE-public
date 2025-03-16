@@ -140,6 +140,9 @@ class SerpentVAE(nn.Module):
     # Set previous batch reconstruction loss for ChainCRP
     self.prev_batch_recon_loss = torch.tensor([50], dtype = self.dtype, device = self.device)
 
+    # Set exponential moving average value for average subsequence length
+    self.ema_avg_subseq_length_var = 0
+
     # Instantiate the segment predictor
     self.encoder_segment_predictor = EncoderSegmentPredictor(hidden_dim = hidden_dim,
                                                              inner_dim = encoder_config["segment_pred_inner_dim"],
@@ -807,6 +810,26 @@ class SerpentVAE(nn.Module):
 
     return avg_subseq_length
   
+  def ema_avg_subseq_length(self,
+                            curr_avg_subseq_length: float,
+                            epsilon: float = 0.75
+                           ) -> float:
+    """
+    Calculate an expoonential moving average of the average subsequence length
+
+    Args: 
+      curr_avg_subseq_length (float): Average subsequence length at the current time step
+      epsilon (float): Smoothing factor
+    
+    Returns:
+      ema_avg_subseq_length (float): Exponential moving average of the average subsequence length
+    """
+
+    ema_avg_subseq_length = (1 - epsilon) * curr_avg_subseq_length + epsilon * self.ema_avg_subseq_length_var
+    self.ema_avg_subseq_length_var = ema_avg_subseq_length
+
+    return ema_avg_subseq_length
+  
   def num_active_units(self,
                        mu: Tensor,
                        threshold: float = 1e-2
@@ -1059,6 +1082,11 @@ class SerpentVAE(nn.Module):
                                               )
 
     print(f"Average subsequence length: {avg_subseq_length}")
+
+    # Calculate the exponential moving average of the average subsequence length
+    ema_avg_subseq_length = self.ema_avg_subseq_length(avg_subseq_length)
+
+    print(f"Average subsequence length (EMA): {ema_avg_subseq_length}")
     
     # Calculate the loss of the segment prediction network
     encoder_segment_prediction_loss = self.segment_prediction_loss(segmentation_predictions = encoder_predicted_segments,
