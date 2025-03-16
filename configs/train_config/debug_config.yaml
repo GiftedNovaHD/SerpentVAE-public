@@ -82,6 +82,3 @@ qnet:
     mamba2_expand: 1
     mamba2_head_dim: 32 # (concept_dim * mamba_expand / qnet_mamba_head_dim = 48 = 8 * 6)
     mamba2_state_dim: 8
-  
-  
-
