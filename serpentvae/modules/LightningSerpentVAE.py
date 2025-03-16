@@ -32,15 +32,6 @@ class LightningSerpentVAE(pl.LightningModule):
     correct_input_ids = batch["input_ids"].unsqueeze(-1)
 
     total_loss, vae_loss, confidence_loss, encoder_segment_pred_loss, decoder_segment_pred_loss = self.serpent_vae.train_step(correct_input_ids = correct_input_ids)
-    
-    metrics = {"train_total_loss": total_loss.item(),
-               "train_vae_loss": vae_loss.item(),
-               "train_confidence_loss": confidence_loss.item(),
-               "train_encoder_segment_pred_loss": encoder_segment_pred_loss.item(),
-               "train_decoder_segment_pred_loss": decoder_segment_pred_loss.item()
-              }
-    
-    self.log_dict(metrics, sync_dist = True)
 
     return total_loss
 
