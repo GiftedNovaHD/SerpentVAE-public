@@ -1,3 +1,6 @@
+import os 
+import psutil
+
 from typing import Dict, Tuple
 from datasets import load_dataset_builder, load_dataset
 from torch.utils.data import DataLoader
@@ -46,9 +49,43 @@ def prep_dataset(config: Dict, tokenizer) -> Tuple[DataLoader, DataLoader, DataL
     Tokenizes the batch of sequences.
     """
     return tokenizer(batch, padding = True, truncation = True, max_length = config["max_seq_len"], return_tensors = "pt")
+  
+  # Get number of workers for DataLoaders
+  if config["dataloader_num_workers"] is None:
+    dataloader_num_workers = count_workers()
+  else:
+    dataloader_num_workers = config["dataloader_num_workers"]
 
-  train_dataloader = DataLoader(train_texts, batch_size=config["batch_size"], shuffle=True, collate_fn=collate, num_workers = config["dataloader_num_workers"])
-  test_dataloader = DataLoader(test_texts, batch_size=config["batch_size"], shuffle=False, collate_fn=collate, num_workers = config["dataloader_num_workers"])
-  val_dataloader = DataLoader(val_texts, batch_size=config["batch_size"], shuffle=False, collate_fn=collate, num_workers = config["dataloader_num_workers"])
+  print(f"Number of workers for DataLoaders: {dataloader_num_workers}")
+  
+  train_dataloader = DataLoader(dataset = train_texts,
+                                batch_size = config["batch_size"],
+                                shuffle = True,
+                                collate_fn = collate,
+                                num_workers = dataloader_num_workers
+                               )
+  test_dataloader = DataLoader(dataset = test_texts,
+                               batch_size = config["batch_size"],
+                               shuffle = False,
+                               collate_fn = collate,
+                               num_workers = dataloader_num_workers
+                              )
+  val_dataloader = DataLoader(dataset = val_texts,
+                              batch_size = config["batch_size"],
+                              shuffle = False,
+                              collate_fn = collate,
+                              num_workers = dataloader_num_workers
+                             )
 
   return train_dataloader, test_dataloader, val_dataloader
+
+def count_workers() -> int: 
+  try: 
+    vCPUs = os.cpu_count() 
+
+    if vCPUs is None: 
+      vCPUs = psutil.cpu_count(logical=True) 
+    
+    return vCPUs
+  except Exception as e: 
+    return 1 
