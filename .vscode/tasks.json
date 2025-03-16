@@ -2,13 +2,13 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "run lightning_train.py with no qnet config",
+            "label": "run lightning_train.py with no optional modules config",
             "type": "shell",
             "command": "python",
             "args": [
                 "lightning_train.py",
                 "--config",
-                "test_no_qnet"
+                "test_no_optional"
             ],
             "problemMatcher": [],
             "group": {

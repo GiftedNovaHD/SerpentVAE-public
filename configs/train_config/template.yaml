@@ -55,6 +55,7 @@ decoder:
   
 
 # Confidence Module configuration
+enable_confidence_module: true # This module is used for Stochastic Varitional Inference (not implemented yet)
 confidence_module:
   mlp_inner_dim:
 
