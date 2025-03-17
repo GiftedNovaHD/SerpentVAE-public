@@ -11,6 +11,7 @@ min_learning_rate: 1e-8
 weight_decay: 1e-2
 max_seq_len: 64
 batch_size: 2
+dataloader_num_workers:
 parallelism_strategy: "fsdp"
 compile_model: true
 seed: 6969
