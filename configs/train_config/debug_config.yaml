@@ -39,11 +39,16 @@ residual_in_fp32: false
 device: "cuda"
 dtype: "bf16"
 
-# Model configuration settings
+# Model configuration
+# ChainCRP configuration
+use_odds_ratio: false
+
+# Distribution configuration
 distribution:
   ScaledNormal:
     dist_desired_std: 1.0
 
+# Encoder configuration
 encoder:
   # Non-sequence mixer settings
   layer_config: "2 (M2)" 
@@ -58,6 +63,7 @@ encoder:
     mamba2_expand: 2
     mamba2_head_dim: 64 # (hidden_dim * mamba_expand / mamba_head_dim = 64 = 8 * 8)
 
+# Decoder configuration
 decoder:
   # Non-sequence mixer settings
   layer_config: "2 (Mamba2)"
