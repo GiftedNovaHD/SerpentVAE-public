@@ -4,8 +4,8 @@ dataset_name:
 num_epochs:
 eval_freq:
 model_save_folder_path:
-metrics_save_folder_path:
-training_path:
+metrics_save_folder_path: 
+training_path: 
 learning_rate:
 min_learning_rate:
 weight_decay:
@@ -37,20 +37,26 @@ tie_embeddings: true
 # Hardware configuration
 residual_in_fp32: false
 device: "cuda"
-dtype:
+dtype: "bf16"
 
-# Model configuration settings
+# Model configuration
+# ChainCRP configuration
+use_odds_ratio: false
+
+# Distribution configuration
 distribution:
   
 
+# Encoder configuration
 encoder:
   # Non-sequence mixer settings
-  layer_config: 
+  layer_config:
   mlp_inner_dim:
   segment_pred_inner_dim: # Encoder segment predictor inner dimension
 
   # Sequence mixer configuration
 
+# Decoder configuration
 decoder:
   # Non-sequence mixer settings
   layer_config:
@@ -58,7 +64,6 @@ decoder:
   segment_pred_inner_dim: # Decoder segment predictor inner dimension
 
   # Sequence mixer configuration
-  
 
 # Confidence Module configuration
 enable_confidence_module: true # This module is used for Stochastic Varitional Inference (not implemented yet)
@@ -73,4 +78,3 @@ qnet:
   mlp_inner_dim:
   
   # Sequence mixer configuration
-  

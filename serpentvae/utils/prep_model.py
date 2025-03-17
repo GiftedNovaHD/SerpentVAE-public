@@ -19,6 +19,7 @@ def prep_model(config: Dict) -> SerpentVAE:
                      distribution_config = config["distribution"],
                      encoder_config = config["encoder"],
                      decoder_config = config["decoder"],
+                     use_odds_ratio = config["use_odds_ratio"],
                      alpha = config["alpha"],
                      beta = config["beta"],
                      ema_decay_factor = config["ema_decay_factor"],
