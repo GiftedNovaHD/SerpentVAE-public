@@ -26,6 +26,9 @@ from serpentvae.modules.segment_predictor import EncoderSegmentPredictor, Decode
 from serpentvae.ops.segment.boundary.ChainCRP_grad import ChainCRP
 from serpentvae.modules.distributions.distributions import create_distribution
 
+# Import modules for creating reconstruction errors 
+from serpentvae.modules.reconstruction_losses.create_recon_loss import create_recon_loss
+
 # Import module utils for calculating average subsequence length
 from serpentvae.modules.module_utils.subseq_len_utils import count_whitelisted_tokens, filter_index
 
