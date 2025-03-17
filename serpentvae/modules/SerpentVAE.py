@@ -113,7 +113,7 @@ class SerpentVAE(nn.Module):
                            residual_in_fp32 = residual_in_fp32,
                            device = self.device,
                            dtype = self.dtype
-                           )
+                          )
 
     dist_name = list(distribution_config.keys())[0]
     dist_kwargs = list(distribution_config.values())[0]
@@ -132,7 +132,7 @@ class SerpentVAE(nn.Module):
                            residual_in_fp32 = self.residual_in_fp32,
                            device = self.device,
                            dtype = self.dtype
-                           )
+                          )
 
     # Instantiate ChainCRP
     self.chain_crp = ChainCRP(use_odds_ratio = self.use_odds_ratio,
