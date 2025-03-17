@@ -22,7 +22,7 @@ from torch.amp import autocast
 
 from serpentvae.modules.LightningSerpentVAE import LightningSerpentVAE
 from train_utils.config_utils import load_config # For loading configs
-from train_utils.prep_dataloaders import prep_dataset
+from train_utils.prep_text_dataloaders import prep_dataset
 from train_utils.create_text_tokenizer import create_text_tokenizer
 from train_utils.prep_parallelism import prep_parallelism
 
