@@ -540,7 +540,7 @@ class SerpentVAE(nn.Module):
     # Compute KL divergence analytically
     """
     q(z | x) ~ N(mu, I)
-    p(z) ~ N(0, I)
+    p(z) ~ p(z | context) ~ N(0, I)
 
     KL(q(z | x, context) || p(z | context)) 
 
