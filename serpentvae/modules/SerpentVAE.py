@@ -126,26 +126,14 @@ class SerpentVAE(nn.Module):
                                             dtype = self.dtype
                                            )
     
-    self.confidence_module = ConfidenceModule(hidden_dim = hidden_dim,
-                                              concept_dim =concept_dim,
-                                              inner_dim = confidence_module_inner_dim,
-                                              **factory_kwargs
-                                              )
+    self.decoder = Decoder(hidden_dim = hidden_dim,
+                           concept_dim = concept_dim, 
+                           decoder_config = decoder_config,
+                           residual_in_fp32 = self.residual_in_fp32,
+                           device = self.device,
+                           dtype = self.dtype
+                           )
 
-    # Instantiate the auxiliary network Q 
-    if self.enable_qnet == True:
-      self.qnet = QNet(latent_dim = concept_dim,
-                       num_layers = num_qnet_layers,
-                       conv_length = qnet_conv_length,
-                       mamba_expand = qnet_mamba_expand,
-                       mamba_head_dim = qnet_mamba_head_dim,
-                       mlp_inner_dim = qnet_mlp_inner_dim,
-                       state_dim = qnet_mamba_state_dim,
-                       vocab_size = vocab_size,
-                       device = self.device,
-                       dtype = self.dtype
-                      )
-    
     # Instantiate ChainCRP
     self.chain_crp = ChainCRP(use_odds_ratio = self.use_odds_ratio,
                               dtype = self.dtype,
