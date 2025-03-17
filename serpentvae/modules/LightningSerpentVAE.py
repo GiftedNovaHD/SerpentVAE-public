@@ -9,7 +9,7 @@ from serpentvae.utils.prep_optimizer import prep_optimizer
 class LightningSerpentVAE(pl.LightningModule):
   def __init__(self,
                config: Dict,
-               compile_model: bool = False
+               compile_model: bool = True
               ):
     super().__init__()
     self.save_hyperparameters()

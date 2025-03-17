@@ -60,8 +60,10 @@ if __name__ == "__main__":
   train_dataloader, test_dataloader, val_dataloader = prep_text_dataset(config = config, tokenizer = tokenizer)
 
   # Create model
-  lightning_model = LightningSerpentVAE(config = config, compile_model = config["compile_model"])
-  
+  lightning_model = LightningSerpentVAE(config = config,
+                                        compile_model = config["compile_model"]
+                                       )
+
   # Create paraallelism strategy
   parallelism_strategy = prep_parallelism(config = config)
   
