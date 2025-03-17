@@ -38,6 +38,9 @@ class SerpentVAE(nn.Module):
                encoder_config: Dict,
                decoder_config: Dict,
                use_odds_ratio: bool = False,
+               alpha: float = 1.0,
+               beta: float = 1.0,
+               ema_decay_factor = 0.75,
                enable_confidence_module: bool = True,
                confidence_module_config: Optional[Dict] = None,
                enable_qnet: bool = True,
@@ -141,6 +144,7 @@ class SerpentVAE(nn.Module):
     self.prev_batch_recon_loss = torch.tensor([50], dtype = self.dtype, device = self.device)
 
     # Set exponential moving average value for average subsequence length
+    self.ema_decay_factor = ema_decay_factor
     self.ema_avg_subseq_length_var = 0
 
     # Instantiate the segment predictor
@@ -156,6 +160,10 @@ class SerpentVAE(nn.Module):
                                                              device = self.device,
                                                              dtype = self.dtype
                                                             )
+    
+    # Scale factors
+    self.alpha = alpha
+    self.beta = beta
     
     # Optional Modules
     # Instantiate the confidence module
@@ -1066,7 +1074,9 @@ class SerpentVAE(nn.Module):
                              logvar = formatted_logvar,
                              z = formatted_sampled_latents,
                              segmentation_indices = segmentation_indices,
-                             decoder_output = predicted_logits
+                             decoder_output = predicted_logits,
+                             alpha = self.alpha,
+                             beta = self.beta
                             )
 
     # Update previous batch reconstruction loss
@@ -1084,7 +1094,9 @@ class SerpentVAE(nn.Module):
     print(f"Average subsequence length: {avg_subseq_length}")
 
     # Calculate the exponential moving average of the average subsequence length
-    ema_avg_subseq_length = self.ema_avg_subseq_length(avg_subseq_length)
+    ema_avg_subseq_length = self.ema_avg_subseq_length(curr_avg_subseq_length = avg_subseq_length,
+                                                       epsilon = self.ema_decay_factor
+                                                      )
 
     print(f"Average subsequence length (EMA): {ema_avg_subseq_length}")
     
