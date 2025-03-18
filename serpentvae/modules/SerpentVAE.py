@@ -500,7 +500,7 @@ class SerpentVAE(nn.Module):
     return vmi_loss # Scalar
 
   def vae_loss(self, 
-               input_ids: Tensor, 
+               targets: Tensor, 
                mu: List[Tensor], 
                logvar: List[Tensor],
                z: List[Tensor],
@@ -520,7 +520,7 @@ class SerpentVAE(nn.Module):
       - L_vmi = -E_q(z|x)[log p(z)]
 
     Args: 
-      input_ids (Tensor): Ground-truth token IDs (batch_size, seq_len)
+      input_ids (Tensor): Ground-truth targets (batch_size, seq_len, 1/hidden_dim) if discrete or continuous inputs
       mu (List[Tensor]): (batch_size, num_subseq, concept_dim)
       logvar (List[Tensor]): (batch_size, num_subseq, concept_dim)
       z (List[Tensor]): (batch_size, num_subseq, concept_dim)
@@ -537,12 +537,10 @@ class SerpentVAE(nn.Module):
       vmi_loss (Tensor): Scalar Variational Mutual Information loss
     """
 
-    # Compute the reconstruction loss here using cross entropy 
-    reconstruction_loss = F.cross_entropy(
-      decoder_output.view(-1, decoder_output.size(-1)), # logits (batch_size, seq_len, vocab_size) -> (batch_size * seq_len, vocab_size)
-      input_ids.view(-1).long(), # input_ids (batch_size, seq_len, 1) -> (batch_size * seq_len,)
-      reduction='mean' # Average over the batch
-    )
+    # Compute the reconstruction loss here using specified loss function
+    reconstruction_loss = self.recon_loss_fn(predictions = decoder_output,
+                                             targets = targets
+                                            )
 
     # Compute KL divergence analytically
     """
@@ -571,7 +569,7 @@ class SerpentVAE(nn.Module):
       vmi_loss_term = self.maximize_vmi_regularizer(z = z,
                                                     decoder_output = decoder_output,
                                                     segmentation_indices = segmentation_indices,
-                                                    input_ids = input_ids
+                                                    input_ids = targets
                                                    )
     else:
       vmi_loss_term = torch.tensor(0.0, device=self.device)
@@ -975,7 +973,7 @@ class SerpentVAE(nn.Module):
     num_active_units = self.num_active_units(mu = dedup_mu, threshold = threshold)
 
     # Calculate VMI, KL-Divergence and Reconstruction Error
-    total_loss, kl_divergence, reconstruction_error, vmi_loss = self.vae_loss(input_ids = input_ids,
+    total_loss, kl_divergence, reconstruction_error, vmi_loss = self.vae_loss(targets = input_ids,
                                                                               mu = dedup_mu,
                                                                               logvar = dedup_logvar,
                                                                               z = dedup_z,
@@ -1088,7 +1086,7 @@ class SerpentVAE(nn.Module):
       formatted_logvar.append(seq_logvar)
 
     # Calculate the VAE loss
-    loss_objective, kl_loss, reconstruction_loss, vmi_loss_term = self.vae_loss(input_ids = correct_input_ids,
+    loss_objective, kl_loss, reconstruction_loss, vmi_loss_term = self.vae_loss(targets = correct_input_ids,
                              mu = formatted_mu,
                              logvar = formatted_logvar,
                              z = formatted_sampled_latents,
