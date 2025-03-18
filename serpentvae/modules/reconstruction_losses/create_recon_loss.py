@@ -10,12 +10,12 @@ from functools import partial
 import pytest
 
 # Import discrete losses
-#from serpentvae.modules.reconstruction_losses.discrete_losses.cross_entropy import CrossEntropyLoss
-from discrete_losses.cross_entropy import CrossEntropyLoss
+from serpentvae.modules.reconstruction_losses.discrete_losses.cross_entropy import CrossEntropyLoss
+#from discrete_losses.cross_entropy import CrossEntropyLoss
 
 # Import continuous losses
-#from serpentvae.modules.reconstruction_losses.continuous_losses.mean_squared_error import MeanSquaredErrorLoss
-from continuous_losses.mean_squared_error import MeanSquaredErrorLoss
+from serpentvae.modules.reconstruction_losses.continuous_losses.mean_squared_error import MeanSquaredErrorLoss
+#from continuous_losses.mean_squared_error import MeanSquaredErrorLoss
 
 def create_recon_loss(loss_name: str,
                       reduction: str,
@@ -23,7 +23,18 @@ def create_recon_loss(loss_name: str,
                      ) -> Callable: 
   """
   Helper function to create a reconstruction loss function
+
+  Args:
+    loss_name (str): Name of the loss function
+    reduction (str): Reduction operation to apply to the loss
+    discrete (bool): Whether the input is discrete or continuous
+      - If True, use discrete loss functions
+      - If False, use continuous loss functions
+  
+  Returns:
+    recon_loss (Callable): Reconstruction loss function
   """
+  loss_name = loss_name.upper()
 
   if reduction not in ["mean", "sum"]:
     raise ValueError(f"{reduction} is not a valid reduction operation,")

@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torch import Tensor
-from typing import Tuple, Callable, List, Dict, Optional
+from typing import Tuple, Callable, List, Dict, Optional, Literal
 from torch.nn import functional as F
 #from torch.nested 
 
@@ -36,10 +36,12 @@ class SerpentVAE(nn.Module):
   def __init__(self,
                hidden_dim: int,
                concept_dim: int,
-               vocab_size: int,
                distribution_config: Dict,
                encoder_config: Dict,
                decoder_config: Dict,
+               recon_loss_name: str,
+               recon_loss_reduction: Literal["mean", "sum"] = "mean",
+               vocab_size: Optional[int] = None,
                use_odds_ratio: bool = False,
                alpha: float = 1.0,
                beta: float = 1.0,
@@ -56,11 +58,20 @@ class SerpentVAE(nn.Module):
                ):
      
     super(SerpentVAE, self).__init__()
-
-    # Main encoder and decoder configuration settings
+    
+    # Global settings
     self.hidden_dim = hidden_dim
     self.concept_dim = concept_dim
-    self.vocab_size = vocab_size
+
+    # Vocabulary configuration and figuring out whether input is discrete or continuous
+    if vocab_size is None:
+      self.vocab_size = None
+      self.discrete_input = False
+    else:
+      self.vocab_size = vocab_size
+      self.discrete_input = True
+
+    # Main encoder and decoder configuration settings
     self.distribution_config = distribution_config
     self.encoder_config = encoder_config
     self.decoder_config = decoder_config
@@ -136,6 +147,11 @@ class SerpentVAE(nn.Module):
                            device = self.device,
                            dtype = self.dtype
                           )
+    
+    self.recon_loss_fn = create_recon_loss(loss_name = recon_loss_name,
+                                           reduction = recon_loss_reduction,
+                                           discrete = self.discrete_input,
+                                          )
 
     # Instantiate ChainCRP
     self.chain_crp = ChainCRP(use_odds_ratio = self.use_odds_ratio,
