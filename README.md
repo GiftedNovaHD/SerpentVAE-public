@@ -6,12 +6,25 @@ SerpentVAE uses a Mamba-2 based encoder and decoder. In the decoder module, Mamb
 
 During training, we randomly sample continuous segments and train the model to reconstruct the data. We slowly increase the length of the segments. 
 
+### Quantisation Scheme
+- Scale-VAE
+
+### SerpentVAE Inference Scheme
+- Greedily increase the length of the segment until reconstruction error increases alot
+- Start next segment
+
+### Kernels
+- Mamba-1 State Space Duality (SSD) kernel (extended from Mamba-2 SSD kernel by relaxing the Scalar-Identity constraint of Mamba-2)
+  - We support negative eigenvalues to allow eigenvalues to range from $(-1, 1)$
+
+
 # Table of Contents
 - [SerpentVAE](#serpentvae)
+  - [Architecture Details](#architecture-details)
+    - [Quantisation Scheme](#quantisation-scheme)
+    - [SerpentVAE Inference Scheme](#serpentvae-inference-scheme)
+    - [Kernels](#kernels)
 - [Usage](#usage)
-- [Quantisation Scheme](#quantisation-scheme)
-- [SerpentVAE Inference Scheme](#serpentvae-inference-scheme)
-- [Kernels](#kernels)
 - [Checklist](#checklist)
 - [Future Plans](#future-plans)
 
