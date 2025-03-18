@@ -8,11 +8,24 @@ During training, we randomly sample continuous segments and train the model to r
 
 # Table of Contents
 - [SerpentVAE](#serpentvae)
+- [Usage](#usage)
 - [Quantisation Scheme](#quantisation-scheme)
 - [SerpentVAE Inference Scheme](#serpentvae-inference-scheme)
 - [Kernels](#kernels)
 - [Checklist](#checklist)
 - [Future Plans](#future-plans)
+
+# Usage 
+1. Clone the repository and navigate into the cloned directory. 
+2. Run 
+```bash
+pip install -r requirements.txt
+```
+3. Modify your respective settings in `configs/train_config`. Save them.
+4. Run 
+```bash
+python lightning_train.py
+```
 
 # Quantisation Scheme
 - Scale-VAE
