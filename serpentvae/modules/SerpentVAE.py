@@ -195,10 +195,23 @@ class SerpentVAE(nn.Module):
                                                 )
 
     # Instantiate the auxiliary network Q 
-    if self.enable_qnet == True:
-      self.qnet = QNet(latent_dim = concept_dim,
-                       qnet_config = qnet_config,
-                       vocab_size = vocab_size,
+    # For discrete inputs (eg Text)
+    if self.enable_qnet == True and self.discrete_input == True:
+      self.qnet = QNet(latent_dim = self.concept_dim,
+                       qnet_config = self.qnet_config,
+                       vocab_size = self.vocab_size,
+                       hidden_dim = None,
+                       residual_in_fp32 = self.residual_in_fp32,
+                       device = self.device,
+                       dtype = self.dtype
+                      )
+    
+    # For continuous inputs (eg latents from a Gaussian VAE)
+    elif self.enable_qnet == True and self.discrete_input == False:
+      self.qnet = QNet(latent_dim = self.concept_dim,
+                       qnet_config = self.qnet_config,
+                       vocab_size = None,
+                       hidden_dim = self.hidden_dim,
                        residual_in_fp32 = self.residual_in_fp32,
                        device = self.device,
                        dtype = self.dtype
