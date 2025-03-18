@@ -96,8 +96,7 @@ class SerpentVAE(nn.Module):
     self.device = torch.device(device) if device is not None else torch.device('cuda')
     self.dtype = dtype if dtype is not None else torch.float16
 
-    
-
+    # Initialise factory kwargs (device and dtype) for simpler initialisation
     factory_kwargs = {"device": self.device, "dtype": self.dtype}
 
     if self.enable_confidence_module == True:
