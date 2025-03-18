@@ -20,7 +20,7 @@ from serpentvae.modules.reconstruction_losses.continuous_losses.mean_squared_err
 def create_recon_loss(loss_name: str,
                       reduction: str,
                       discrete: bool
-                     ) -> Callable: 
+                     ) -> Callable[[Tensor, Tensor], Tensor]: 
   """
   Helper function to create a reconstruction loss function
 
