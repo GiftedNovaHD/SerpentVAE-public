@@ -76,7 +76,7 @@ class ChainCRP(nn.Module):
     eps = 1e-8
     # Differentiable scalar parameter theta
     theta = 1.0 / (prev_batch_recon_loss + eps) # (1, ) -> (1, ) 
-    theta = torch.log(theta) # Clamp theta to prevent it from exploding too much
+    theta = torch.sqrt(theta) # Clamp theta to prevent it from exploding too much
 
     # Prepare indices for tokens 1,..., L - 1 (0-indexing, but for CRP math notation, we use 1-indexed positions.
     # NOTE: Might want to do some subscript notation when writing paper to make this clear.
