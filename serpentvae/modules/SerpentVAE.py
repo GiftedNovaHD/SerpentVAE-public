@@ -451,10 +451,10 @@ class SerpentVAE(nn.Module):
     return mi_per_batch # Scalar
 
   def maximize_vmi_regularizer(self,
-                              z: List[Tensor],
-                              decoder_output: Tensor, 
-                              segmentation_indices: Tensor,
-                              input_ids: Tensor
+                               z: List[Tensor],
+                               decoder_output: Tensor, 
+                               segmentation_indices: Tensor,
+                               targets: Tensor
                              ) -> Tensor:
     """
     Maximizes the MI Regularizer term in SerpentVAE's loss objective 
@@ -465,7 +465,7 @@ class SerpentVAE(nn.Module):
       z (List[Tensor]): (batch_size, num_subseq, concept_dim) Encoded latent variable
       decoder_output (Tensor): (batch_size, seq_len, concept_dim) 
       segmentation_indices (Tensor): (batch_size, seq_len, 1) 
-      input_ids (Tensor): (batch_size, seq_len, 1)
+      targets (Tensor): (batch_size, seq_len, 1/hidden_dim)
 
     NOTE: Avg over batch_size and num_subseq; batch_size is a list, num_subseq is a tensor
     
@@ -473,9 +473,10 @@ class SerpentVAE(nn.Module):
       vmi_loss (Scalar)
     """
     # Get Q's predictions from the decoder output
-    mu_q, logvar_q = self.qnet(decoder_output,
-                               input_ids,
-                               segmentation_indices) # (batch_size, num_subseq, concept_dim)
+    mu_q, logvar_q = self.qnet(decoder_output = decoder_output,
+                               targets = targets,
+                               segmentation_indices = segmentation_indices
+                              ) # (batch_size, num_subseq, concept_dim)
 
     # TODO: Refactor to use distributions log-likelihood method
 
@@ -569,7 +570,7 @@ class SerpentVAE(nn.Module):
       vmi_loss_term = self.maximize_vmi_regularizer(z = z,
                                                     decoder_output = decoder_output,
                                                     segmentation_indices = segmentation_indices,
-                                                    input_ids = targets
+                                                    targets = targets
                                                    )
     else:
       vmi_loss_term = torch.tensor(0.0, device=self.device)
