@@ -285,7 +285,7 @@ class SerpentVAE(nn.Module):
               concept_tokens: Tensor,
               encoder_segmentation_predictions: Tensor,
               boundary_function: nn.Module,
-              replacement_function: Callable,
+              replacement_function: Callable[[Tensor, Tensor, torch.device, torch.dtype], Tensor],
               padding_mask: Tensor
              ) -> Tuple[Tensor, Tensor]:
     """
@@ -296,10 +296,18 @@ class SerpentVAE(nn.Module):
       encoder_segmentation_predictions (Tensor): (batch_size, seq_len, 1)
       boundary_function (nn.Module): Pytorch module that decides whether to segment or not
       replacement_function (Callable): Function that decides how to replace the concept tokens for decoding
+        replacement_function Args:
+          - concept_tokens (Tensor): (batch_size, seq_len, concept_dim)
+          - segment_indices (Tensor): (batch_size, seq_len, 1)
+          - device (torch.device): Device where tensors are stored
+          - dtype (torch.dtype): Data type of tensors
+        replacement_function Returns:
+          - replaced_concept_tokens (Tensor): (batch_size, seq_len, concept_dim)
+    
       padding_mask (Tensor): (batch_size, seq_len, 1)
     
     Returns: 
-      segmented_concept_tokens (Tensor): (batch_size, seq_len, concept_dim)
+      replaced_concept_tokens (Tensor): (batch_size, seq_len, concept_dim)
       segment_indices (Tensor): (batch_size, seq_len, 1)
     """
     batch_size, seq_len, _ = encoder_segmentation_predictions.shape
