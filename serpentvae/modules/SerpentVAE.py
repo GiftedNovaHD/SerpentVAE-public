@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torch import Tensor
-from typing import Tuple, Callable, List, Dict, Optional
+from typing import Tuple, Callable, List, Dict, Optional, Literal
 from torch.nn import functional as F
 #from torch.nested 
 
@@ -26,6 +26,9 @@ from serpentvae.modules.segment_predictor import EncoderSegmentPredictor, Decode
 from serpentvae.ops.segment.boundary.ChainCRP_grad import ChainCRP
 from serpentvae.modules.distributions.distributions import create_distribution
 
+# Import modules for creating reconstruction errors 
+from serpentvae.modules.reconstruction_losses.create_recon_loss import create_recon_loss
+
 # Import module utils for calculating average subsequence length
 from serpentvae.modules.module_utils.subseq_len_utils import count_whitelisted_tokens, filter_index
 
@@ -33,10 +36,12 @@ class SerpentVAE(nn.Module):
   def __init__(self,
                hidden_dim: int,
                concept_dim: int,
-               vocab_size: int,
                distribution_config: Dict,
                encoder_config: Dict,
                decoder_config: Dict,
+               recon_loss_name: str,
+               recon_loss_reduction: Literal["mean", "sum"] = "mean",
+               vocab_size: Optional[int] = None,
                use_odds_ratio: bool = False,
                alpha: float = 1.0,
                beta: float = 1.0,
@@ -53,11 +58,20 @@ class SerpentVAE(nn.Module):
                ):
      
     super(SerpentVAE, self).__init__()
-
-    # Main encoder and decoder configuration settings
+    
+    # Global settings
     self.hidden_dim = hidden_dim
     self.concept_dim = concept_dim
-    self.vocab_size = vocab_size
+
+    # Vocabulary configuration and figuring out whether input is discrete or continuous
+    if vocab_size is None:
+      self.vocab_size = None
+      self.discrete_input = False
+    else:
+      self.vocab_size = vocab_size
+      self.discrete_input = True
+
+    # Main encoder and decoder configuration settings
     self.distribution_config = distribution_config
     self.encoder_config = encoder_config
     self.decoder_config = decoder_config
@@ -113,7 +127,7 @@ class SerpentVAE(nn.Module):
                            residual_in_fp32 = residual_in_fp32,
                            device = self.device,
                            dtype = self.dtype
-                           )
+                          )
 
     dist_name = list(distribution_config.keys())[0]
     dist_kwargs = list(distribution_config.values())[0]
@@ -132,7 +146,12 @@ class SerpentVAE(nn.Module):
                            residual_in_fp32 = self.residual_in_fp32,
                            device = self.device,
                            dtype = self.dtype
-                           )
+                          )
+    
+    self.recon_loss_fn = create_recon_loss(loss_name = recon_loss_name,
+                                           reduction = recon_loss_reduction,
+                                           discrete = self.discrete_input,
+                                          )
 
     # Instantiate ChainCRP
     self.chain_crp = ChainCRP(use_odds_ratio = self.use_odds_ratio,
@@ -176,10 +195,23 @@ class SerpentVAE(nn.Module):
                                                 )
 
     # Instantiate the auxiliary network Q 
-    if self.enable_qnet == True:
-      self.qnet = QNet(latent_dim = concept_dim,
-                       qnet_config = qnet_config,
-                       vocab_size = vocab_size,
+    # For discrete inputs (eg Text)
+    if self.enable_qnet == True and self.discrete_input == True:
+      self.qnet = QNet(latent_dim = self.concept_dim,
+                       qnet_config = self.qnet_config,
+                       vocab_size = self.vocab_size,
+                       hidden_dim = None,
+                       residual_in_fp32 = self.residual_in_fp32,
+                       device = self.device,
+                       dtype = self.dtype
+                      )
+    
+    # For continuous inputs (eg latents from a Gaussian VAE)
+    elif self.enable_qnet == True and self.discrete_input == False:
+      self.qnet = QNet(latent_dim = self.concept_dim,
+                       qnet_config = self.qnet_config,
+                       vocab_size = None,
+                       hidden_dim = self.hidden_dim,
                        residual_in_fp32 = self.residual_in_fp32,
                        device = self.device,
                        dtype = self.dtype
@@ -432,10 +464,10 @@ class SerpentVAE(nn.Module):
     return mi_per_batch # Scalar
 
   def maximize_vmi_regularizer(self,
-                              z: List[Tensor],
-                              decoder_output: Tensor, 
-                              segmentation_indices: Tensor,
-                              input_ids: Tensor
+                               z: List[Tensor],
+                               decoder_output: Tensor, 
+                               segmentation_indices: Tensor,
+                               targets: Tensor
                              ) -> Tensor:
     """
     Maximizes the MI Regularizer term in SerpentVAE's loss objective 
@@ -446,7 +478,7 @@ class SerpentVAE(nn.Module):
       z (List[Tensor]): (batch_size, num_subseq, concept_dim) Encoded latent variable
       decoder_output (Tensor): (batch_size, seq_len, concept_dim) 
       segmentation_indices (Tensor): (batch_size, seq_len, 1) 
-      input_ids (Tensor): (batch_size, seq_len, 1)
+      targets (Tensor): (batch_size, seq_len, 1/hidden_dim)
 
     NOTE: Avg over batch_size and num_subseq; batch_size is a list, num_subseq is a tensor
     
@@ -454,9 +486,10 @@ class SerpentVAE(nn.Module):
       vmi_loss (Scalar)
     """
     # Get Q's predictions from the decoder output
-    mu_q, logvar_q = self.qnet(decoder_output,
-                               input_ids,
-                               segmentation_indices) # (batch_size, num_subseq, concept_dim)
+    mu_q, logvar_q = self.qnet(decoder_output = decoder_output,
+                               targets = targets,
+                               segmentation_indices = segmentation_indices
+                              ) # (batch_size, num_subseq, concept_dim)
 
     # TODO: Refactor to use distributions log-likelihood method
 
@@ -481,7 +514,7 @@ class SerpentVAE(nn.Module):
     return vmi_loss # Scalar
 
   def vae_loss(self, 
-               input_ids: Tensor, 
+               targets: Tensor, 
                mu: List[Tensor], 
                logvar: List[Tensor],
                z: List[Tensor],
@@ -501,7 +534,7 @@ class SerpentVAE(nn.Module):
       - L_vmi = -E_q(z|x)[log p(z)]
 
     Args: 
-      input_ids (Tensor): Ground-truth token IDs (batch_size, seq_len)
+      input_ids (Tensor): Ground-truth targets (batch_size, seq_len, 1/hidden_dim) if discrete or continuous inputs
       mu (List[Tensor]): (batch_size, num_subseq, concept_dim)
       logvar (List[Tensor]): (batch_size, num_subseq, concept_dim)
       z (List[Tensor]): (batch_size, num_subseq, concept_dim)
@@ -518,12 +551,10 @@ class SerpentVAE(nn.Module):
       vmi_loss (Tensor): Scalar Variational Mutual Information loss
     """
 
-    # Compute the reconstruction loss here using cross entropy 
-    reconstruction_loss = F.cross_entropy(
-      decoder_output.view(-1, decoder_output.size(-1)), # logits (batch_size, seq_len, vocab_size) -> (batch_size * seq_len, vocab_size)
-      input_ids.view(-1).long(), # input_ids (batch_size, seq_len, 1) -> (batch_size * seq_len,)
-      reduction='mean' # Average over the batch
-    )
+    # Compute the reconstruction loss here using specified loss function
+    reconstruction_loss = self.recon_loss_fn(predictions = decoder_output,
+                                             targets = targets
+                                            )
 
     # Compute KL divergence analytically
     """
@@ -552,7 +583,7 @@ class SerpentVAE(nn.Module):
       vmi_loss_term = self.maximize_vmi_regularizer(z = z,
                                                     decoder_output = decoder_output,
                                                     segmentation_indices = segmentation_indices,
-                                                    input_ids = input_ids
+                                                    targets = targets
                                                    )
     else:
       vmi_loss_term = torch.tensor(0.0, device=self.device)
@@ -956,7 +987,7 @@ class SerpentVAE(nn.Module):
     num_active_units = self.num_active_units(mu = dedup_mu, threshold = threshold)
 
     # Calculate VMI, KL-Divergence and Reconstruction Error
-    total_loss, kl_divergence, reconstruction_error, vmi_loss = self.vae_loss(input_ids = input_ids,
+    total_loss, kl_divergence, reconstruction_error, vmi_loss = self.vae_loss(targets = input_ids,
                                                                               mu = dedup_mu,
                                                                               logvar = dedup_logvar,
                                                                               z = dedup_z,
@@ -1069,7 +1100,7 @@ class SerpentVAE(nn.Module):
       formatted_logvar.append(seq_logvar)
 
     # Calculate the VAE loss
-    loss_objective, kl_loss, reconstruction_loss, vmi_loss_term = self.vae_loss(input_ids = correct_input_ids,
+    loss_objective, kl_loss, reconstruction_loss, vmi_loss_term = self.vae_loss(targets = correct_input_ids,
                              mu = formatted_mu,
                              logvar = formatted_logvar,
                              z = formatted_sampled_latents,

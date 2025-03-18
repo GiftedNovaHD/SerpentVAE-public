@@ -66,25 +66,20 @@ class QNet(nn.Module):
     
   def forward(self, 
               decoder_output: Tensor, 
-              input_ids: Tensor,
+              targets: Tensor,
               segmentation_indices: Tensor
              ) -> Tuple[List[Tensor], List[Tensor]]:
     """
     Predict Q(z | x, context) 
-    We make sure that the context is correct by passing in the correct input_ids,
+    We make sure that the context is correct by passing in the correct targets,
     so that we can load the SSM states with the correct context, then pass in the actual subsequences logits to predict latent z
-    
-    Approach 3:
-    - input_ids -> QNet_seq_mixer -> correct states at every index 
-    - Fetch the states for the beginning of each subsequence -> Run seq_mixer through subsequence
-    - Use the hidden_state of the last element subseq -> Use this to get mu and logvar of z
 
     Approach:
     Obtaining correct context 
     Save and load the correct context
     Predict Q(z | x , context) using the correct context
 
-    1. Use input_ids to produce context representations, i.e., optionally embed input_ids and pass them through the context_mixer 
+    1. Use targets to produce context representations, i.e., optionally embed targets and pass them through the context_mixer 
     2. Use segmentation_indices to extract the subsequence boundary states from both the decoder_output and the context representation
     3. Concatenate the decoder and context representations and pass them through the MLP head layers. 
     
@@ -92,27 +87,27 @@ class QNet(nn.Module):
     Args: 
       decoder_output (Tensor): (batch_size, seq_len, hidden_dim / vocab_size) Output of the decoder
       NOTE: Will be logits if using discrete tokens, else will be the hidden states of the decoder
-      input_ids (Tensor): (batch_size, seq_len, 1) Input ground truth token IDs
+      targets (Tensor): (batch_size, seq_len, 1/hidden_dim) Input ground truth targets
       segmentation_indices (Tensor): (batch_size, seq_len, 1) Binary mask indicating segment end positions
     
     Returns: 
       mu_q (List[Tensor]): (batch_size, num_subseq, latent_dim) Predicted mean of the Gaussian over z
       logvar_q (List[Tensor]): (batch_size, num_subseq, latent_dim) Predicted log-variance for the Gaussian over z 
     """
-    B, L, _ = input_ids.shape
+    B, L, _ = targets.shape
 
     """
-    Step 1: Generate context representations from input_ids
+    Step 1: Generate context representations from targets
     """
     if self.discrete is True: # In case where there is input is discrete
-      input_ids_squeezed = input_ids.squeeze(dim=-1) # (batch_size, seq_len, 1) -> (batch_size, seq_len)
-      correct_embeddings = self.embedding(input_ids_squeezed) # (batch_size, seq_len, latent_dim)
+      targets_squeezed = targets.squeeze(dim=-1) # (batch_size, seq_len, 1) -> (batch_size, seq_len)
+      correct_embeddings = self.embedding(targets_squeezed) # (batch_size, seq_len, latent_dim)
       # NOTE: Since embedding does not work on the logits we used a tied linear layer to project logits to the same embedding space
       decoder_embeddings = self.decoder_proj(decoder_output) # (batch_size, seq_len, vocab_size) -> (batch_size, seq_len, latent_dim)
     
     else:
-      # NOTE: We share the same projection layer for both the input_ids and the decoder_output to ensure that it uses a shared embedding space
-      correct_embeddings = self.input_proj(input_ids) # (batch_size, seq_len, hidden_dim) -> (batch_size, seq_len, latent_dim)
+      # NOTE: We share the same projection layer for both the targets and the decoder_output to ensure that it uses a shared embedding space
+      correct_embeddings = self.input_proj(targets) # (batch_size, seq_len, hidden_dim) -> (batch_size, seq_len, latent_dim)
       decoder_embeddings = self.input_proj(decoder_output) # (batch_size, seq_len, hidden_dim) -> (batch_size, seq_len, latent_dim) 
 
     """

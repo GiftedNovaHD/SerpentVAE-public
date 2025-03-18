@@ -15,10 +15,12 @@ def prep_model(config: Dict) -> SerpentVAE:
 
   model = SerpentVAE(hidden_dim = config["hidden_dim"],
                      concept_dim = config["concept_dim"],
-                     vocab_size = config["vocab_size"],
                      distribution_config = config["distribution"],
                      encoder_config = config["encoder"],
                      decoder_config = config["decoder"],
+                     recon_loss_name = config["recon_loss_name"],
+                     recon_loss_reduction = config["recon_loss_reduction"],
+                     vocab_size = config["vocab_size"],
                      use_odds_ratio = config["use_odds_ratio"],
                      alpha = config["alpha"],
                      beta = config["beta"],

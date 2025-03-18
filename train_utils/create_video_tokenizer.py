@@ -1,12 +1,15 @@
-import torch 
+from transformers import VideoMAEFeatureExtractor
 
-def create_video_tokenizer(): 
+def create_video_feature_extractor(): 
   """
-  Creates and returns the NVIDIA Cosmos Tokenizer. 
+  Create and returns the VideoMAE feature extractor. 
 
-  Tokenizer adapted from: https://github.com/NVIDIA/Cosmos/tree/main/cosmos1/models/tokenizer
+  See https://huggingface.co/docs/transformers/en/model_doc/videomae for more details. 
 
-  Returns: 
-    tokenizer
+  Returns:
+    feature_extractor (AutoFeatureExtractor): The VideoMAE feature extractor
   """
   
+  # Default checkpoints
+  feature_extractor = VideoMAEFeatureExtractor.from_pretrained("MCG-NJU/videomae-base")
+  return feature_extractor
