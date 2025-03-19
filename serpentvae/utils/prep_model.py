@@ -21,6 +21,7 @@ def prep_model(config: Dict) -> SerpentVAE:
                      recon_loss_name = config["recon_loss_name"],
                      recon_loss_reduction = config["recon_loss_reduction"],
                      vocab_size = config["vocab_size"],
+                     input_dim = config["input_dim"],
                      use_odds_ratio = config["use_odds_ratio"],
                      alpha = config["alpha"],
                      beta = config["beta"],

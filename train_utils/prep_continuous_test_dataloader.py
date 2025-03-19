@@ -22,10 +22,10 @@ def prep_continuous_test_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, 
   num_test_samples = 100
   num_val_samples = 100
   
-  # Dimensions are (num_samples, seq_len, hidden_dim)
-  train_vectors = torch.randn(num_train_samples, config["max_seq_len"], config["hidden_dim"])
-  test_vectors = torch.randn(num_test_samples, config["max_seq_len"], config["hidden_dim"])
-  val_vectors = torch.randn(num_val_samples, config["max_seq_len"], config["hidden_dim"])
+  # Dimensions are (num_samples, seq_len, input_dim)
+  train_vectors = torch.randn(num_train_samples, config["max_seq_len"], config["input_dim"])
+  test_vectors = torch.randn(num_test_samples, config["max_seq_len"], config["input_dim"])
+  val_vectors = torch.randn(num_val_samples, config["max_seq_len"], config["input_dim"])
 
   print(f"Number of training sequences: {num_train_samples}")
   print(f"Number of testing sequences: {num_test_samples}")

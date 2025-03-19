@@ -24,7 +24,7 @@ import lightning as pl
 # PyTorch Automatic Mixed Precision (AMP)
 from torch.amp import autocast
 
-from serpentvae.modules.LightningSerpentVAE import LightningSerpentVAE
+from serpentvae.modules.TextLightningSerpentVAE import TextLightningSerpentVAE
 from train_utils.config_utils import load_config # For loading configs
 from train_utils.prep_text_dataloaders import prep_text_dataset
 from train_utils.create_text_tokenizer import create_text_tokenizer
@@ -60,7 +60,7 @@ if __name__ == "__main__":
   train_dataloader, test_dataloader, val_dataloader = prep_text_dataset(config = config, tokenizer = tokenizer)
 
   # Create model
-  lightning_model = LightningSerpentVAE(config = config,
+  lightning_model = TextLightningSerpentVAE(config = config,
                                         compile_model = config["compile_model"]
                                        )
 

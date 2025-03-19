@@ -2,11 +2,11 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "run discrete_lightning_train.py with no optional modules config",
+            "label": "run discrete_text_lightning_train.py with no optional modules config",
             "type": "shell",
             "command": "python",
             "args": [
-                "discrete_lightning_train.py",
+                "discrete_text_lightning_train.py",
                 "--config",
                 "discrete_test_no_optional"
             ],
@@ -17,11 +17,11 @@
             }
         },
         {
-            "label": "run discrete_lightning_train.py with debug config",
+            "label": "run discrete_text_lightning_train.py with debug config",
             "type": "shell",
             "command": "python",
             "args": [
-                "discrete_lightning_train.py",
+                "discrete_text_lightning_train.py",
                 "--config",
                 "discrete_debug_config"
             ],
