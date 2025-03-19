@@ -21,7 +21,7 @@ def count_content_tokens(tensor: Tensor, device: torch.device) -> int:
   # 2. any(tensor != 0, dim=-1) returns True if any value along the input_dim dimension is True
   # 3. sum the number of True values
   working_tensor = tensor.clone()
-  working_tensor = working_tensor.to(device = device)
+  working_tensor.to(device = device)
 
   num_content_tokens = torch.sum(torch.any(working_tensor != 0, dim=-1)).item()
 
@@ -40,7 +40,7 @@ def filter_padding_vectors(tensor: Tensor, device: torch.device) -> Tensor:
   """
   # Filter out the padding tokens
   working_tensor = tensor.clone()
-  working_tensor = working_tensor.to(device = device)
+  working_tensor.to(device = device)
 
   # Collapse the input_dim dimension into a single boolean dimension
   # This is equivalent to checking if any value along the input_dim dimension is True

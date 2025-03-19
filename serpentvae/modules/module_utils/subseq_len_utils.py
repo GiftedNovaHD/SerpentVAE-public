@@ -169,9 +169,9 @@ if __name__ == "__main__":
   
   # Test that functions for continuous inputs work
   test_continuous = torch.tensor(data=[[[-1, -2, 3], [4, 5, 6]],
-                                      [[0, 0, 0], [10, 11, 12]],
-                                      [[0, 0, 15], [16, 17, 18]]
-                                     ], dtype=torch.float32)
+                                       [[0, 0, 0], [10, 11, 12]],
+                                       [[0, 0, 15], [16, 17, 18]]
+                                      ], dtype=torch.float32)
   
   num_content_tokens = count_content_tokens(test_continuous, device = torch.device("cpu"))
 
