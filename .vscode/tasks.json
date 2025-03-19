@@ -2,13 +2,13 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "run lightning_train.py with no optional modules config",
+            "label": "run discrete_lightning_train.py with no optional modules config",
             "type": "shell",
             "command": "python",
             "args": [
-                "lightning_train.py",
+                "discrete_lightning_train.py",
                 "--config",
-                "test_no_optional"
+                "discrete_test_no_optional"
             ],
             "problemMatcher": [],
             "group": {
@@ -17,13 +17,28 @@
             }
         },
         {
-            "label": "run lightning_train.py with debug config",
+            "label": "run discrete_lightning_train.py with debug config",
             "type": "shell",
             "command": "python",
             "args": [
-                "lightning_train.py",
+                "discrete_lightning_train.py",
                 "--config",
-                "debug_config"
+                "discrete_debug_config"
+            ],
+            "problemMatcher": [],
+            "group": {
+                "kind": "test",
+                "isDefault": false
+            }
+        },
+        {
+            "label": "run continuous_lightning_train.py with debug config",
+            "type": "shell",
+            "command": "python",
+            "args": [
+                "continuous_lightning_train.py",
+                "--config",
+                "continuous_debug_config"
             ],
             "problemMatcher": [],
             "group": {
@@ -31,5 +46,6 @@
                 "isDefault": true
             }
         }
+
     ]
 }
