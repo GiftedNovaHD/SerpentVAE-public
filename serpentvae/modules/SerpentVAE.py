@@ -916,63 +916,44 @@ class SerpentVAE(nn.Module):
       # Calculate the number of content tokens
       num_content_tokens = count_whitelisted_tokens(tensor = correct_inputs, blacklist = [1, 2], device = self.device)
 
-      # print(f"num_content_tokens: {num_content_tokens}")
-
+      # Get the indices of the first tokens that are not padding tokens
       sentence_start_indices = filter_index(tensor = correct_inputs.clone(), blacklist = 1, device = self.device)
 
-      # print(f"sentence_start_indices: {sentence_start_indices}")
-
-      batch_size, seq_len, _ = correct_inputs.shape
-
-      total_num_subsequences = 0
-
-      for batch_idx in range(batch_size):
-        batch_start_idx = sentence_start_indices[batch_idx] # (1, )
-        batch_segmentation_indices = segmentation_indices[batch_idx].squeeze(-1) # (seq_len, 1) -> (seq_len,)
-
-        # Remove the EOS tokens at the front and the BOS token at the front
-        batch_segmentation_indices = batch_segmentation_indices[batch_start_idx: ]
-
-        # print(f"batch_segmentation_indices: {batch_segmentation_indices}")
-        # print(f"batch_segmentation_indices sum: {batch_segmentation_indices.sum()}")
-
-        # Count the number of subsequences
-        num_subsequences = batch_segmentation_indices.sum().item()
-
-        # print(f"num_subsequences: {num_subsequences}")  
-
-        total_num_subsequences += num_subsequences
-
-      avg_subseq_length = num_content_tokens / total_num_subsequences
-
-      return avg_subseq_length
-    
     else:
       # Calculate the number of content tokens
       num_content_tokens = count_content_tokens(tensor = correct_inputs, device = self.device)
 
       # Get the indices of the first tokens that are not padding vectors
       sentence_start_indices = filter_padding_vectors(tensor = correct_inputs.clone(), device = self.device)
+    
+    # print(f"num_content_tokens: {num_content_tokens}")
+    # print(f"sentence_start_indices: {sentence_start_indices}")
+    
+    # Calculate the average subsequence length
+    batch_size, seq_len, _ = correct_inputs.shape
 
-      batch_size, seq_len, _ = correct_inputs.shape
+    total_num_subsequences = 0
 
-      total_num_subsequences = 0
+    for batch_idx in range(batch_size):
+      batch_start_idx = sentence_start_indices[batch_idx] # (1, )
+      batch_segmentation_indices = segmentation_indices[batch_idx].squeeze(-1) # (seq_len, 1) -> (seq_len,)
 
-      for batch_idx in range(batch_size):
-        batch_start_idx = sentence_start_indices[batch_idx] # (1, )
-        batch_segmentation_indices = segmentation_indices[batch_idx].squeeze(-1) # (seq_len, 1) -> (seq_len,)
+      # Remove the EOS tokens at the front and the BOS token at the front
+      batch_segmentation_indices = batch_segmentation_indices[batch_start_idx: ]
 
-        # Remove the padding vectors at the front
-        batch_segmentation_indices = batch_segmentation_indices[batch_start_idx: ]
+      # print(f"batch_segmentation_indices: {batch_segmentation_indices}")
+      # print(f"batch_segmentation_indices sum: {batch_segmentation_indices.sum()}")
 
-        # Count the number of subsequences
-        num_subsequences = batch_segmentation_indices.sum().item()
+      # Count the number of subsequences
+      num_subsequences = batch_segmentation_indices.sum().item()
 
-        total_num_subsequences += num_subsequences
+      # print(f"num_subsequences: {num_subsequences}")  
 
-      avg_subseq_length = num_content_tokens / total_num_subsequences
+      total_num_subsequences += num_subsequences
 
-      return avg_subseq_length
+    avg_subseq_length = num_content_tokens / total_num_subsequences
+
+    return avg_subseq_length
       
       
 
