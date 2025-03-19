@@ -814,7 +814,8 @@ class SerpentVAE(nn.Module):
     if self.discrete_input == True: # Discrete input
       # Decode the hidden tokens 
       decoded_outputs = self.decoder_head(decoded_hidden_tokens) # (batch_size, seq_len, hidden_dim) -> (batch_size, seq_len, vocab_size)
-
+      
+      # Normalize the logits so softmax is not dominated by the largest logit
       decoded_outputs = decoded_outputs / (self.hidden_dim ** 0.5)
     
     else: # Continuous input
