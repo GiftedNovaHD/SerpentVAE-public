@@ -272,29 +272,32 @@ class SerpentVAE(nn.Module):
       padding_mask (Tensor): (batch_size, seq_len, 1)
         - 1 indicates the end of a subsequence
     """
+    # Detach inputs from computational graph
+    inputs = inputs.detach()
+
     if self.discrete_input == True: # Discrete inputs
       # NOTE: 
       # EOS token_id: 1
       # _pad_ token_id: 2
       # Make EOS tokens and _pad_ tokens end of subsequences
-      padding_mask = torch.isin(inputs.detach(), torch.tensor([1, 2], device = self.device))
-      padding_mask = padding_mask.int()
-
-      # Make sure that last token is the end of a subsequence in the event it is not an EOS token due to truncation
-      padding_mask[:, -1, :] = 1
-
-      return padding_mask
+      padding_mask = torch.isin(inputs, torch.tensor([1, 2], device = self.device))
     
     else: # Continuous inputs
       # NOTE: We assume that the padding vector is all 0s
       # Thus the sum of all values in the vector is 0, we apply the absolute function in the off chance a vector somehow has a sum of zero without absolute values
-      padding_mask = (torch.sum(torch.abs(inputs.detach()), dim=-1, keepdim = True) == 0)
-      padding_mask = padding_mask.int()
+      # How the algortihm works
+      # Step 1: Apply absolute function to each element in the vector
+      # Step 2: Sum over the hidden_dim dimension
+      # Step 3: Check if the sum is 0
+      padding_mask = (torch.sum(torch.abs(inputs), dim=-1, keepdim = True) == 0)
+    
+    # Convert paddingt mask to integer type as that is what replacement function expects
+    padding_mask = padding_mask.int()
       
-      # Make sure that last token is the end of a subsequence in the event it is not an EOS token due to truncation
-      padding_mask[:, -1, :] = 1
-      
-      return padding_mask
+    # Make sure that last token is the end of a subsequence in the event it is not an EOS token due to truncation
+    padding_mask[:, -1, :] = 1
+    
+    return padding_mask
   
   def segment(self,
               concept_tokens: Tensor,
