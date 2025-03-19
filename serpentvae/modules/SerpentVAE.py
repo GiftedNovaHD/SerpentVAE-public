@@ -818,7 +818,7 @@ class SerpentVAE(nn.Module):
       # Normalize the logits so softmax is not dominated by the largest logit
       decoded_outputs = decoded_outputs / (self.hidden_dim ** 0.5)
 
-      #print(f"Decoded logits max: {decoded_logits.max()}, min: {decoded_logits.min()}")
+      #print(f"Decoded logits max: {decoded_outputs.max()}, min: {decoded_outputs.min()}")
     
     else: # Continuous input
       decoded_outputs = decoded_hidden_tokens # (batch_size, seq_len, hidden_dim)
