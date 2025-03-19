@@ -745,7 +745,7 @@ class SerpentVAE(nn.Module):
       inputs (Tensor): (batch_size, seq_len, 1/hidden_dim) # These are the ids from the discrete sequence or the vectors from the continuous sequence
 
     Returns:
-      decoded_logits (Tensor) (batch_size, seq_len, vocab_size)
+      decoded_logits (Tensor) (batch_size, seq_len, vocab_size/hidden_dim)
       mu (Tensor): (batch_size, seq_len, latent_dim)
       logvar (Tensor): (batch_size, seq_len, latent_dim)
       sampled_latents (Tensor): (batch_size, seq_len, latent_dim)
@@ -756,7 +756,7 @@ class SerpentVAE(nn.Module):
     """
     # Generate padding mask for ChainCRP
     # NOTE: Need to refactor to work with continuous inputs
-    padding_mask = self.generate_padding_mask(input_ids = inputs) # (batch_size, seq_len, 1)
+    padding_mask = self.generate_padding_mask(inputs = inputs) # (batch_size, seq_len, 1)
 
     # Transform with embeddings
     if self.discrete_input == True:
