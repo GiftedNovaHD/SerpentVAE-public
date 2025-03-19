@@ -839,7 +839,7 @@ class SerpentVAE(nn.Module):
       segmentation_indices (Tensor):  This is a bitmask where 1 represents the end of a subsequence (batch_size, seq_len, 1)
 
     Returns:
-        avg_subseq_length (int): Average subsequence length
+      avg_subseq_length (int): Average subsequence length
 
     NOTE:
     BOS token_id: 0
