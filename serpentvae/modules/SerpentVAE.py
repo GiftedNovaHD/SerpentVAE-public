@@ -272,7 +272,7 @@ class SerpentVAE(nn.Module):
       padding_mask (Tensor): (batch_size, seq_len, 1)
         - 1 indicates the end of a subsequence
     """
-    if self.discrete_input == True:
+    if self.discrete_input == True: # Discrete inputs
       # NOTE: 
       # EOS token_id: 1
       # _pad_ token_id: 2
@@ -285,7 +285,7 @@ class SerpentVAE(nn.Module):
 
       return padding_mask
     
-    else:
+    else: # Continuous inputs
       # NOTE: We assume that the padding vector is all 0s
       # Thus the sum of all values in the vector is 0, we apply the absolute function in the off chance a vector somehow has a sum of zero without absolute values
       padding_mask = (torch.sum(torch.abs(inputs.detach()), dim=-1, keepdim = True) == 0)
