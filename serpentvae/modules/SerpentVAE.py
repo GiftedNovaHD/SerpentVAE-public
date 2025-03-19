@@ -273,7 +273,7 @@ class SerpentVAE(nn.Module):
     # EOS token_id: 1
     # _pad_ token_id: 2
     # Make EOS tokens and _pad_ tokens end of subsequences
-    padding_mask = torch.isin(input_ids.clone(), torch.tensor([1, 2], device = self.device))
+    padding_mask = torch.isin(input_ids.detach(), torch.tensor([1, 2], device = self.device))
     padding_mask = padding_mask.int()
     
     # Make sure that last token is the end of a subsequence in the event it is not an EOS token due to truncation
