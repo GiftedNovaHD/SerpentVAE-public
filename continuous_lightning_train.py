@@ -8,7 +8,7 @@ import argparse
 import itertools 
 from tqdm import tqdm 
 import json
-from typing import Tuple, Dict
+from typing import Tuple
 
 import torch
 import torch.nn as nn
@@ -50,7 +50,7 @@ if __name__ == "__main__":
   # Check that config file exists and load it
   config = load_config(args.config)
   
-  print(config)
+  # print(config)
 
   # Load data
   train_dataloader, test_dataloader, val_dataloader = prep_continuous_test_dataset(config = config)

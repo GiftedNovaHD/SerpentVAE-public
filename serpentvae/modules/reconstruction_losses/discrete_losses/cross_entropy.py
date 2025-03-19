@@ -10,7 +10,7 @@ def CrossEntropyLoss(predictions: Tensor,
   """
   Args: 
     predictions (Tensor): Decoder outputs (batch_size, seq_len, vocab_size)
-    targets (Tensor): Original discrete inputs (batch_size, seq_len, vocab_size)
+    targets (Tensor): Original discrete inputs (batch_size, seq_len, 1)
     reduction (str): Reduction operation to apply to the loss
   
   Returns: 

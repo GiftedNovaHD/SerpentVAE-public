@@ -84,20 +84,11 @@ decoder:
     mamba2_head_dim: 64 # (hidden_dim * mamba_expand / mamba_head_dim = 64 = 8 * 8)
 
 # Confidence Module configuration
-enable_confidence_module: true # This module is used for Stochastic Varitional Inference (not implemented yet)
+enable_confidence_module: false # This module is used for Stochastic Varitional Inference (not implemented yet)
 confidence_module:
-  mlp_inner_dim: 768
+  mlp_inner_dim: 
 
 # Q-Net configuration
-enable_qnet: true # We advise Q-Net to be enabled to reduce the chance of posterior collapse
+enable_qnet: false # We advise Q-Net to be enabled to reduce the chance of posterior collapse
 qnet:
-  # Non-sequence mixer settings
-  layer_config: "Mamba2"
-  mlp_inner_dim: 384
   
-  # Sequence mixer configuration
-  Mamba2:
-    mamba2_conv_length: 4
-    mamba2_expand: 1
-    mamba2_head_dim: 32 # (concept_dim * mamba_expand / qnet_mamba_head_dim = 48 = 8 * 6)
-    mamba2_state_dim: 8

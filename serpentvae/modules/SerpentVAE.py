@@ -30,7 +30,9 @@ from serpentvae.modules.distributions.distributions import create_distribution
 from serpentvae.modules.reconstruction_losses.create_recon_loss import create_recon_loss
 
 # Import module utils for calculating average subsequence length
-from serpentvae.modules.module_utils.subseq_len_utils import count_whitelisted_tokens, filter_index
+# NOTE: count_whitelisted_tokens and filter_index are for discrete inputs
+# NOTE: count_content_tokens and filter_padding_vectors are for continuous inputs
+from serpentvae.modules.module_utils.subseq_len_utils import count_whitelisted_tokens, filter_index, count_content_tokens, filter_padding_vectors
 
 class SerpentVAE(nn.Module):
   def __init__(self,
@@ -766,7 +768,7 @@ class SerpentVAE(nn.Module):
         subseq_confidence_estimates = batch_confidence_estimates[end][0] # Shape: (1,)
 
         subseq_predictions = batch_predictions[start:end + 1] # Shape: (subseq_len, vocab_size)
-        subseq_targets = batch_inputs[start:end + 1].squeeze(-1).long() # Shape: (subseq_len,)
+        subseq_targets = batch_inputs[start:end + 1] # Shape: (subseq_len, 1/input_dim)
         
         # Calculate the true reconstruction loss for the subsequence
         subseq_recon_loss = self.recon_loss_fn(predictions = subseq_predictions,
@@ -944,9 +946,36 @@ class SerpentVAE(nn.Module):
       avg_subseq_length = num_content_tokens / total_num_subsequences
 
       return avg_subseq_length
+    
     else:
       # Calculate the number of content tokens
-      raise NotImplementedError("Continuous inputs not implemented")
+      num_content_tokens = count_content_tokens(tensor = correct_inputs, device = self.device)
+
+      # Get the indices of the first tokens that are not padding vectors
+      sentence_start_indices = filter_padding_vectors(tensor = correct_inputs.clone(), device = self.device)
+
+      batch_size, seq_len, _ = correct_inputs.shape
+
+      total_num_subsequences = 0
+
+      for batch_idx in range(batch_size):
+        batch_start_idx = sentence_start_indices[batch_idx] # (1, )
+        batch_segmentation_indices = segmentation_indices[batch_idx].squeeze(-1) # (seq_len, 1) -> (seq_len,)
+
+        # Remove the padding vectors at the front
+        batch_segmentation_indices = batch_segmentation_indices[batch_start_idx: ]
+
+        # Count the number of subsequences
+        num_subsequences = batch_segmentation_indices.sum().item()
+
+        total_num_subsequences += num_subsequences
+
+      avg_subseq_length = num_content_tokens / total_num_subsequences
+
+      return avg_subseq_length
+      
+      
+
   
   def ema_avg_subseq_length(self,
                             curr_avg_subseq_length: float,

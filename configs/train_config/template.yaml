@@ -35,6 +35,7 @@ beta: 1.0 # This scales the KL divergence term
 ema_decay_factor: 0.75 # This is the decay factor for the EMA of the averaqe subsequence length
 
 # Embedding configuration
+# NOTE: This is for both continuous and discrete inputs
 share_input_embeddings: true
 tie_embeddings: true
 

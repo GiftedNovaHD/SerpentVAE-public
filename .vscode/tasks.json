@@ -45,7 +45,21 @@
                 "kind": "test",
                 "isDefault": true
             }
+        },
+        {
+            "label": "run continuous_lightning_train.py with no optional modules config",
+            "type": "shell",
+            "command": "python",
+            "args": [
+                "continuous_lightning_train.py",
+                "--config",
+                "continuous_test_no_optional"
+            ],
+            "problemMatcher": [],
+            "group": {
+                "kind": "test",
+                "isDefault": false
+            }
         }
-
     ]
 }

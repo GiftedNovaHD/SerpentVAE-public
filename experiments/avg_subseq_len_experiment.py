@@ -56,7 +56,7 @@ def filter_index(tensor: Tensor, blacklist:  int|List[int], device: torch.device
 
   # Filter out the tokens that are in the blacklist
   working_tensor = tensor.clone()
-  working_tensor.to(device = device)
+  working_tensor = working_tensor.to(device = device)
 
   working_tensor = ~ torch.isin(working_tensor, blacklist)
   working_tensor = working_tensor.squeeze(-1)
