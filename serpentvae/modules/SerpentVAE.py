@@ -46,6 +46,7 @@ class SerpentVAE(nn.Module):
                input_dim: Optional[int] = None,
                vocab_size: Optional[int] = None,
                use_odds_ratio: bool = False,
+               compression_strength: float = 1.0,
                alpha: float = 1.0,
                beta: float = 1.0,
                ema_decay_factor = 0.75,
@@ -73,6 +74,7 @@ class SerpentVAE(nn.Module):
         vocab_size (Optional[int]): Size of vocabulary for discrete inputs, None for continuous inputs
         input_dim (Optional[int]): Dimension of continuous inputs, None for discrete inputs
         use_odds_ratio (bool): Whether to use odds ratio for segmentation
+        compression_strength (float): Compression strength for ChainCRP
         alpha (float): Weight for the VMI loss term
         beta (float): Weight for the KL divergence term
         ema_decay_factor (float): Decay factor for the exponential moving average
@@ -114,6 +116,7 @@ class SerpentVAE(nn.Module):
 
     # Segmentation configuration settings
     self.use_odds_ratio = use_odds_ratio
+    self.compression_strength = compression_strength
 
     # Confidence module configuration settings
     self.enable_confidence_module = enable_confidence_module
@@ -212,6 +215,7 @@ class SerpentVAE(nn.Module):
 
     # Instantiate ChainCRP
     self.chain_crp = ChainCRP(use_odds_ratio = self.use_odds_ratio,
+                              compression_strength = self.compression_strength,
                               dtype = self.dtype,
                               device = self.device
                              )

@@ -23,6 +23,7 @@ def prep_model(config: Dict) -> SerpentVAE:
                      vocab_size = config["vocab_size"],
                      input_dim = config["input_dim"],
                      use_odds_ratio = config["use_odds_ratio"],
+                     compression_strength = config["compression_strength"],
                      alpha = config["alpha"],
                      beta = config["beta"],
                      ema_decay_factor = config["ema_decay_factor"],

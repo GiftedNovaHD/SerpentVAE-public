@@ -25,23 +25,27 @@ from serpentvae.modules.module_utils.subseq_len_utils import count_whitelisted_t
 class ChainCRP(nn.Module): 
   def __init__(self, 
                use_odds_ratio: bool = True,
+               compression_strength: float = 1.0,
                dtype: torch.dtype = None,
                device: torch.device = None
-               ): 
+              ): 
     """
     Initializes a differentiable ChainCRP module that takes in the concentration parameter as well as the probability of a boundary between the current 
     token and the next token. 
     """
     super().__init__()
 
-    self.use_odds_ratio = use_odds_ratio 
+    self.use_odds_ratio = use_odds_ratio
+    self.compression_strength = compression_strength
+
+    # Hardware configuration
     self.dtype = dtype
     self.device = device
     
   def forward(self,
               encoder_segmentation_predictions: Tensor,
               prev_batch_recon_loss: Tensor
-              ): 
+             ): 
     """
     Given a batch of encoder segmentation predictions
     1. For each token in the sequence, obtain the probability p_{i} of a boundary between the current token and the next token from
@@ -77,7 +81,7 @@ class ChainCRP(nn.Module):
     # Differentiable scalar parameter theta
     theta = 1.0 / (prev_batch_recon_loss + eps) # (1, ) -> (1, ) 
     theta = torch.sqrt(theta) # Clamp theta to prevent it from exploding too much
-
+    theta = theta * self.compression_strength
     # Prepare indices for tokens 1,..., L - 1 (0-indexing, but for CRP math notation, we use 1-indexed positions.
     # NOTE: Might want to do some subscript notation when writing paper to make this clear.
     indices = torch.arange(1, seq_len, device=self.device, dtype=theta.dtype) # (seq_len - 1, )
