@@ -1,6 +1,7 @@
 from typing import Dict
-
+from functools import partial
 import torch
+import torch.nn as nn
 from torch.distributed.fsdp.fully_sharded_data_parallel import (
   CPUOffload, 
   BackwardPrefetch,
@@ -38,7 +39,10 @@ def prep_parallelism(config: Dict):
     strategy = DDPStrategy(process_group_backend='nccl')
   
   elif parallelism_config.upper() == "FSDP":
-    strategy = FSDPStrategy(auto_wrap_policy = size_based_auto_wrap_policy,
+    exclude_wrap_embedding_policy = partial(size_based_auto_wrap_policy,
+                                            exclude_wrap_modules = {nn.Embedding})
+
+    strategy = FSDPStrategy(auto_wrap_policy = exclude_wrap_embedding_policy,
                             cpu_offload = CPUOffload(offload_params = False),
                             sharding_strategy = ShardingStrategy.SHARD_GRAD_OP,
                             backward_prefetch = BackwardPrefetch.BACKWARD_PRE,
