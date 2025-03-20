@@ -148,10 +148,10 @@ class SerpentVAE(nn.Module):
     # Embeddings should only be initialised if input is discrete
     if self.discrete_input == True: # Discrete inputs
       if self.share_input_embeddings == True:
-        self.embeddings = nn.Embedding(vocab_size, hidden_dim, **factory_kwargs)
+        self.embeddings = nn.Embedding(vocab_size, hidden_dim, device = self.device, dtype = self.dtype)
       else:
-        self.encoder_embeddings = nn.Embedding(vocab_size, hidden_dim, **factory_kwargs)
-        self.decoder_embeddings = nn.Embedding(vocab_size, hidden_dim, **factory_kwargs)
+        self.encoder_embeddings = nn.Embedding(vocab_size, hidden_dim, device = self.device, dtype = self.dtype)
+        self.decoder_embeddings = nn.Embedding(vocab_size, hidden_dim, device = self.device, dtype = self.dtype)
 
       if self.tie_embeddings == True:
         if self.share_input_embeddings:
@@ -815,6 +815,7 @@ class SerpentVAE(nn.Module):
       decoder_predicted_segments (Tensor): (batch_size, seq_len, 1)
       predicted_confidence (Tensor): (batch_size, seq_len, 1)
     """
+    
     # Generate padding mask for ChainCRP
     # NOTE: Need to refactor to work with continuous inputs
     padding_mask = self.generate_padding_mask(inputs = inputs) # (batch_size, seq_len, 1)
@@ -834,7 +835,7 @@ class SerpentVAE(nn.Module):
       else:
         enc_hidden_states = self.encoder_input_projection(inputs) # (batch_size, seq_len, input_dim) -> (batch_size, seq_len, hidden_dim)
         dec_hidden_states = self.decoder_input_projection(inputs) # (batch_size, seq_len, input_dim) -> (batch_size, seq_len, hidden_dim)
-
+    
     # Encode tokens
     hidden_states = self.encode(enc_hidden_states) # (batch_size, seq_len, hidden_dim) -> mu: (batch_size, seq_len, hidden_dim), logvar: (batch_size, seq_len, hidden_dim)
     
