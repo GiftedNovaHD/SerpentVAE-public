@@ -8,7 +8,7 @@ import argparse
 import itertools 
 from tqdm import tqdm 
 import json
-from typing import Tuple, Dict
+from typing import Tuple
 
 import torch
 import torch.nn as nn
@@ -24,10 +24,9 @@ import lightning as pl
 # PyTorch Automatic Mixed Precision (AMP)
 from torch.amp import autocast
 
-from serpentvae.modules.LightningSerpentVAE import LightningSerpentVAE
+from serpentvae.modules.ContinuousTestLightningSerpentVAE import ContinuousTestLightningSerpentVAE
 from train_utils.config_utils import load_config # For loading configs
-from train_utils.prep_text_dataloaders import prep_text_dataset
-from train_utils.create_text_tokenizer import create_text_tokenizer
+from train_utils.prep_continuous_test_dataloader import prep_continuous_test_dataset
 from train_utils.prep_parallelism import prep_parallelism
 
 if __name__ == "__main__":
@@ -51,18 +50,15 @@ if __name__ == "__main__":
   # Check that config file exists and load it
   config = load_config(args.config)
   
-  #print(config)
-
-  # Create tokenizer
-  tokenizer = create_text_tokenizer()
+  # print(config)
 
   # Load data
-  train_dataloader, test_dataloader, val_dataloader = prep_text_dataset(config = config, tokenizer = tokenizer)
+  train_dataloader, test_dataloader, val_dataloader = prep_continuous_test_dataset(config = config)
 
   # Create model
-  lightning_model = LightningSerpentVAE(config = config,
-                                        compile_model = config["compile_model"]
-                                       )
+  lightning_model = ContinuousTestLightningSerpentVAE(config = config,
+                                                      compile_model = config["compile_model"]
+                                                     )
 
   # Create paraallelism strategy
   parallelism_strategy = prep_parallelism(config = config)

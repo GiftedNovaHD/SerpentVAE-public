@@ -1,15 +1,12 @@
-from transformers import VideoMAEFeatureExtractor
+from transformers import AutoFeatureExtractor
 
-def create_video_feature_extractor(): 
+def create_video_tokenizer(): 
   """
-  Create and returns the VideoMAE feature extractor. 
-
-  See https://huggingface.co/docs/transformers/en/model_doc/videomae for more details. 
+  Creates and returns the VideoMAE video tokenizer (i.e. feature extractor) for processing video frames. 
 
   Returns:
-    feature_extractor (AutoFeatureExtractor): The VideoMAE feature extractor
+    tokenizer (AutoFeatureExtractor): The VideoMAE video tokenizer to process video frames.
   """
-  
-  # Default checkpoints
-  feature_extractor = VideoMAEFeatureExtractor.from_pretrained("MCG-NJU/videomae-base")
-  return feature_extractor
+
+  tokenizer = AutoFeatureExtractor.from_pretrained("MCG-NJU/VideoMAE-base")
+  return tokenizer
