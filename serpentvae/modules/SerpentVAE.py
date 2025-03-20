@@ -226,6 +226,7 @@ class SerpentVAE(nn.Module):
     # Set exponential moving average value for average subsequence length
     self.ema_decay_factor = ema_decay_factor
     self.ema_avg_subseq_length_var = 1.0
+    self.ema_stddev_subseq_length_var = 1.0
 
     # Instantiate the segment predictor
     self.encoder_segment_predictor = EncoderSegmentPredictor(hidden_dim = hidden_dim,
@@ -889,12 +890,12 @@ class SerpentVAE(nn.Module):
 
     return decoded_outputs, mu, logvar, sampled_latents, segmentation_indices, encoder_predicted_segments, decoder_predicted_segments, predicted_confidence
   
-  def avg_subseq_length(self,
-                        correct_inputs: Tensor,
-                        segmentation_indices: Tensor
-                       ) -> int:
+  def subseq_length_stats(self,
+                          correct_inputs: Tensor,
+                          segmentation_indices: Tensor
+                         ) -> Tuple[float, float]:
     """
-    Calculate the average subsequence length
+    Calculate the average subsequence length and standard deviation
 
     We need to do some special handling to remove the EOS tokens at the front used for padding
 
@@ -903,7 +904,8 @@ class SerpentVAE(nn.Module):
       segmentation_indices (Tensor):  This is a bitmask where 1 represents the end of a subsequence (batch_size, seq_len, 1)
 
     Returns:
-      avg_subseq_length (int): Average subsequence length
+      avg_subseq_length (float): Average subsequence length
+      stddev_subseq_length (float): Standard deviation of subsequence lengths
 
     NOTE:
     For discrete inputs:
@@ -937,6 +939,7 @@ class SerpentVAE(nn.Module):
     batch_size, seq_len, _ = correct_inputs.shape
 
     total_num_subsequences = 0
+    all_subsequence_lengths = []
 
     for batch_idx in range(batch_size):
       batch_start_idx = sentence_start_indices[batch_idx] # (1, )
@@ -947,17 +950,39 @@ class SerpentVAE(nn.Module):
 
       # print(f"batch_segmentation_indices: {batch_segmentation_indices}")
       # print(f"batch_segmentation_indices sum: {batch_segmentation_indices.sum()}")
+      
+      # Get end indices of subsequences
+      end_indices = torch.nonzero(batch_segmentation_indices, as_tuple=True)[0]
 
       # Count the number of subsequences
-      num_subsequences = batch_segmentation_indices.sum().item()
+      num_subsequences = len(end_indices)
 
-      # print(f"num_subsequences: {num_subsequences}")  
+      # print(f"num_subsequences: {num_subsequences}")
+
+      # Calculate subsequence lengths
+      subsequence_lengths = []
+      
+      # Handle first subsequence starting at index 0
+      first_end = end_indices[0]
+      subsequence_lengths.append(first_end + 1)  # +1 since end_indices are inclusive
+      
+      # Handle remaining subsequences
+      for i in range(1, len(end_indices)):
+        start = end_indices[i-1] + 1  # Start after previous end
+        end = end_indices[i]
+        subsequence_lengths.append(end - start + 1)
+          
+      all_subsequence_lengths.extend(subsequence_lengths)
 
       total_num_subsequences += num_subsequences
-
+    
+    # Calculate the average subsequence length
     avg_subseq_length = num_content_tokens / total_num_subsequences
 
-    return avg_subseq_length
+    # Calculate the standard deviation of the subsequence lengths
+    stddev_subseq_length = torch.std(torch.tensor(all_subsequence_lengths, device = self.device, dtype = torch.float32)) # Cast to float32 to avoid overflow instead model dtype
+
+    return avg_subseq_length, stddev_subseq_length
       
       
 
@@ -981,6 +1006,26 @@ class SerpentVAE(nn.Module):
     self.ema_avg_subseq_length_var = ema_avg_subseq_length
 
     return ema_avg_subseq_length
+  
+  def ema_stddev_subseq_length(self,
+                               curr_stddev_subseq_length: float,
+                               epsilon: float = 0.75
+                              ) -> float:
+    """
+    Calculate an expoonential moving average of the standard deviation of the subsequence length
+
+    Args: 
+      curr_stddev_subseq_length (float): Standard deviation of the subsequence length at the current time step
+      epsilon (float): Smoothing factor
+    
+    Returns:
+      ema_stddev_subseq_length (float): Exponential moving average of the standard deviation of the subsequence length
+    """
+
+    ema_stddev_subseq_length = (1 - epsilon) * curr_stddev_subseq_length + epsilon * self.ema_stddev_subseq_length_var
+    self.ema_stddev_subseq_length_var = ema_stddev_subseq_length
+
+    return ema_stddev_subseq_length
   
   def num_active_units(self,
                        mu: Tensor,
@@ -1114,8 +1159,9 @@ class SerpentVAE(nn.Module):
                                           )
 
     # Calculate the average subsequence length
-    avg_subseq_length = self.avg_subseq_length(correct_inputs = correct_inputs,
-                                               segmentation_indices = segmentation_indices)
+    avg_subseq_length, stddev_subseq_length = self.subseq_length_stats(correct_inputs = correct_inputs,
+                                                                       segmentation_indices = segmentation_indices
+                                                                      )
     
     # Calculate the confidence error
     if self.enable_confidence_module == True:
@@ -1147,6 +1193,7 @@ class SerpentVAE(nn.Module):
                prefix + "recon_error": reconstruction_error.item(),
                prefix + "perplexity": torch.exp(reconstruction_error).item(),
                prefix + "avg_subsequence_len": avg_subseq_length,
+               prefix + "stddev_subsequence_len": stddev_subseq_length,
                prefix + "encoder_segment_prediction_error": encoder_segmentation_prediction_error.item(),
                prefix + "decoder_segment_prediction_error": decoder_segmentation_prediction_error.item(),
                prefix + "total_loss": total_loss.item()
@@ -1231,11 +1278,12 @@ class SerpentVAE(nn.Module):
     print(f"KL loss: {kl_loss.item()}")
 
     # Calculate the average subsequence length
-    avg_subseq_length = self.avg_subseq_length(correct_inputs = correct_inputs,
-                                               segmentation_indices = segmentation_indices
-                                              )
+    avg_subseq_length, stddev_subseq_length = self.subseq_length_stats(correct_inputs = correct_inputs,
+                                                                    segmentation_indices = segmentation_indices
+                                                                   )
 
     print(f"Average subsequence length: {avg_subseq_length}")
+    print(f"Standard deviation of subsequence length: {stddev_subseq_length}")
 
     # Calculate the exponential moving average of the average subsequence length
     ema_avg_subseq_length = self.ema_avg_subseq_length(curr_avg_subseq_length = avg_subseq_length,
@@ -1243,6 +1291,13 @@ class SerpentVAE(nn.Module):
                                                       )
 
     print(f"Average subsequence length (EMA): {ema_avg_subseq_length}")
+
+    # Calculate the exponential moving average of the standard deviation of the subsequence length
+    ema_stddev_subseq_length = self.ema_stddev_subseq_length(curr_stddev_subseq_length = stddev_subseq_length,
+                                                             epsilon = self.ema_decay_factor
+                                                            )
+
+    print(f"Standard deviation of subsequence length (EMA): {ema_stddev_subseq_length}")
     
     # Calculate the loss of the segment prediction network
     encoder_segment_prediction_loss = self.segment_prediction_loss(segmentation_predictions = encoder_predicted_segments,
