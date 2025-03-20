@@ -31,10 +31,6 @@ input_dim: # NOTE: Input dimension can be left blank for continuous inputs
 recon_loss_name: "CE"
 recon_loss_reduction: "mean"
 
-# Reconstruction loss configuration
-recon_loss_name: "CE"
-recon_loss_reduction: "mean"
-
 # Training scale factors
 alpha: 1.0 # This scales the VMI regularization term
 beta: 1.0 # This scales the KL divergence term
