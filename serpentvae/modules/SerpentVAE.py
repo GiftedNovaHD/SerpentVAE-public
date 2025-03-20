@@ -1154,6 +1154,9 @@ class SerpentVAE(nn.Module):
                                                                               decoder_output = decoder_output
                                                                              )
     
+    recon_loss_bits = (reconstruction_error * torch.log2(torch.exp(torch.tensor([1], device = self.device, dtype = self.dtype))))
+    bits_per_byte = (recon_loss_bits/torch.log2(torch.tensor([129280], device = self.device, dtype = self.dtype)))
+
     # Calculate the full mutual information
     full_mutual_info = self.statistical_mi(mu = dedup_mu,
                                            logvar = dedup_logvar
@@ -1186,13 +1189,14 @@ class SerpentVAE(nn.Module):
       prefix = "test_"
     else:
       prefix = "validation_"
-
+    
     # Initialize the metrics dictionary
     metrics = {prefix + "num_active_units": num_active_units.item(),
                prefix + "full_mi": full_mutual_info.item(),
                prefix + "kl_divergence": kl_divergence.item(),
                prefix + "recon_error": reconstruction_error.item(),
                prefix + "perplexity": torch.exp(reconstruction_error).item(),
+               prefix + "bits_per_byte": bits_per_byte.item(),
                prefix + "avg_subsequence_len": avg_subseq_length,
                prefix + "stddev_subsequence_len": stddev_subseq_length,
                prefix + "encoder_segment_prediction_error": encoder_segmentation_prediction_error.item(),
@@ -1276,6 +1280,12 @@ class SerpentVAE(nn.Module):
    
     print(f"Reconstruction loss: {reconstruction_loss.item()}")
     print(f"Perplexity: {torch.exp(reconstruction_loss).item()}")
+    
+    recon_loss_bits = (reconstruction_loss * torch.log2(torch.exp(torch.tensor([1], device = self.device, dtype = self.dtype))))
+    bits_per_byte = (recon_loss_bits/torch.log2(torch.tensor([129280], device = self.device, dtype = self.dtype)))
+
+    print(f"Bits per byte: {bits_per_byte.item()}")
+
     print(f"KL loss: {kl_loss.item()}")
 
     # Calculate the average subsequence length
