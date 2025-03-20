@@ -208,6 +208,7 @@ class SerpentVAE(nn.Module):
                            dtype = self.dtype
                           )
     
+    self.recon_loss_name = recon_loss_name
     self.recon_loss_fn = create_recon_loss(loss_name = recon_loss_name,
                                            reduction = recon_loss_reduction,
                                            discrete = self.discrete_input,
@@ -1195,7 +1196,7 @@ class SerpentVAE(nn.Module):
     metrics = {prefix + "num_active_units": num_active_units.item(),
                prefix + "full_mi": full_mutual_info.item(),
                prefix + "kl_divergence": kl_divergence.item(),
-               prefix + "recon_error": reconstruction_error.item(),
+               prefix + f"recon_error ({self.recon_loss_name})": reconstruction_error.item(),
                prefix + "avg_subsequence_len": avg_subseq_length,
                prefix + "stddev_subsequence_len": stddev_subseq_length,
                prefix + "encoder_segment_prediction_error": encoder_segmentation_prediction_error.item(),
@@ -1282,7 +1283,7 @@ class SerpentVAE(nn.Module):
     # Update previous batch reconstruction loss
     self.prev_batch_recon_loss = reconstruction_loss
    
-    print(f"Reconstruction loss: {reconstruction_loss.item()}")
+    print(f"Reconstruction loss ({self.recon_loss_name}): {reconstruction_loss.item()}")
 
     if self.discrete_input == True:
       print(f"Perplexity: {torch.exp(reconstruction_loss).item()}")
