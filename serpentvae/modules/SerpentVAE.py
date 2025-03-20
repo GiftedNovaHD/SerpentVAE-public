@@ -225,7 +225,7 @@ class SerpentVAE(nn.Module):
 
     # Set exponential moving average value for average subsequence length
     self.ema_decay_factor = ema_decay_factor
-    self.ema_avg_subseq_length_var = 0
+    self.ema_avg_subseq_length_var = 1.0
 
     # Instantiate the segment predictor
     self.encoder_segment_predictor = EncoderSegmentPredictor(hidden_dim = hidden_dim,
