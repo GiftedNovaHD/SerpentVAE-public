@@ -1,10 +1,10 @@
-from typing import List
+from typing import List, Union
 
 import torch
 from torch import Tensor
 
 # For discrete inputs
-def count_whitelisted_tokens(tensor: Tensor, blacklist:  int|List[int], device: torch.device) -> int:
+def count_whitelisted_tokens(tensor: Tensor, blacklist: Union[int, List[int]], device: torch.device) -> int:
   """
   Count the number of tokens in the tensor that are not in the blacklist
   
@@ -33,7 +33,7 @@ def count_whitelisted_tokens(tensor: Tensor, blacklist:  int|List[int], device: 
 
   return num_whitelisted_tokens
 
-def filter_index(tensor: Tensor, blacklist:  int|List[int], device: torch.device) -> List[Tensor]:
+def filter_index(tensor: Tensor, blacklist: Union[int, List[int]], device: torch.device) -> List[Tensor]:
   """
   Get the first index of the token that is not in the blacklist
 
