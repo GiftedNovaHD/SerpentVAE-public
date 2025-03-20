@@ -40,6 +40,7 @@ def prep_parallelism(config: Dict):
   elif parallelism_config.upper() == "FSDP":
     strategy = FSDPStrategy(auto_wrap_policy = size_based_auto_wrap_policy,
                             cpu_offload = CPUOffload(offload_params = False),
+                            sharding_strategy = ShardingStrategy.SHARD_GRAD_OP,
                             backward_prefetch = BackwardPrefetch.BACKWARD_PRE,
                             mixed_precision = MixedPrecision(param_dtype = torch.bfloat16,  # or torch.float16,
                                                              reduce_dtype = torch.bfloat16,
