@@ -70,7 +70,10 @@ if __name__ == "__main__":
   # Create paraallelism strategy
   parallelism_strategy = prep_parallelism(config = config)
 
-  checkpoint_callback = ModelCheckpoint(dirpath=config["training_path"], every_n_train_steps=config["checkpoint_freq"])
+  checkpoint_callback = ModelCheckpoint(dirpath = config["training_path"],
+                                        every_n_train_steps = config["checkpoint_freq"],
+                                        verbose = True
+                                      )
   
   trainer = pl.Trainer(devices=1,
                        accelerator="gpu",
@@ -81,6 +84,7 @@ if __name__ == "__main__":
                        limit_val_batches = 1,
                        default_root_dir= config["training_path"],
                        profiler = "pytorch",
+                       callbacks = [checkpoint_callback],
                        fast_dev_run = 5, 
                       )
 
