@@ -20,6 +20,7 @@ from torch.utils.data import DataLoader
 
 # For cleaner training loops
 import lightning as pl
+from lightning.pytorch.callbacks import RichModelSummary
 
 # PyTorch Automatic Mixed Precision (AMP)
 from torch.amp import autocast
@@ -76,7 +77,8 @@ if __name__ == "__main__":
                        limit_val_batches = 1,
                        default_root_dir= config["training_path"],
                        profiler = "pytorch",
-                       fast_dev_run = 5
+                       fast_dev_run = 5,
+                       callbacks = [RichModelSummary(max_depth = 15)]
                       )
 
   trainer.fit(model = lightning_model, train_dataloaders = train_dataloader, val_dataloaders = val_dataloader)

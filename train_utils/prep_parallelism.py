@@ -39,12 +39,25 @@ def prep_parallelism(config: Dict):
     strategy = DDPStrategy(process_group_backend='nccl')
   
   elif parallelism_config.upper() == "FSDP":
-    exclude_wrap_embedding_policy = partial(size_based_auto_wrap_policy,
-                                            exclude_wrap_modules = {nn.Embedding})
+    def no_wrap_embedding_policy(module: nn.Module, 
+                                 recurse: bool,
+                                 nonwrapped_numel: int
+                                ) -> bool:
+      if isinstance(module, nn.Embedding):
+        # Don't wrap embedding layers
+        # Convert embedding parameters to bfloat16 to match FSDP mixed precision
+        if hasattr(module, 'weight') and module.weight is not None:
+          module.weight.data = module.weight.data.to(torch.bfloat16)
+        return False
+      else:
+        return True
+      
+    no_wrap_embedding_policy = partial(no_wrap_embedding_policy,
+                                       recurse = True
+                                      )
 
-    strategy = FSDPStrategy(auto_wrap_policy = exclude_wrap_embedding_policy,
+    strategy = FSDPStrategy(auto_wrap_policy = size_based_auto_wrap_policy,
                             cpu_offload = CPUOffload(offload_params = False),
-                            sharding_strategy = ShardingStrategy.SHARD_GRAD_OP,
                             backward_prefetch = BackwardPrefetch.BACKWARD_PRE,
                             mixed_precision = MixedPrecision(param_dtype = torch.bfloat16,  # or torch.float16,
                                                              reduce_dtype = torch.bfloat16,
