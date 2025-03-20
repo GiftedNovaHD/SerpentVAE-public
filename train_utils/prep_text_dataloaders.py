@@ -62,19 +62,30 @@ def prep_text_dataset(config: Dict,tokenizer) -> Tuple[DataLoader, DataLoader, D
                                 batch_size = config["batch_size"],
                                 shuffle = True,
                                 collate_fn = collate,
-                                num_workers = dataloader_num_workers
+                                num_workers = dataloader_num_workers,
+                                persistent_workers = True,
+                                pin_memory = True,
+                                pin_memory_device = config["device"]
                                )
+  
   test_dataloader = DataLoader(dataset = test_texts,
                                batch_size = config["batch_size"],
                                shuffle = False,
                                collate_fn = collate,
-                               num_workers = dataloader_num_workers
+                               num_workers = dataloader_num_workers,
+                               persistent_workers = True,
+                               pin_memory = True,
+                               pin_memory_device = config["device"]
                               )
+  
   val_dataloader = DataLoader(dataset = val_texts,
                               batch_size = config["batch_size"],
                               shuffle = False,
                               collate_fn = collate,
-                              num_workers = dataloader_num_workers
+                              num_workers = dataloader_num_workers,
+                              persistent_workers = True,
+                              pin_memory = True,
+                              pin_memory_device = config["device"]
                              )
 
   return train_dataloader, test_dataloader, val_dataloader
