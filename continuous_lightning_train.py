@@ -21,6 +21,9 @@ from torch.utils.data import DataLoader
 # For cleaner training loops
 import lightning as pl
 
+# Modify checkpointing behavior for PyTorch Lightning
+from lightning.pytorch.callbacks import ModelCheckpoint
+
 # PyTorch Automatic Mixed Precision (AMP)
 from torch.amp import autocast
 
@@ -62,7 +65,9 @@ if __name__ == "__main__":
 
   # Create paraallelism strategy
   parallelism_strategy = prep_parallelism(config = config)
-  
+
+  checkpoint_callback = ModelCheckpoint(dirpath = config["training_path"], every_n_train_steps = config["checkpoint_freq"])
+
   trainer = pl.Trainer(devices=1,
                        accelerator="gpu",
                        strategy=parallelism_strategy, # FSDP Strategy

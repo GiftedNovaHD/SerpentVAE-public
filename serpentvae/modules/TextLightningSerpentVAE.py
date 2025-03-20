@@ -1,5 +1,5 @@
 from torch import Tensor, compile
-from typing import  Dict
+from typing import Dict
 import lightning as pl
 
 from serpentvae.utils.prep_model import prep_model
