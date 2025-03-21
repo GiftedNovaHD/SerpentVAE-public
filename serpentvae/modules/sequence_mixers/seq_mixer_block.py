@@ -1,7 +1,7 @@
 import torch
 from typing import Dict
 from torch import nn as nn
-
+from torch import Tensor
 # Import sequence mixers
 from mamba_ssm import Mamba2, Mamba
 
@@ -76,8 +76,8 @@ class SeqMixerBlock(nn.Module):
     super().__init__()
     self.seq_mixer = seq_mixer
 
-  def forward(self, hidden_states, inference_params=None, **kwargs):
+  def forward(self, hidden_states: Tensor, inference_params=None, **kwargs):
       return self.seq_mixer(hidden_states, inference_params=inference_params, **kwargs)
   
-  def allocate_inference_cache(self, batch_size, max_seqlen, dtype=None, **kwargs):
+  def allocate_inference_cache(self, batch_size: int, max_seqlen: int, dtype: torch.dtype = None, **kwargs):
     return self.seq_mixer.allocate_inference_cache(batch_size, max_seqlen, dtype=dtype, **kwargs)
