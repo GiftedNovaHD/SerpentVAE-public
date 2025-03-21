@@ -7,7 +7,8 @@ from serpentvae.modules.conceptmixer import ConceptMixer
 from serpentvae.modules.mlp import MLP
 from mamba_ssm.ops.triton.layer_norm import RMSNorm as RMSNorm, rms_norm_fn
 from serpentvae.modules.module_utils.init_weight import _init_weights
-from serpentvae.modules.sequence_mixers.seq_mixer_block import create_block, SeqMixerBlock
+from serpentvae.modules.sequence_mixers.seq_mixer_block import create_seq_mixer_block, SeqMixerBlock
+from serpentvae.modules.channel_mixers.channel_mixer_block import create_channel_mixer_block, ChannelMixerBlock
 from serpentvae.modules.module_utils.layer_parser import layer_parser, get_aliases
 
 class DecoderLayer(nn.Module):
@@ -16,29 +17,31 @@ class DecoderLayer(nn.Module):
                concept_dim: int,
                seq_mixer_name: str,
                seq_mixer_kwargs: Dict,
-               mlp_inner_dim: int,
+               channel_mixer_name: str,
+               channel_mixer_kwargs: Dict,
                layer_idx: int,
-               residual_in_fp32: bool = False, 
+               residual_in_fp32: bool = False,
                device: torch.device = None,
                dtype: torch.dtype = None
                ):
     factory_kwargs = {"device": device, "dtype": dtype}
-    
-    super().__init__()
 
+    super().__init__()
     self.hidden_dim = hidden_dim
     self.concept_dim = concept_dim
     self.seq_mixer_name = seq_mixer_name
     self.seq_mixer_kwargs = seq_mixer_kwargs
-    self.mlp_inner_dim = mlp_inner_dim
+    self.channel_mixer_name = channel_mixer_name
+    self.channel_mixer_kwargs = channel_mixer_kwargs
     self.layer_idx = layer_idx
     self.residual_in_fp32 = residual_in_fp32
     self.device = device
     self.dtype = dtype
- 
-    self.seq_mixer = create_block(seq_mixer_name = seq_mixer_name, seq_mixer_kwargs = seq_mixer_kwargs, hidden_dim = hidden_dim, device = device, dtype = dtype)
-    self.concept_mixer = ConceptMixer(hidden_dim = hidden_dim, concept_dim = concept_dim, device = device, dtype = dtype)
-    self.mlp = MLP(hidden_dim = hidden_dim, inner_dim = mlp_inner_dim, device = device, dtype = dtype)
+
+    self.seq_mixer = create_seq_mixer_block(seq_mixer_name=seq_mixer_name, seq_mixer_kwargs=seq_mixer_kwargs, hidden_dim=hidden_dim, device=device, dtype=dtype)
+    self.channel_mixer = create_channel_mixer_block(channel_mixer_name=channel_mixer_name, channel_mixer_kwargs=channel_mixer_kwargs, hidden_dim=hidden_dim, device=device, dtype=dtype)
+    self.concept_mixer = ConceptMixer(hidden_dim=hidden_dim, concept_dim=concept_dim, device=device, dtype=dtype)
+    
     self.seq_mixer_rms_norm = RMSNorm(hidden_dim)
     self.concept_mixer_rms_norm = RMSNorm(hidden_dim)
     self.mlp_rms_norm = RMSNorm(hidden_dim)
@@ -104,7 +107,7 @@ class DecoderLayer(nn.Module):
     )
 
     # Channel Mixer Pass
-    hidden_states = self.mlp(hidden_states)
+    hidden_states = self.channel_mixer(hidden_states)
         
     return hidden_states, residual
 
@@ -135,33 +138,36 @@ class Decoder(nn.Module):
     self.hidden_dim = hidden_dim
     self.concept_dim = concept_dim
     self.aliases = get_aliases(module_config = decoder_config)
-    self.layers_lst = layer_parser(layer_config = decoder_config["layer_config"], aliases = self.aliases)
+    self.seq_mixer_layers_lst = layer_parser(layer_config = decoder_config["seq_mixer_layer_config"], aliases = self.aliases)
+    self.channel_mixer_layers_lst = layer_parser(layer_config = decoder_config["channel_mixer_layer_config"], aliases = self.aliases)
+
 
     self.layers = []
 
-    for layer_idx, layer_name in enumerate(self.layers_lst):
-      self.layers.append( DecoderLayer(hidden_dim = hidden_dim,
-                                              concept_dim = concept_dim,
-                                              seq_mixer_name = layer_name,
-                                              seq_mixer_kwargs = decoder_config[layer_name],
-                                              mlp_inner_dim = decoder_config["mlp_inner_dim"],
-                                              layer_idx = layer_idx,
-                                              residual_in_fp32 = self.residual_in_fp32,
-                                              device = self.device,
-                                              dtype = self.dtype
-                                             )
+    for layer_idx, (seq_mixer_layer_name, channel_mixer_layer_name) in enumerate(zip(self.seq_mixer_layers_lst, self.channel_mixer_layers_lst)):
+      self.layers.append(DecoderLayer(hidden_dim = hidden_dim,
+                                             concept_dim = concept_dim,
+                                             seq_mixer_name = seq_mixer_layer_name,
+                                             seq_mixer_kwargs = decoder_config[seq_mixer_layer_name],
+                                             channel_mixer_name = channel_mixer_layer_name,
+                                             channel_mixer_kwargs = decoder_config[channel_mixer_layer_name],
+                                             layer_idx = layer_idx,
+                                             residual_in_fp32 = self.residual_in_fp32,
+                                             device = self.device,
+                                             dtype = self.dtype
+                                            )
                         )
       
     self.layers = nn.ModuleList(self.layers)
-
+    
     self.final_rms_norm = RMSNorm(hidden_dim)
-
+    
     self.apply(
       partial(
         _init_weights,
-        num_layer=len(self.layers_lst),
+        num_layer=len(self.seq_mixer_layers_lst),
         **({}),
-        n_residuals_per_layer=2,  # 2 if we have MLP
+        n_residuals_per_layer=2,  # 2 if we have MLP or any other channel mixer
         )
       )
 

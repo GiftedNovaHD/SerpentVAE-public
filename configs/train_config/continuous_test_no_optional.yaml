@@ -58,8 +58,8 @@ distribution:
 # Encoder configuration
 encoder:
   # Non-sequence mixer settings
-  layer_config: "2 (M2)" 
-  mlp_inner_dim: 768
+  seq_mixer_layer_config: "2 (M2)" 
+  channel_mixer_layer_config: "2 (MLP)"
   segment_pred_inner_dim: 768 # Encoder segment predictor inner dimension
 
   # Sequence mixer configuration
@@ -70,11 +70,15 @@ encoder:
     mamba2_expand: 2
     mamba2_head_dim: 64 # (hidden_dim * mamba_expand / mamba_head_dim = 64 = 8 * 8)
 
+  # Channel mixer configuration
+  MLP:
+    mlp_inner_dim: 768
+
 # Decoder configuration
 decoder:
   # Non-sequence mixer settings
-  layer_config: "2 (Mamba2)"
-  mlp_inner_dim: 768
+  seq_mixer_layer_config: "2 (Mamba2)"
+  channel_mixer_layer_config: "2 (MLP)"
   segment_pred_inner_dim: 768 # Decoder segment predictor inner dimension
 
   # Sequence mixer configuration
@@ -83,6 +87,10 @@ decoder:
     mamba2_conv_length: 4
     mamba2_expand: 2
     mamba2_head_dim: 64 # (hidden_dim * mamba_expand / mamba_head_dim = 64 = 8 * 8)
+
+  # Channel mixer configuration
+  MLP:
+    mlp_inner_dim: 768
 
 # Confidence Module configuration
 enable_confidence_module: false # This module is used for Stochastic Varitional Inference (not implemented yet)

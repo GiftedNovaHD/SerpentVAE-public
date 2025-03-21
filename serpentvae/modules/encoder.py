@@ -6,7 +6,8 @@ from serpentvae.modules.mlp import MLP
 from mamba_ssm.ops.triton.layer_norm import RMSNorm as RMSNorm, rms_norm_fn
 from functools import partial
 from serpentvae.modules.module_utils.init_weight import _init_weights
-from serpentvae.modules.sequence_mixers.seq_mixer_block import create_block, SeqMixerBlock
+from serpentvae.modules.sequence_mixers.seq_mixer_block import create_seq_mixer_block, SeqMixerBlock
+from serpentvae.modules.channel_mixers.channel_mixer_block import create_channel_mixer_block, ChannelMixerBlock
 from serpentvae.modules.module_utils.layer_parser import layer_parser, get_aliases
 
 
@@ -15,7 +16,8 @@ class EncoderLayer(nn.Module):
                hidden_dim: int,
                seq_mixer_name: str,
                seq_mixer_kwargs: Dict,
-               mlp_inner_dim: int,
+               channel_mixer_name: str,
+               channel_mixer_kwargs: Dict,
                layer_idx: int,
                residual_in_fp32: bool = False,
                device: torch.device = None,
@@ -27,14 +29,15 @@ class EncoderLayer(nn.Module):
     self.hidden_dim = hidden_dim
     self.seq_mixer_name = seq_mixer_name
     self.seq_mixer_kwargs = seq_mixer_kwargs
-    self.mlp_inner_dim = mlp_inner_dim
+    self.channel_mixer_name = channel_mixer_name
+    self.channel_mixer_kwargs = channel_mixer_kwargs
     self.layer_idx = layer_idx
     self.residual_in_fp32 = residual_in_fp32
     self.device = device
     self.dtype = dtype
 
-    self.seq_mixer = create_block(seq_mixer_name = seq_mixer_name, seq_mixer_kwargs = seq_mixer_kwargs, hidden_dim = hidden_dim, device = device, dtype = dtype)
-    self.mlp = MLP(hidden_dim = hidden_dim, inner_dim = mlp_inner_dim, device = device, dtype = dtype)
+    self.seq_mixer = create_seq_mixer_block(seq_mixer_name = seq_mixer_name, seq_mixer_kwargs = seq_mixer_kwargs, hidden_dim = hidden_dim, device = device, dtype = dtype)
+    self.channel_mixer = create_channel_mixer_block(channel_mixer_name = channel_mixer_name, channel_mixer_kwargs = channel_mixer_kwargs, hidden_dim = hidden_dim, device = device, dtype = dtype)
     self.seq_mixer_rms_norm = RMSNorm(hidden_dim)
     self.mlp_rms_norm = RMSNorm(hidden_dim)
   
@@ -81,7 +84,7 @@ class EncoderLayer(nn.Module):
     )
 
     # Channel Mixer Pass
-    hidden_states = self.mlp(hidden_states)
+    hidden_states = self.channel_mixer(hidden_states)
         
     return hidden_states, residual
 
@@ -110,16 +113,18 @@ class Encoder(nn.Module):
     # Model settings
     self.hidden_dim = hidden_dim
     self.aliases = get_aliases(module_config = encoder_config)
-    self.layers_lst = layer_parser(layer_config = encoder_config["layer_config"], aliases = self.aliases)
-
+    self.seq_mixer_layers_lst = layer_parser(layer_config = encoder_config["seq_mixer_layer_config"], aliases = self.aliases)
+    self.channel_mixer_layers_lst = layer_parser(layer_config = encoder_config["channel_mixer_layer_config"], aliases = self.aliases)
+    
 
     self.layers = []
 
-    for layer_idx, layer_name in enumerate(self.layers_lst):
+    for layer_idx, (seq_mixer_layer_name, channel_mixer_layer_name) in enumerate(zip(self.seq_mixer_layers_lst, self.channel_mixer_layers_lst)):
       self.layers.append(EncoderLayer(hidden_dim = hidden_dim,
-                                             seq_mixer_name = layer_name,
-                                             seq_mixer_kwargs = encoder_config[layer_name],
-                                             mlp_inner_dim = encoder_config["mlp_inner_dim"],
+                                             seq_mixer_name = seq_mixer_layer_name,
+                                             seq_mixer_kwargs = encoder_config[seq_mixer_layer_name],
+                                             channel_mixer_name = channel_mixer_layer_name,
+                                             channel_mixer_kwargs = encoder_config[channel_mixer_layer_name],
                                              layer_idx = layer_idx,
                                              residual_in_fp32 = self.residual_in_fp32,
                                              device = self.device,
@@ -134,9 +139,9 @@ class Encoder(nn.Module):
     self.apply(
       partial(
         _init_weights,
-        num_layer=len(self.layers_lst),
+        num_layer=len(self.seq_mixer_layers_lst),
         **({}),
-        n_residuals_per_layer = 2,  # 2 if we have MLP
+        n_residuals_per_layer = 2,  # 2 if we have MLP or any other channel mixer
         )
       )
     

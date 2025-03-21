@@ -37,6 +37,8 @@ sequence_mixers/
 - MultiLatentAttention
   - Work in progress
 
+- NativeSparseAttention
+  - Work in progress
 
 ## Adding a new sequence mixer
 - Create a new file in the `sequence_mixers` folder with the name of the sequence mixer (if needed).

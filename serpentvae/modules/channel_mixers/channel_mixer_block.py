@@ -2,10 +2,11 @@ import torch
 from typing import Dict
 from torch import nn as nn
 from torch import Tensor
+
 # Import channel mixers
 from serpentvae.modules.channel_mixers.channel_mixer_mlp import MLP
 
-def create_block(channel_mixer_name: str, channel_mixer_kwargs: Dict, hidden_dim: int, device: torch.device, dtype: torch.dtype) -> nn.Module:
+def create_channel_mixer_block(channel_mixer_name: str, channel_mixer_kwargs: Dict, hidden_dim: int, device: torch.device, dtype: torch.dtype) -> nn.Module:
   """
   Creates a channel mixer block based on the name and kwargs
 
