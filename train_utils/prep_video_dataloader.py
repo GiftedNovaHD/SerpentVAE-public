@@ -160,7 +160,7 @@ def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader
     if features and all(f.shape == features[0].shape for f in features): 
       return torch.stack(features)
     
-    return features
+    return features # [batch_size, 1, num_frames, hidden_dim]
   
   if config["dataloader_num_workers"] is None: 
     dataloader_num_workers = count_workers()
