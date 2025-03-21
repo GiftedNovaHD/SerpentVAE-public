@@ -19,5 +19,4 @@ modules/
 ├── SerpentVAE.py       # Core SerpentVAE implementation
 ├── TextLightningSerpentVAE.py  # Lightning module for text data
 └── tied_linear.py      # Weight-tied linear layer
-
 ```
