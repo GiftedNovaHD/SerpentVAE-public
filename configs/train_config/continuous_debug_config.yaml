@@ -59,7 +59,7 @@ distribution:
 # Encoder configuration
 encoder:
   # Non-sequence mixer settings
-  layer_config: "2 (M2)" 
+  seq_mixer_layer_config: "2 (M2)" 
   mlp_inner_dim: 768
   segment_pred_inner_dim: 768 # Encoder segment predictor inner dimension
 
@@ -74,7 +74,7 @@ encoder:
 # Decoder configuration
 decoder:
   # Non-sequence mixer settings
-  layer_config: "2 (Mamba2)"
+  seq_mixer_layer_config: "2 (Mamba2)"
   mlp_inner_dim: 768
   segment_pred_inner_dim: 768 # Decoder segment predictor inner dimension
 
@@ -94,7 +94,7 @@ confidence_module:
 enable_qnet: true # We advise Q-Net to be enabled to reduce the chance of posterior collapse
 qnet:
   # Non-sequence mixer settings
-  layer_config: "Mamba2"
+  seq_mixer_layer_config: "Mamba2"
   mlp_inner_dim: 384
   
   # Sequence mixer configuration
