@@ -47,7 +47,7 @@ def prep_parallelism(config: Dict):
                                  recurse: bool,
                                  nonwrapped_numel: int
                                 ) -> bool:
-      if isinstance(module, nn.Embedding) or isinstance(module, SerpentVAE) or isinstance(module, TextLightningSerpentVAE) or isinstance(module, QNet):
+      if isinstance(module, (nn.Embedding, SerpentVAE, TextLightningSerpentVAE, QNet)):
         # Don't wrap embedding layers
         # Convert embedding parameters to bfloat16 to match FSDP mixed precision
         if hasattr(module, 'weight') and module.weight is not None:
