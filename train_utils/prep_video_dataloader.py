@@ -231,7 +231,7 @@ def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader
     shuffle = False,  # Must be False for IterableDataset
     num_workers = dataloader_num_workers,
     collate_fn = collate_video,
-    prefetch_factor = 2,  # Reduce memory usage
+    prefetch_factor = None,  # Reduce memory usage
     pin_memory = False    # Avoid unnecessary transfers
   )
   
