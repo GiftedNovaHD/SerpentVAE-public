@@ -26,8 +26,9 @@
                 "discrete_test_no_optional"
             ],
             "presentation": {
-                "reveal": "always",
-                "panel": "new"
+                "reveal": "silent",
+                "panel": "new",
+                "revealProblems": "onProblem"
             },
             "problemMatcher": [],
             "group": {
@@ -45,8 +46,9 @@
                 "discrete_debug_config"
             ],
             "presentation": {
-                "reveal": "always",
-                "panel": "new"
+                "reveal": "silent",
+                "panel": "new",
+                "revealProblems": "onProblem"
             },
             "problemMatcher": [],
             "group": {
@@ -64,8 +66,9 @@
                 "continuous_debug_config"
             ],
             "presentation": {
-                "reveal": "always",
-                "panel": "new"
+                "reveal": "silent",
+                "panel": "new",
+                "revealProblems": "onProblem"
             },
             "problemMatcher": [],
             "group": {
@@ -83,8 +86,9 @@
                 "continuous_test_no_optional"
             ],
             "presentation": {
-                "reveal": "always",
-                "panel": "new"
+                "reveal": "silent",
+                "panel": "new",
+                "revealProblems": "onProblem"
             },
             "problemMatcher": [],
             "group": {
