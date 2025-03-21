@@ -3,6 +3,19 @@ import psutil
 import torch 
 import av
 import numpy as np
+import multiprocessing
+
+# Set multiprocessing start method to 'spawn' to avoid CUDA initialization issues
+if __name__ == "__main__":
+    multiprocessing.set_start_method('spawn', force=True)
+else:
+    # Ensure the correct start method is set when imported as a module
+    if multiprocessing.get_start_method(allow_none=True) != 'spawn':
+        try:
+            multiprocessing.set_start_method('spawn', force=True)
+        except RuntimeError:
+            # May already be set by parent process
+            pass
 
 from io import BytesIO
 
@@ -71,7 +84,16 @@ def get_video_model_and_processor():
   global _image_processor, _video_model, _device
   
   if _image_processor is None or _video_model is None:
-    _device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # Initialize CUDA first if available
+    if torch.cuda.is_available():
+      # Make sure CUDA is initialized properly
+      torch.cuda.empty_cache()
+      _device = torch.device("cuda")
+      # Force initialization by creating and moving a small tensor
+      torch.zeros(1).to(_device)
+    else:
+      _device = torch.device("cpu")
+      
     _image_processor = VideoMAEImageProcessor.from_pretrained("MCG-NJU/videomae-base")
     _video_model = VideoMAEModel.from_pretrained("MCG-NJU/videomae-base", torch_dtype=torch.bfloat16)
     _video_model = _video_model.to(_device)
@@ -79,6 +101,73 @@ def get_video_model_and_processor():
     
   return _image_processor, _video_model, _device
 
+
+# Move collate_video outside of prep_video_dataset to fix pickling issues
+def collate_video(batch): 
+  """
+  Processes videos through the VideoMAE model and returns the hidden states.
+  Uses globally initialized model and processor.
+  """
+  image_processor, model, device = get_video_model_and_processor()
+  
+  features = [] 
+
+  for sample in batch: 
+    try:
+      # Get video data - use 'avi' field instead of 'video'
+      video_data = sample['avi']
+
+      # Open video file directly from binary data
+      container = av.open(BytesIO(video_data))
+      video_stream = container.streams.video[0]
+
+      # Sample frames
+      indices = sample_frame_indices(
+        clip_len=16, 
+        frame_sample_rate=1,
+        seg_len=video_stream.frames
+      )
+
+      # Read frames
+      video_frames = read_video_pyav(container, indices)
+
+      # Process frames - using standard approach
+      # Note: This may produce a warning about slow tensor creation from list of numpy arrays,
+      # but it works correctly and the optimized approach causes data type issues
+      with torch.no_grad():
+        inputs = image_processor(list(video_frames), return_tensors="pt").to(device).to(torch.bfloat16)
+        output = model(**inputs)
+        video_features = output.last_hidden_state.cpu()  # Move to CPU to free GPU memory
+        features.append(video_features)
+    except Exception as e:
+      print(f"Error processing video: {e}")
+      # Skip broken samples
+      continue
+
+  # Handle case where all samples in the batch failed
+  if len(features) == 0:
+    print("WARNING: All samples in batch failed processing, returning dummy tensor")
+    # Create a dummy tensor with the correct shape
+    # Important: This matches the shape expected by VideoLightningSerpentVAE.training_step
+    # Shape: [batch_size, 1, sequence_length, hidden_dim]
+    # Using batch_size=1 to ensure we have a valid tensor
+    dummy_tensor = torch.zeros((1, 1, 16, 768), dtype=torch.float32)
+    return dummy_tensor
+    
+  # Stack features if all have the same shape
+  if all(f.shape == features[0].shape for f in features): 
+    stacked_features = torch.stack(features)
+    # Ensure output has shape [batch_size, 1, sequence_length, hidden_dim]
+    # This adds the extra dimension expected by the model
+    if len(stacked_features.shape) == 3:  # [batch_size, sequence_length, hidden_dim]
+      stacked_features = stacked_features.unsqueeze(1)  # Add channel dimension
+    return stacked_features
+  else:
+    # Shapes are different, log details
+    print(f"WARNING: Inconsistent shapes in batch: {[f.shape for f in features]}")
+    # Return just the first feature reshaped to look like a batch of 1
+    # Add the channel dimension to match expected shape
+    return features[0].unsqueeze(0).unsqueeze(0)
 
 def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader]: 
   """
@@ -153,78 +242,8 @@ def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader
     
     print(f"Filtered datasets to category: {desired_category}")
 
-  # Initialize model and processor once, outside the collate function
-  # This avoids reloading for each batch
-  get_video_model_and_processor()
+  get_video_model_and_processor() # Run this once to initialize the model and processor
 
-  def collate_video(batch): 
-    """
-    Processes videos through the VideoMAE model and returns the hidden states.
-    Uses globally initialized model and processor.
-    """
-    image_processor, model, device = get_video_model_and_processor()
-    
-    features = [] 
-
-    for sample in batch: 
-      try:
-        # Get video data - use 'avi' field instead of 'video'
-        video_data = sample['avi']
-
-        # Open video file directly from binary data
-        container = av.open(BytesIO(video_data))
-        video_stream = container.streams.video[0]
-
-        # Sample frames
-        indices = sample_frame_indices(
-          clip_len=16, 
-          frame_sample_rate=1,
-          seg_len=video_stream.frames
-        )
-
-        # Read frames
-        video_frames = read_video_pyav(container, indices)
-
-        # Process frames - using standard approach
-        # Note: This may produce a warning about slow tensor creation from list of numpy arrays,
-        # but it works correctly and the optimized approach causes data type issues
-        with torch.no_grad():
-          for frame in list(video_frames):
-            print(frame.shape)
-          inputs = image_processor(list(video_frames), return_tensors="pt").to(device).to(torch.bfloat16)
-          output = model(**inputs)
-          video_features = output.last_hidden_state.cpu()  # Move to CPU to free GPU memory
-          features.append(video_features)
-      except Exception as e:
-        print(f"Error processing video: {e}")
-        # Skip broken samples
-        continue
-
-    # Handle case where all samples in the batch failed
-    if len(features) == 0:
-      print("WARNING: All samples in batch failed processing, returning dummy tensor")
-      # Create a dummy tensor with the correct shape
-      # Important: This matches the shape expected by VideoLightningSerpentVAE.training_step
-      # Shape: [batch_size, 1, sequence_length, hidden_dim]
-      # Using batch_size=1 to ensure we have a valid tensor
-      dummy_tensor = torch.zeros((1, 1, 16, 768), dtype=torch.float32)
-      return dummy_tensor
-      
-    # Stack features if all have the same shape
-    if all(f.shape == features[0].shape for f in features): 
-      stacked_features = torch.stack(features)
-      # Ensure output has shape [batch_size, 1, sequence_length, hidden_dim]
-      # This adds the extra dimension expected by the model
-      if len(stacked_features.shape) == 3:  # [batch_size, sequence_length, hidden_dim]
-        stacked_features = stacked_features.unsqueeze(1)  # Add channel dimension
-      return stacked_features
-    else:
-      # Shapes are different, log details
-      print(f"WARNING: Inconsistent shapes in batch: {[f.shape for f in features]}")
-      # Return just the first feature reshaped to look like a batch of 1
-      # Add the channel dimension to match expected shape
-      return features[0].unsqueeze(0).unsqueeze(0)
-  
   # Adjust number of workers to avoid overloading
   if config["dataloader_num_workers"] is None: 
     # Use a more conservative approach for workers
@@ -242,8 +261,10 @@ def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader
     shuffle = False,  # Must be False for IterableDataset
     num_workers = dataloader_num_workers,
     collate_fn = collate_video,
-    prefetch_factor = None,  # Reduce memory usage
-    pin_memory = False    # Avoid unnecessary transfers
+    persistent_workers = dataloader_num_workers > 0,  # Keep workers alive between batches
+    prefetch_factor = 2 if dataloader_num_workers > 0 else None,  # Only set if using workers
+    pin_memory = torch.cuda.is_available(),
+    pin_memory_device = config["device"]
   )
   
   test_dataloader = DataLoader(
@@ -251,7 +272,10 @@ def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader
     batch_size = config["batch_size"],
     shuffle = False, 
     num_workers = dataloader_num_workers, 
-    collate_fn = collate_video
+    collate_fn = collate_video,
+    persistent_workers = dataloader_num_workers > 0,
+    pin_memory = torch.cuda.is_available(),
+    pin_memory_device = config["device"]
   )
   
   val_dataloader = DataLoader(
@@ -259,7 +283,10 @@ def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader
     batch_size = config["batch_size"],
     shuffle = False, 
     num_workers = dataloader_num_workers, 
-    collate_fn = collate_video
+    collate_fn = collate_video,
+    persistent_workers = dataloader_num_workers > 0,
+    pin_memory = torch.cuda.is_available(),
+    pin_memory_device = config["device"]
   )
   
   return train_dataloader, test_dataloader, val_dataloader
@@ -271,6 +298,13 @@ def count_workers() -> int:
     if vCPUs is None: 
       vCPUs = psutil.cpu_count(logical = False)
     
-    return vCPUs
+    # Be more conservative with worker count to avoid memory issues
+    # and reduce chances of CUDA conflicts
+    if torch.cuda.is_available():
+      # Using at most 2 workers when CUDA is available to reduce contention
+      return min(2, max(1, vCPUs // 4))
+    else:
+      # More workers are okay for CPU-only processing
+      return max(1, vCPUs // 2)
   except Exception as e: 
     return 1 
