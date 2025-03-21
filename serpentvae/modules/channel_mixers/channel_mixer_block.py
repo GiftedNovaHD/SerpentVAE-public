@@ -2,6 +2,7 @@ import torch
 from typing import Dict
 from torch import nn as nn
 from torch import Tensor
+
 # Import channel mixers
 from serpentvae.modules.channel_mixers.channel_mixer_mlp import MLP
 
