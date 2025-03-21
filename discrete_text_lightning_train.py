@@ -77,6 +77,7 @@ if __name__ == "__main__":
                        limit_val_batches = 1,
                        default_root_dir= config["training_path"],
                        profiler = "pytorch",
+                       precision = "bf16-true",
                        fast_dev_run = 5,
                        callbacks = [ModelSummary(max_depth = 15)]
                       )
