@@ -1,5 +1,6 @@
 from torch import Tensor
-from typing import  Dict
+import torch
+from typing import Dict
 
 from serpentvae.modules.LightningSerpentVAE.BaseLightningSerpentVAE import BaseLightningSerpentVAE
 
@@ -16,18 +17,38 @@ class VideoLightningSerpentVAE(BaseLightningSerpentVAE):
     return super().configure_model()
 
   def training_step(self, batch: Tensor, batch_idx: int):
+    # Check if batch is valid (non-empty)
+    if batch is None or batch.size(0) == 0 or torch.all(batch == 0):
+      # Skip this batch with a small dummy loss to avoid training issues
+      self.log("skipped_batch", 1.0, prog_bar=True)
+      return torch.tensor(0.0, requires_grad=True)
+    
+    # Squeeze the channel dimension (dim=1) to get [batch_size, seq_len, hidden_dim]
     correct_inputs = batch.squeeze(1)
-
-    total_loss, vae_loss, confidence_loss, encoder_segment_pred_loss, decoder_segment_pred_loss = self.serpent_vae.train_step(correct_inputs = correct_inputs)
+    
+    # Extra safety check for correct shape
+    if correct_inputs.dim() == 2:  # If we end up with [batch_size, hidden_dim]
+      correct_inputs = correct_inputs.unsqueeze(1)  # Add sequence dimension
+    
+    total_loss, vae_loss, confidence_loss, encoder_segment_pred_loss, decoder_segment_pred_loss = self.serpent_vae.train_step(correct_inputs=correct_inputs)
 
     return total_loss
 
   def validation_step(self, batch: Tensor, batch_idx: int):
+    # Check if batch is valid (non-empty)
+    if batch is None or batch.size(0) == 0 or torch.all(batch == 0):
+      self.log("skipped_validation_batch", 1.0, prog_bar=True)
+      return
+    
     correct_inputs = batch.squeeze(1)
+    
+    # Extra safety check for correct shape
+    if correct_inputs.dim() == 2:  # If we end up with [batch_size, hidden_dim]
+      correct_inputs = correct_inputs.unsqueeze(1)  # Add sequence dimension
 
-    metrics = self.serpent_vae.eval_step(correct_inputs = correct_inputs, is_test=False)
+    metrics = self.serpent_vae.eval_step(correct_inputs=correct_inputs, is_test=False)
 
-    self.log_dict(metrics, sync_dist = True)
+    self.log_dict(metrics, sync_dist=True)
 
   def configure_optimizers(self):
     return super().configure_optimizers()

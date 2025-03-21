@@ -199,20 +199,28 @@ def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader
 
     # Handle case where all samples in the batch failed
     if len(features) == 0:
-      print("WARNING: All samples in batch failed processing, returning empty tensor")
-      # Return an empty tensor with the expected shape for the batch
-      # Assuming expected shape is [batch_size, frames, hidden_dim]
-      return torch.zeros((0, 16, 768), dtype=torch.float32)
+      print("WARNING: All samples in batch failed processing, returning dummy tensor")
+      # Create a dummy tensor with the correct shape
+      # Important: This matches the shape expected by VideoLightningSerpentVAE.training_step
+      # Shape: [batch_size, 1, sequence_length, hidden_dim]
+      # Using batch_size=1 to ensure we have a valid tensor
+      dummy_tensor = torch.zeros((1, 1, 16, 768), dtype=torch.float32)
+      return dummy_tensor
       
     # Stack features if all have the same shape
     if all(f.shape == features[0].shape for f in features): 
-      return torch.stack(features)
+      stacked_features = torch.stack(features)
+      # Ensure output has shape [batch_size, 1, sequence_length, hidden_dim]
+      # This adds the extra dimension expected by the model
+      if len(stacked_features.shape) == 3:  # [batch_size, sequence_length, hidden_dim]
+        stacked_features = stacked_features.unsqueeze(1)  # Add channel dimension
+      return stacked_features
     else:
       # Shapes are different, log details
       print(f"WARNING: Inconsistent shapes in batch: {[f.shape for f in features]}")
       # Return just the first feature reshaped to look like a batch of 1
-      # This is a fallback to avoid crashing
-      return features[0].unsqueeze(0)
+      # Add the channel dimension to match expected shape
+      return features[0].unsqueeze(0).unsqueeze(0)
   
   # Adjust number of workers to avoid overloading
   if config["dataloader_num_workers"] is None: 
