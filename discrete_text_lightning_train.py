@@ -79,7 +79,7 @@ if __name__ == "__main__":
                        profiler = "pytorch",
                        precision = "bf16-true",
                        fast_dev_run = 5,
-                       callbacks = [ModelSummary(max_depth = 5)]
+                       callbacks = [ModelSummary(max_depth = 1)]
                       )
 
   trainer.fit(model = lightning_model, train_dataloaders = train_dataloader, val_dataloaders = val_dataloader)

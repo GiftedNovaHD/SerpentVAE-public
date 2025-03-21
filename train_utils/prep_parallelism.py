@@ -19,6 +19,8 @@ from torch.distributed.fsdp import (
 
 from lightning.pytorch.strategies import FSDPStrategy, DDPStrategy
 
+from serpentvae.modules.SerpentVAE import SerpentVAE
+
 def prep_parallelism(config: Dict):
   """
   Prepare the parallelism strategy for model training.
@@ -43,7 +45,8 @@ def prep_parallelism(config: Dict):
                                  recurse: bool,
                                  nonwrapped_numel: int
                                 ) -> bool:
-      if isinstance(module, nn.Embedding):
+      print(f"Module: {module} is an instance of {type(module)}")
+      if isinstance(module, nn.Embedding) or isinstance(module, SerpentVAE):
         # Don't wrap embedding layers
         # Convert embedding parameters to bfloat16 to match FSDP mixed precision
         if hasattr(module, 'weight') and module.weight is not None:
