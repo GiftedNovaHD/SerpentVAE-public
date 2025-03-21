@@ -57,6 +57,29 @@ def sample_frame_indices(clip_len, frame_sample_rate, seg_len):
   return indices
 
 
+# Global variables for model and processor
+# This ensures they're loaded only once
+_image_processor = None
+_video_model = None
+_device = None
+
+def get_video_model_and_processor():
+  """
+  Returns the global VideoMAE model and image processor.
+  Initializes them if they haven't been loaded yet.
+  """
+  global _image_processor, _video_model, _device
+  
+  if _image_processor is None or _video_model is None:
+    _device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    _image_processor = AutoImageProcessor.from_pretrained("MCG-NJU/videomae-base")
+    _video_model = VideoMAEModel.from_pretrained("MCG-NJU/videomae-base")
+    _video_model = _video_model.to(_device)
+    _video_model.eval()
+    
+  return _image_processor, _video_model, _device
+
+
 def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader]: 
   """
   Takes in the configuration and returns dataloaders for the training, testing and validation datasets.
@@ -65,6 +88,9 @@ def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader
     config (dict): Configuration dictionary for the given experiment 
       - "dataset_path" (str): The path to the dataset
       - "dataset_name" (str): The name of the dataset
+      - "desired_category" (str): The category to filter by
+      - "batch_size" (int): Batch size for dataloaders
+      - "dataloader_num_workers" (int or None): Number of workers for dataloading
 
   Returns: 
     train_dataloader (DataLoader): The training dataloader
@@ -86,46 +112,55 @@ def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader
   filtered_test_dataset = test_dataset.filter(is_desired_category)
   filtered_val_dataset = val_dataset.filter(is_desired_category)
 
+  # Initialize model and processor once, outside the collate function
+  # This avoids reloading for each batch
+  get_video_model_and_processor()
+
   def collate_video(batch): 
     """
-    Tokenizes the batch of videos
-
+    Processes videos through the VideoMAE model and returns the hidden states.
+    Uses globally initialized model and processor.
     """
-    image_processor = AutoImageProcessor.from_pretrained("MCG-NJU/videomae-base")
-    model = VideoMAEModel.from_pretrained("MCG-NJU/videomae-base")
-
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = model.to(device)
-    model.eval()
-
-    features = [] 
-    for sample in batch: 
-      video_data = sample['video']
-
-      container = av.open(BytesIO(video_data['bytes']))
-      video_stream = container.streams.video[0]
-
-      # Sample frames
-      indices = sample_frame_indices(
-        clip_len=16, 
-        frame_sample_rate=1,
-        seg_len=video_stream.frames
-      )
-
-      video_frames = read_video_pyav(container, indices)
-
-      with torch.no_grad(): 
-        inputs = image_processor(list(video_frames), return_tensors="pt").to(device)
-        output = model(**inputs)
-        video_features = output.last_hidden_state
-
-      features.append(video_features)
+    image_processor, model, device = get_video_model_and_processor()
     
-    if all(f.shape == features[0].shape for f in features): 
+    features = [] 
+
+    for sample in batch: 
+      try:
+        # Get video data
+        video_data = sample['video']
+
+        # Open video file
+        container = av.open(BytesIO(video_data['bytes']))
+        video_stream = container.streams.video[0]
+
+        # Sample frames
+        indices = sample_frame_indices(
+          clip_len=16, 
+          frame_sample_rate=1,
+          seg_len=video_stream.frames
+        )
+
+        # Read frames
+        video_frames = read_video_pyav(container, indices)
+
+        # Process frames
+        with torch.no_grad(): 
+          inputs = image_processor(list(video_frames), return_tensors="pt").to(device)
+          output = model(**inputs)
+          video_features = output.last_hidden_state.cpu()  # Move to CPU to free GPU memory
+
+        features.append(video_features)
+      except Exception as e:
+        print(f"Error processing video: {e}")
+        # Might want to handle this differently, e.g., skip or use a placeholder
+        continue
+
+    # Stack features if all have the same shape and the list is not empty
+    if features and all(f.shape == features[0].shape for f in features): 
       return torch.stack(features)
     
     return features
-    
   
   if config["dataloader_num_workers"] is None: 
     dataloader_num_workers = count_workers()
@@ -133,30 +168,31 @@ def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader
     dataloader_num_workers = config["dataloader_num_workers"]
 
 
-  train_dataloader = DataLoader(dataset = filtered_train_dataset, 
-                                batch_size = config["batch_size"],
-                                shuffle = True,
-                                num_workers = dataloader_num_workers,
-                                collate_fn = collate_video
-                                )
+  train_dataloader = DataLoader(
+    dataset = filtered_train_dataset, 
+    batch_size = config["batch_size"],
+    shuffle = True,
+    num_workers = dataloader_num_workers,
+    collate_fn = collate_video
+  )
   
-  test_dataloader = DataLoader(dataset = filtered_test_dataset, 
-                               batch_size = config["batch_size"],
-                               shuffle = False, 
-                               num_workers = dataloader_num_workers, 
-                               collate_fn = collate_video
-                               )
+  test_dataloader = DataLoader(
+    dataset = filtered_test_dataset, 
+    batch_size = config["batch_size"],
+    shuffle = False, 
+    num_workers = dataloader_num_workers, 
+    collate_fn = collate_video
+  )
   
-  val_dataloader = DataLoader(dataset = filtered_val_dataset, 
-                              batch_size = config["batch_size"],
-                              shuffle = False, 
-                              num_workers = dataloader_num_workers, 
-                              collate_fn = collate_video
-                              )
+  val_dataloader = DataLoader(
+    dataset = filtered_val_dataset, 
+    batch_size = config["batch_size"],
+    shuffle = False, 
+    num_workers = dataloader_num_workers, 
+    collate_fn = collate_video
+  )
   
   return train_dataloader, test_dataloader, val_dataloader
-  
-
   
 def count_workers() -> int: 
   try: 
