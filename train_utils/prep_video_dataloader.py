@@ -99,9 +99,46 @@ def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader
   """
   
   # Loading datasets 
-  train_dataset = load_dataset(path = config["dataset_path"], name = config["dataset_name"], split = "train", streaming=True)
-  test_dataset = load_dataset(path = config["dataset_path"], name = config["dataset_name"], split = "test", streaming=True)
-  val_dataset = load_dataset(path = config["dataset_path"], name = config["dataset_name"], split = "validation", streaming=True)
+  try:
+    # First try loading the predefined splits
+    train_dataset = load_dataset(path = config["dataset_path"], name = config["dataset_name"], split = "train", streaming=True)
+    test_dataset = load_dataset(path = config["dataset_path"], name = config["dataset_name"], split = "test", streaming=True)
+    val_dataset = load_dataset(path = config["dataset_path"], name = config["dataset_name"], split = "validation", streaming=True)
+    
+    print("Successfully loaded predefined dataset splits.")
+  
+  except Exception as e:
+    print(f"Error loading predefined splits: {e}")
+    print("Falling back to 80-10-10 custom split...")
+    
+    # Load the full dataset
+    full_dataset = load_dataset(path = config["dataset_path"], name = config["dataset_name"], streaming=False)
+    
+    # Check if the dataset is in a format that needs a specific split key
+    if isinstance(full_dataset, dict):
+      # Use the first available split (often 'train' or 'default')
+      split_key = list(full_dataset.keys())[0]
+      full_dataset = full_dataset[split_key]
+    
+    # Shuffle the dataset with a fixed seed for reproducibility
+    shuffled_dataset = full_dataset.shuffle(seed=42)
+    
+    # Calculate split sizes
+    dataset_size = len(shuffled_dataset)
+    train_size = int(0.8 * dataset_size)
+    test_size = int(0.1 * dataset_size)
+    
+    # Create the splits
+    train_dataset = shuffled_dataset.select(range(train_size))
+    test_dataset = shuffled_dataset.select(range(train_size, train_size + test_size))
+    val_dataset = shuffled_dataset.select(range(train_size + test_size, dataset_size))
+    
+    # Convert to streaming format if needed
+    train_dataset = train_dataset.to_iterable_dataset()
+    test_dataset = test_dataset.to_iterable_dataset()
+    val_dataset = val_dataset.to_iterable_dataset()
+    
+    print(f"Created custom splits with sizes - Train: {train_size}, Test: {test_size}, Val: {dataset_size - train_size - test_size}")
 
   desired_category = config["desired_category"]
 
