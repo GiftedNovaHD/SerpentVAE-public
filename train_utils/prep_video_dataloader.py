@@ -140,14 +140,18 @@ def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader
     
     print(f"Created custom splits with sizes - Train: {train_size}, Test: {test_size}, Val: {dataset_size - train_size - test_size}")
 
-  # desired_category = config["desired_category"]
-
-  # def is_desired_category(sample): 
-  #   return sample['json']['content_parent_category'] == desired_category
-  
-  # filtered_train_dataset = train_dataset.filter(is_desired_category)
-  # filtered_test_dataset = test_dataset.filter(is_desired_category)
-  # filtered_val_dataset = val_dataset.filter(is_desired_category)
+  # Check if we need to filter by category
+  if "desired_category" in config and config["desired_category"]:
+    desired_category = config["desired_category"]
+    
+    def is_desired_category(sample): 
+      return sample['json']['content_parent_category'] == desired_category
+    
+    train_dataset = train_dataset.filter(is_desired_category)
+    test_dataset = test_dataset.filter(is_desired_category)
+    val_dataset = val_dataset.filter(is_desired_category)
+    
+    print(f"Filtered datasets to category: {desired_category}")
 
   # Initialize model and processor once, outside the collate function
   # This avoids reloading for each batch
@@ -208,7 +212,7 @@ def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader
 
 
   train_dataloader = DataLoader(
-    dataset = filtered_train_dataset, 
+    dataset = train_dataset, 
     batch_size = config["batch_size"],
     shuffle = True,
     num_workers = dataloader_num_workers,
@@ -216,7 +220,7 @@ def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader
   )
   
   test_dataloader = DataLoader(
-    dataset = filtered_test_dataset, 
+    dataset = test_dataset, 
     batch_size = config["batch_size"],
     shuffle = False, 
     num_workers = dataloader_num_workers, 
@@ -224,7 +228,7 @@ def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader
   )
   
   val_dataloader = DataLoader(
-    dataset = filtered_val_dataset, 
+    dataset = val_dataset, 
     batch_size = config["batch_size"],
     shuffle = False, 
     num_workers = dataloader_num_workers, 
