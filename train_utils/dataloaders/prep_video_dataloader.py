@@ -26,6 +26,7 @@ from datasets import load_dataset, Video
 from torch.utils.data import DataLoader 
 
 from transformers import VideoMAEImageProcessor, VideoMAEModel
+from einops import rearrange, reduce
 
 def read_video_pyav(container, indices): 
   """
@@ -69,6 +70,32 @@ def sample_frame_indices(clip_len, frame_sample_rate, seg_len):
   indices = np.clip(indices, start_idx, end_idx - 1).astype(np.int64)
   return indices
 
+def downsample_temporal(x, target_seq_len): 
+  """
+  Downsample the temporal dimension of a video tensor.
+
+  Args: 
+    x (Tensor)
+
+  Returns: 
+    downsampled_x (Tensor): Tensor with temporal dimension reduced to target_seq_len
+  """
+  shape = x.shape 
+
+  if shape[-2] == target_seq_len: 
+    return x 
+  
+  # Handle case of [batch_size, seq_len, hidden_dim] 
+  if len(shape) == 3: 
+    return reduce(x, 'batch_size (temporal target_temporal) hidden_dim -> batch_size target_temporal hidden_dim', 'mean', target_temporal = target_seq_len)
+  
+  elif len(shape) == 4: 
+    return reduce(x, 'batch_size channels (target_temporal num_frames) hidden_dim -> batch_size channels target_temporal hidden_dim', 'mean', target_temporal = target_seq_len)
+  
+  else: 
+    raise ValueError(f"Expected 3D or 4D shape for downsample_temporal. Got shape: {shape}")
+  
+
 
 # Global variables for model and processor
 # This ensures they're loaded only once
@@ -103,7 +130,7 @@ def get_video_model_and_processor():
 
 
 # Move collate_video outside of prep_video_dataset to fix pickling issues
-def collate_video(batch): 
+def collate_video(batch, target_seq_len = None): 
   """
   Processes videos through the VideoMAE model and returns the hidden states.
   Uses globally initialized model and processor.
@@ -161,7 +188,12 @@ def collate_video(batch):
     # This adds the extra dimension expected by the model
     if len(stacked_features.shape) == 3:  # [batch_size, sequence_length, hidden_dim]
       stacked_features = stacked_features.unsqueeze(1)  # Add channel dimension
+    
+    if target_seq_len is not None: 
+      stacked_features = downsample_temporal(stacked_features, target_seq_len = target_seq_len)
+      
     return stacked_features
+
   else:
     # Shapes are different, log details
     print(f"WARNING: Inconsistent shapes in batch: {[f.shape for f in features]}")
