@@ -110,7 +110,7 @@ class Encoder(nn.Module):
     # Model settings
     self.hidden_dim = hidden_dim
     self.aliases = get_aliases(module_config = encoder_config)
-    self.layers_lst = layer_parser(layer_config = encoder_config["layer_config"], aliases = self.aliases)
+    self.layers_lst = layer_parser(layer_config = encoder_config["seq_mixer_layer_config"], aliases = self.aliases)
 
 
     self.layers = []

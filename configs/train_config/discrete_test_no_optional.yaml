@@ -57,7 +57,7 @@ distribution:
 # Encoder configuration
 encoder:
   # Non-sequence mixer settings
-  layer_config: "2 (M2)" 
+  seq_mixer_layer_config: "2 (M2)" 
   mlp_inner_dim: 768
   segment_pred_inner_dim: 768 # Encoder segment predictor inner dimension
 
@@ -72,7 +72,7 @@ encoder:
 # Decoder configuration
 decoder:
   # Non-sequence mixer settings
-  layer_config: "2 (Mamba2)"
+  seq_mixer_layer_config: "2 (Mamba2)"
   mlp_inner_dim: 768
   segment_pred_inner_dim: 768 # Decoder segment predictor inner dimension
 
