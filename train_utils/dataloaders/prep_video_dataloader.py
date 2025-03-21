@@ -94,8 +94,6 @@ def downsample_temporal(x, target_seq_len):
   
   else: 
     raise ValueError(f"Expected 3D or 4D shape for downsample_temporal. Got shape: {shape}")
-  
-
 
 # Global variables for model and processor
 # This ensures they're loaded only once
@@ -191,7 +189,7 @@ def collate_video(batch, target_seq_len = None):
     
     if target_seq_len is not None: 
       stacked_features = downsample_temporal(stacked_features, target_seq_len = target_seq_len)
-      
+
     return stacked_features
 
   else:
