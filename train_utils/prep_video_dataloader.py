@@ -194,21 +194,34 @@ def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader
         features.append(video_features)
       except Exception as e:
         print(f"Error processing video: {e}")
-        # Might want to handle this differently, e.g., skip or use a placeholder
+        # Skip broken samples
         continue
 
-    # Stack features if all have the same shape and the list is not empty
-    if features and all(f.shape == features[0].shape for f in features): 
+    # Handle case where all samples in the batch failed
+    if len(features) == 0:
+      print("WARNING: All samples in batch failed processing, returning empty tensor")
+      # Return an empty tensor with the expected shape for the batch
+      # Assuming expected shape is [batch_size, frames, hidden_dim]
+      return torch.zeros((0, 16, 768), dtype=torch.float32)
+      
+    # Stack features if all have the same shape
+    if all(f.shape == features[0].shape for f in features): 
       return torch.stack(features)
-    
-    return features # [batch_size, 1, num_frames, hidden_dim]
+    else:
+      # Shapes are different, log details
+      print(f"WARNING: Inconsistent shapes in batch: {[f.shape for f in features]}")
+      # Return just the first feature reshaped to look like a batch of 1
+      # This is a fallback to avoid crashing
+      return features[0].unsqueeze(0)
   
+  # Adjust number of workers to avoid overloading
   if config["dataloader_num_workers"] is None: 
-    dataloader_num_workers = count_workers()
-
-    dataloader_num_workers = max(0, int(dataloader_num_workers/2 - 16))
+    # Use a more conservative approach for workers
+    dataloader_num_workers = min(4, count_workers())
   else: 
     dataloader_num_workers = config["dataloader_num_workers"]
+    
+  print(f"Using {dataloader_num_workers} workers for data loading")
 
   # For iterable datasets, we can't use shuffle in the DataLoader
   # We'll rely on the dataset's built-in shuffling instead
@@ -217,7 +230,9 @@ def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader
     batch_size = config["batch_size"],
     shuffle = False,  # Must be False for IterableDataset
     num_workers = dataloader_num_workers,
-    collate_fn = collate_video
+    collate_fn = collate_video,
+    prefetch_factor = 2,  # Reduce memory usage
+    pin_memory = False    # Avoid unnecessary transfers
   )
   
   test_dataloader = DataLoader(
