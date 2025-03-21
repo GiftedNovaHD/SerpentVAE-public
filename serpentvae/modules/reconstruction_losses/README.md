@@ -1,5 +1,5 @@
 # Reconstruction Losses
-This folder contains the reconstruction losses that we support. It also contains the helper function we use to instantiate the losses.
+This folder contains the reconstruction losses that we support. It also contains the helper function we use to instantiate the losses, `create_recon_loss(loss_name: str, reduction: str, discrete: bool) -> Callable[[Tensor, Tensor], Tensor]` in `create_recon_loss.py`.
 
 ## Available Losses
 ### Continuous Losses
