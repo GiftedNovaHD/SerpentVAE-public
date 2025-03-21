@@ -31,7 +31,7 @@ from train_utils.config_utils import load_config # For loading configs
 from train_utils.prep_text_dataloaders import prep_text_dataset
 from train_utils.create_text_tokenizer import create_text_tokenizer
 from train_utils.prep_parallelism import prep_parallelism
-
+from train_utils.memory_monitor_callback import MemoryMonitorCallback
 if __name__ == "__main__":
   parser = argparse.ArgumentParser(description='SerpentVAE Model')
   parser.add_argument('--config', type=str, default='debug_config',help='Choose with experiment configuration to use')
@@ -74,6 +74,11 @@ if __name__ == "__main__":
                                         verbose = True
                                       )
   
+  memory_monitor = MemoryMonitorCallback(memory_limit_percent = 80.0,
+                                         check_interval = 1,
+                                         log_usage = False
+                                         )
+  
   trainer = pl.Trainer(devices=1,
                        accelerator="gpu",
                        strategy=parallelism_strategy, # FSDP Strategy
@@ -84,7 +89,7 @@ if __name__ == "__main__":
                        default_root_dir= config["training_path"],
                        profiler = "pytorch",
                        fast_dev_run = 5,
-                       callbacks = [ModelSummary(max_depth = 5), checkpoint_callback]
+                       callbacks = [ModelSummary(max_depth = 5), checkpoint_callback, memory_monitor]
 
                       )
 
