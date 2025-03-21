@@ -119,8 +119,6 @@ class ScaledNormal(nn.Module):
 
     return sampled_latents, mu, logvar
     
-
-
   def log_likelihood(self,
                      latent_samples: Tensor,
                      q_dist_mu: Tensor,
