@@ -2,6 +2,21 @@
     "version": "2.0.0",
     "tasks": [
         {
+            "label": "run all tests",
+            "dependsOn": [
+                "run discrete_text_lightning_train.py with no optional modules config",
+                "run discrete_text_lightning_train.py with debug config",
+                "run continuous_lightning_train.py with debug config",
+                "run continuous_lightning_train.py with no optional modules config"
+            ],
+            "dependsOrder": "parallel",
+            "problemMatcher": [],
+            "group": {
+                "kind": "test",
+                "isDefault": false
+            }
+        },
+        {
             "label": "run discrete_text_lightning_train.py with no optional modules config",
             "type": "shell",
             "command": "python",
@@ -10,6 +25,10 @@
                 "--config",
                 "discrete_test_no_optional"
             ],
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
             "problemMatcher": [],
             "group": {
                 "kind": "test",
@@ -25,6 +44,10 @@
                 "--config",
                 "discrete_debug_config"
             ],
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
             "problemMatcher": [],
             "group": {
                 "kind": "test",
@@ -40,6 +63,10 @@
                 "--config",
                 "continuous_debug_config"
             ],
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
             "problemMatcher": [],
             "group": {
                 "kind": "test",
@@ -55,6 +82,10 @@
                 "--config",
                 "continuous_test_no_optional"
             ],
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
             "problemMatcher": [],
             "group": {
                 "kind": "test",
