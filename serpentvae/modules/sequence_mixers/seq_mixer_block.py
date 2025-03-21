@@ -63,8 +63,6 @@ def create_block(seq_mixer_name: str, seq_mixer_kwargs: Dict, hidden_dim: int, d
   except Exception as e:
     raise Exception(f"Error creating sequence mixer: {e}")
 
-  return None
-
 class SeqMixerBlock(nn.Module):
   """
   A block that holds the sequence mixer
