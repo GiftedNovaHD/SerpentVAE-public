@@ -41,9 +41,6 @@ def create_block(channel_mixer_name: str, channel_mixer_kwargs: Dict, hidden_dim
   except Exception as e:
     raise Exception(f"Error creating channel mixer: {e}")
 
-
-
-
 class ChannelMixerBlock(nn.Module):
   """
   A block that holds the channel mixer
