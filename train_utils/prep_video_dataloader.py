@@ -1,6 +1,8 @@
 import os 
 import psutil 
 import torch 
+import av
+import numpy as np
 
 from io import BytesIO
 
@@ -10,10 +12,52 @@ from typing import Dict, Tuple
 from datasets import load_dataset, Video
 from torch.utils.data import DataLoader 
 
-def decode_video_from_bytes(video_bytes, num_frames=16): 
-  raise NotImplementedError
+from transformers import AutoImageProcessor, VideoMAEModel
 
-def prep_video_dataset(config: Dict, tokenizer) -> Tuple[DataLoader, DataLoader, DataLoader]: 
+def read_video_pyav(container, indices): 
+  """
+  Decode the video with the PyAV decoder 
+  Args: 
+    container: PyAV container
+    indices: List of frame indices to decode 
+
+  Returns: 
+    result: array of decoded frames of shape (num_frames, height, width, 3)
+  """
+  frames = [] 
+  container.seek(0)
+  start_index = indices[0] 
+  end_index = indices[-1]
+  for i, frame in enumerate(container.decode(video=0)):
+    if i > end_index: 
+      break 
+    if i >= start_index and i in indices: 
+      frames.append(frame)
+  
+  return np.stack([x.to_ndarray(format='rgb24') for x in frames])
+
+def sample_frame_indices(clip_len, frame_sample_rate, seg_len):
+  """
+  Sample a given number of frame indices from the video.
+
+  Args:
+      clip_len (`int`): Total number of frames to sample.
+      frame_sample_rate (`int`): Sample every n-th frame.
+      seg_len (`int`): Maximum allowed index of sample's last frame.
+
+  Returns:
+      indices (`List[int]`): List of sampled frame indices
+
+  """
+  converted_len = int(clip_len * frame_sample_rate)
+  end_idx = np.random.randint(converted_len, seg_len)
+  start_idx = end_idx - converted_len
+  indices = np.linspace(start_idx, end_idx, num=clip_len)
+  indices = np.clip(indices, start_idx, end_idx - 1).astype(np.int64)
+  return indices
+
+
+def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader]: 
   """
   Takes in the configuration and returns dataloaders for the training, testing and validation datasets.
   
@@ -42,13 +86,46 @@ def prep_video_dataset(config: Dict, tokenizer) -> Tuple[DataLoader, DataLoader,
   filtered_test_dataset = test_dataset.filter(is_desired_category)
   filtered_val_dataset = val_dataset.filter(is_desired_category)
 
-
   def collate_video(batch): 
     """
     Tokenizes the batch of videos
 
     """
-    raise NotImplementedError
+    image_processor = AutoImageProcessor.from_pretrained("MCG-NJU/videomae-base")
+    model = VideoMAEModel.from_pretrained("MCG-NJU/videomae-base")
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = model.to(device)
+    model.eval()
+
+    features = [] 
+    for sample in batch: 
+      video_data = sample['video']
+
+      container = av.open(BytesIO(video_data['bytes']))
+      video_stream = container.streams.video[0]
+
+      # Sample frames
+      indices = sample_frame_indices(
+        clip_len=16, 
+        frame_sample_rate=1,
+        seg_len=video_stream.frames
+      )
+
+      video_frames = read_video_pyav(container, indices)
+
+      with torch.no_grad(): 
+        inputs = image_processor(list(video_frames), return_tensors="pt").to(device)
+        output = model(**inputs)
+        video_features = output.last_hidden_state
+
+      features.append(video_features)
+    
+    if all(f.shape == features[0].shape for f in features): 
+      return torch.stack(features)
+    
+    return features
+    
   
   if config["dataloader_num_workers"] is None: 
     dataloader_num_workers = count_workers()
@@ -60,18 +137,21 @@ def prep_video_dataset(config: Dict, tokenizer) -> Tuple[DataLoader, DataLoader,
                                 batch_size = config["batch_size"],
                                 shuffle = True,
                                 num_workers = dataloader_num_workers,
+                                collate_fn = collate_video
                                 )
   
   test_dataloader = DataLoader(dataset = filtered_test_dataset, 
                                batch_size = config["batch_size"],
                                shuffle = False, 
-                              num_workers = dataloader_num_workers
+                               num_workers = dataloader_num_workers, 
+                               collate_fn = collate_video
                                )
   
   val_dataloader = DataLoader(dataset = filtered_val_dataset, 
                               batch_size = config["batch_size"],
                               shuffle = False, 
-                              num_workers = dataloader_num_workers
+                              num_workers = dataloader_num_workers, 
+                              collate_fn = collate_video
                               )
   
   return train_dataloader, test_dataloader, val_dataloader
