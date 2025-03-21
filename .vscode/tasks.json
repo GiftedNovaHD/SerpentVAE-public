@@ -95,6 +95,26 @@
                 "kind": "test",
                 "isDefault": false
             }
+        },
+        {
+            "label": "run continuous_video_lightning_train.py with video debug config",
+            "type": "shell",
+            "command": "python",
+            "args": [
+                "continuous_video_lightning_train.py",
+                "--config",
+                "video_debug_config"
+            ],
+            "presentation": {
+                "reveal": "silent",
+                "panel": "new",
+                "revealProblems": "onProblem"
+            },
+            "problemMatcher": [],
+            "group": {
+                "kind": "test",
+                "isDefault": false
+            }
         }
     ]
 }

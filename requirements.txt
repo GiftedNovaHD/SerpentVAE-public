@@ -1,7 +1,9 @@
+av
 datasets
 einops
 einx
 torch
+torchvision
 transformers
 wandb
 causal-conv1d
