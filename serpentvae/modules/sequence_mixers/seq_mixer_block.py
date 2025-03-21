@@ -65,9 +65,6 @@ def create_block(seq_mixer_name: str, seq_mixer_kwargs: Dict, hidden_dim: int, d
 
   return None
 
-
-
-
 class SeqMixerBlock(nn.Module):
   """
   A block that holds the sequence mixer
