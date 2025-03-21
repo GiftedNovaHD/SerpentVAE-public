@@ -4,7 +4,7 @@ from typing import  Dict
 from serpentvae.modules.LightningSerpentVAE.BaseLightningSerpentVAE import BaseLightningSerpentVAE
 
 
-class TextLightningSerpentVAE(BaseLightningSerpentVAE):
+class VideoLightningSerpentVAE(BaseLightningSerpentVAE):
   def __init__(self,
                config: Dict,
                compile_model: bool = True
