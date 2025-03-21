@@ -20,10 +20,8 @@ from torch.utils.data import DataLoader
 
 # For cleaner training loops
 import lightning as pl
-from lightning.pytorch.callbacks import ModelSummary
-
-# Modify checkpointing behavior for PyTorch Lightning
-from lightning.pytorch.callbacks import ModelCheckpoint
+# Modify checkpointing behaviour for pytorch lightning
+from lightning.pytorch.callbacks import ModelSummary, ModelCheckpoint
 
 # PyTorch Automatic Mixed Precision (AMP)
 from torch.amp import autocast
@@ -87,6 +85,7 @@ if __name__ == "__main__":
                        profiler = "pytorch",
                        fast_dev_run = 5,
                        callbacks = [ModelSummary(max_depth = 5), checkpoint_callback]
+
                       )
 
   trainer.fit(model = lightning_model, train_dataloaders = train_dataloader, val_dataloaders = val_dataloader)
