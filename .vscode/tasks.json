@@ -28,7 +28,8 @@
             "presentation": {
                 "reveal": "silent",
                 "panel": "new",
-                "revealProblems": "onProblem"
+                "revealProblems": "onProblem",
+                "close": true
             },
             "problemMatcher": [],
             "group": {
@@ -48,7 +49,8 @@
             "presentation": {
                 "reveal": "silent",
                 "panel": "new",
-                "revealProblems": "onProblem"
+                "revealProblems": "onProblem",
+                "close": true
             },
             "problemMatcher": [],
             "group": {
@@ -68,7 +70,8 @@
             "presentation": {
                 "reveal": "silent",
                 "panel": "new",
-                "revealProblems": "onProblem"
+                "revealProblems": "onProblem",
+                "close": true
             },
             "problemMatcher": [],
             "group": {
@@ -88,7 +91,8 @@
             "presentation": {
                 "reveal": "silent",
                 "panel": "new",
-                "revealProblems": "onProblem"
+                "revealProblems": "onProblem",
+                "close": true
             },
             "problemMatcher": [],
             "group": {
@@ -108,7 +112,8 @@
             "presentation": {
                 "reveal": "silent",
                 "panel": "new",
-                "revealProblems": "onProblem"
+                "revealProblems": "onProblem",
+                "close": true
             },
             "problemMatcher": [],
             "group": {
