@@ -50,6 +50,8 @@ def prep_parallelism(config: Dict):
       if isinstance(module, (nn.Embedding, SerpentVAE, TextLightningSerpentVAE, QNet)):
         # Don't wrap embedding layers
         # Convert embedding parameters to bfloat16 to match FSDP mixed precision
+        print(f"Module: {module} is not wrapped with FSDP")
+
         if hasattr(module, 'weight') and module.weight is not None:
           module.weight.data = module.weight.data.to(config["dtype"])
         return False

@@ -65,7 +65,7 @@ def prep_text_dataset(config: Dict,tokenizer) -> Tuple[DataLoader, DataLoader, D
                                 shuffle = True,
                                 collate_fn = collate,
                                 num_workers = dataloader_num_workers,
-                                persistent_workers = True,
+                                persistent_workers = True if dataloader_num_workers > 0 else False,
                                 pin_memory = True,
                                 pin_memory_device = config["device"]
                                )
@@ -75,7 +75,7 @@ def prep_text_dataset(config: Dict,tokenizer) -> Tuple[DataLoader, DataLoader, D
                                shuffle = False,
                                collate_fn = collate,
                                num_workers = dataloader_num_workers,
-                               persistent_workers = True,
+                               persistent_workers = True if dataloader_num_workers > 0 else False,
                                pin_memory = True,
                                pin_memory_device = config["device"]
                               )
@@ -85,7 +85,7 @@ def prep_text_dataset(config: Dict,tokenizer) -> Tuple[DataLoader, DataLoader, D
                               shuffle = False,
                               collate_fn = collate,
                               num_workers = dataloader_num_workers,
-                              persistent_workers = True,
+                              persistent_workers = True if dataloader_num_workers > 0 else False,
                               pin_memory = True,
                               pin_memory_device = config["device"]
                              )
