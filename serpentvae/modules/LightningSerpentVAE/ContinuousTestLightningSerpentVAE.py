@@ -1,32 +1,18 @@
-from torch import Tensor, compile
-from typing import  Dict
-import lightning as pl
+from torch import Tensor
+from typing import Dict
 
-from serpentvae.utils.prep_model import prep_model
-from serpentvae.utils.prep_optimizer import prep_optimizer
+from serpentvae.modules.LightningSerpentVAE.BaseLightningSerpentVAE import BaseLightningSerpentVAE
 
-
-class ContinuousTestLightningSerpentVAE(pl.LightningModule):
+class ContinuousTestLightningSerpentVAE(BaseLightningSerpentVAE):
   def __init__(self,
                config: Dict,
                compile_model: bool = True
               ):
-    super().__init__()
+    super().__init__(config = config, compile_model = compile_model)
     self.save_hyperparameters()
-
-    self.config = config
-    self.compile_model = compile_model
-    self.serpent_vae = None
-
     
   def configure_model(self):
-    if self.serpent_vae is None:
-      if self.compile_model == True:
-        self.serpent_vae = compile(prep_model(config = self.config))
-      else:
-        self.serpent_vae = prep_model(config = self.config)
-    
-    return None
+    return super().configure_model()
 
   def training_step(self, batch: Tensor, batch_idx: int):
     correct_inputs = batch[0]
@@ -43,6 +29,4 @@ class ContinuousTestLightningSerpentVAE(pl.LightningModule):
     self.log_dict(metrics, sync_dist = True)
 
   def configure_optimizers(self):
-    optimizer = prep_optimizer(model = self.serpent_vae, config = self.config)
-    
-    return optimizer
+    return super().configure_optimizers()

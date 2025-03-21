@@ -5,7 +5,6 @@ import lightning as pl
 from serpentvae.utils.prep_model import prep_model
 from serpentvae.utils.prep_optimizer import prep_optimizer
 
-
 class BaseLightningSerpentVAE(pl.LightningModule):
   def __init__(self,
                config: Dict,

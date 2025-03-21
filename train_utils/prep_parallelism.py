@@ -21,7 +21,7 @@ from lightning.pytorch.strategies import FSDPStrategy, DDPStrategy
 
 from serpentvae.modules.SerpentVAE import SerpentVAE
 from serpentvae.modules.qnet import QNet
-from serpentvae.modules.LightningSerpentVAE.TextLightningSerpentVAE import TextLightningSerpentVAE
+from serpentvae.modules.LightningSerpentVAE.BaseLightningSerpentVAE import BaseLightningSerpentVAE
 
 def prep_parallelism(config: Dict):
   """
@@ -47,7 +47,7 @@ def prep_parallelism(config: Dict):
                                  recurse: bool,
                                  nonwrapped_numel: int
                                 ) -> bool:
-      if isinstance(module, (nn.Embedding, SerpentVAE, TextLightningSerpentVAE, QNet)):
+      if isinstance(module, (nn.Embedding, SerpentVAE, BaseLightningSerpentVAE, QNet)):
         # Don't wrap embedding layers
         # Convert embedding parameters to bfloat16 to match FSDP mixed precision
         print(f"Module: {module} is not wrapped with FSDP")
