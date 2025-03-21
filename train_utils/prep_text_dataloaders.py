@@ -54,7 +54,7 @@ def prep_text_dataset(config: Dict,tokenizer) -> Tuple[DataLoader, DataLoader, D
   if config["dataloader_num_workers"] is None:
     dataloader_num_workers = count_workers()
 
-    dataloader_num_workers = max(0, dataloader_num_workers/2 - 16)
+    dataloader_num_workers = max(0, int(dataloader_num_workers/2 - 16))
   else:
     dataloader_num_workers = config["dataloader_num_workers"]
 
