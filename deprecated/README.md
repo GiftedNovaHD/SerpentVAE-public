@@ -11,3 +11,4 @@ However, they are still kept here for reference or in case they are needed in th
 - `chaincrp.py`: This file contains a deprecated version of the ChainCRP implementation using Pyro. 
 - `stable_lightning_train.py`: This file contains a deprecated version of the training loop implement with PyTorch Lightning. It was used to when simultaneously developing SerpentVAE while also integrating DDP and FSDP training strategies.
 - `test_config.py`: This file contains deprecated code for testing that our functions to parse the layer configuration worked correctly.
+- `scale-vae.py`: This file contains a deprecated version of the ScaleVAE implementation that was used to understand how the `ScaledNormal` distribution works.
