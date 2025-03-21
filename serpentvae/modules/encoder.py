@@ -6,7 +6,7 @@ from serpentvae.modules.mlp import MLP
 from mamba_ssm.ops.triton.layer_norm import RMSNorm as RMSNorm, rms_norm_fn
 from functools import partial
 from serpentvae.modules.module_utils.init_weight import _init_weights
-from serpentvae.modules.sequence_mixers.block import create_block, SeqMixerBlock
+from serpentvae.modules.sequence_mixers.seq_mixer_block import create_block, SeqMixerBlock
 from serpentvae.modules.module_utils.layer_parser import layer_parser, get_aliases
 
 

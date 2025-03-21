@@ -1,18 +1,17 @@
-# SerpentVAE Sequence Mixers
+# SerpentVAE Channel Mixers
 
-This directory contains the sequence mixers for the SerpentVAE. 
+This directory contains the channel mixers for the SerpentVAE. 
 
 File Structure:
 
 ```sh
-sequence_mixers/
-├── seq_mixer_block.py
-├── multilatentattention.py
+channel_mixers/
+├── channel_mixer_mlp.py
+├── channel_mixer_block.py
 ├── __init__.py
 └── README.md
 ```
-`seq_mixer_block.py` contains the `SeqMixerBlock` class which is a general wrapper around the sequence mixer.
-`block.py` also contains the `create_block(seq_mixer_name: str, seq_mixer_kwargs: Dict, hidden_dim: int, device: torch.device, dtype: torch.dtype) -> nn.Module` function which is a helper function for creating the sequence mixer block.
+
 
 ## Available Sequence Mixers
 - Mamba2
