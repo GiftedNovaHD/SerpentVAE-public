@@ -210,11 +210,12 @@ def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader
   else: 
     dataloader_num_workers = config["dataloader_num_workers"]
 
-
+  # For iterable datasets, we can't use shuffle in the DataLoader
+  # We'll rely on the dataset's built-in shuffling instead
   train_dataloader = DataLoader(
     dataset = train_dataset, 
     batch_size = config["batch_size"],
-    shuffle = True,
+    shuffle = False,  # Must be False for IterableDataset
     num_workers = dataloader_num_workers,
     collate_fn = collate_video
   )
