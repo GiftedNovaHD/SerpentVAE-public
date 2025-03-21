@@ -68,7 +68,7 @@ if __name__ == "__main__":
   # Create paraallelism strategy
   parallelism_strategy = prep_parallelism(config = config)
   
-  trainer = pl.Trainer(devices=1,
+  trainer = pl.Trainer(devices= -1, # Configure to use all available devices
                        accelerator="gpu",
                        strategy=parallelism_strategy, # FSDP Strategy
                        use_distributed_sampler = True,
