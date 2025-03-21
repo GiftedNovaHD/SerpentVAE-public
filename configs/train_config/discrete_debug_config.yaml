@@ -59,7 +59,7 @@ distribution:
 encoder:
   # Non-sequence mixer settings
   seq_mixer_layer_config: "2 (M2)" 
-  mlp_inner_dim: 768
+  channel_mixer_layer_config: "2 (MLP)"
   segment_pred_inner_dim: 768 # Encoder segment predictor inner dimension
 
   # Sequence mixer configuration
@@ -70,11 +70,15 @@ encoder:
     mamba2_expand: 2
     mamba2_head_dim: 64 # (hidden_dim * mamba_expand / mamba_head_dim = 64 = 8 * 8)
 
+  # Channel mixer configuration
+  MLP:
+    mlp_inner_dim: 768
+
 # Decoder configuration
 decoder:
   # Non-sequence mixer settings
   seq_mixer_layer_config: "2 (Mamba2)"
-  mlp_inner_dim: 768
+  channel_mixer_layer_config: "2 (MLP)"
   segment_pred_inner_dim: 768 # Decoder segment predictor inner dimension
 
   # Sequence mixer configuration
@@ -83,6 +87,10 @@ decoder:
     mamba2_conv_length: 4
     mamba2_expand: 2
     mamba2_head_dim: 64 # (hidden_dim * mamba_expand / mamba_head_dim = 64 = 8 * 8)
+
+  # Channel mixer configuration
+  MLP:
+    mlp_inner_dim: 768
 
 # Confidence Module configuration
 enable_confidence_module: true # This module is used for Stochastic Varitional Inference (not implemented yet)
@@ -94,7 +102,7 @@ enable_qnet: true # We advise Q-Net to be enabled to reduce the chance of poster
 qnet:
   # Non-sequence mixer settings
   seq_mixer_layer_config: "Mamba2"
-  mlp_inner_dim: 384
+  channel_mixer_layer_config: "MLP"
   
   # Sequence mixer configuration
   Mamba2:
@@ -102,3 +110,7 @@ qnet:
     mamba2_expand: 1
     mamba2_head_dim: 32 # (concept_dim * mamba_expand / qnet_mamba_head_dim = 48 = 8 * 6)
     mamba2_state_dim: 8
+
+  # Channel mixer configuration
+  MLP:
+    mlp_inner_dim: 384
