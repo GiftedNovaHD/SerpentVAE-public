@@ -53,6 +53,8 @@ def prep_text_dataset(config: Dict,tokenizer) -> Tuple[DataLoader, DataLoader, D
   # Get number of workers for DataLoaders
   if config["dataloader_num_workers"] is None:
     dataloader_num_workers = count_workers()
+
+    dataloader_num_workers = max(0, dataloader_num_workers - 4)
   else:
     dataloader_num_workers = config["dataloader_num_workers"]
 
