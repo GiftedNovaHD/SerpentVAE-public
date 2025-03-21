@@ -25,7 +25,7 @@ from lightning.pytorch.callbacks import ModelSummary
 # PyTorch Automatic Mixed Precision (AMP)
 from torch.amp import autocast
 
-from serpentvae.modules.TextLightningSerpentVAE import TextLightningSerpentVAE
+from serpentvae.modules.LightningSerpentVAE.TextLightningSerpentVAE import TextLightningSerpentVAE
 from train_utils.config_utils import load_config # For loading configs
 from train_utils.prep_text_dataloaders import prep_text_dataset
 from train_utils.create_text_tokenizer import create_text_tokenizer

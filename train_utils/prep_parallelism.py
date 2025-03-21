@@ -20,7 +20,7 @@ from torch.distributed.fsdp import (
 from lightning.pytorch.strategies import FSDPStrategy, DDPStrategy
 
 from serpentvae.modules.SerpentVAE import SerpentVAE
-from serpentvae.modules.TextLightningSerpentVAE import TextLightningSerpentVAE
+from serpentvae.modules.LightningSerpentVAE.TextLightningSerpentVAE import TextLightningSerpentVAE
 def prep_parallelism(config: Dict):
   """
   Prepare the parallelism strategy for model training.
