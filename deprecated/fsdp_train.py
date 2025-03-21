@@ -50,7 +50,7 @@ from serpentvae.utils.prep_model import prep_model
 from serpentvae.utils.prep_optimizer import prep_optimizer
 from serpentvae.modules.SerpentVAE import SerpentVAE
 from train_utils.config_utils import load_config # For loading configs
-from train_utils.prep_text_dataloaders import prep_dataset
+from train_utils.dataloaders.prep_text_dataloaders import prep_dataset
 from train_utils.create_text_tokenizer import create_text_tokenizer
 
 # Distributed training setup 
