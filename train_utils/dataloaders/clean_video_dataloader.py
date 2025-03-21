@@ -73,7 +73,7 @@ def get_video_model_and_processor():
   if _image_processor is None or _video_model is None:
     _device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     _image_processor = VideoMAEImageProcessor.from_pretrained("MCG-NJU/videomae-base")
-    _video_model = VideoMAEModel.from_pretrained("MCG-NJU/videomae-base", torch_dtype=torch.bfloat16)
+    _video_model = VideoMAEModel.from_pretrained("MCG-NJU/videomae-base")
     _video_model = _video_model.to(_device)
     _video_model.eval()
     
@@ -189,9 +189,7 @@ def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader
         # Note: This may produce a warning about slow tensor creation from list of numpy arrays,
         # but it works correctly and the optimized approach causes data type issues
         with torch.no_grad():
-          for frame in list(video_frames):
-            print(frame.shape)
-          inputs = image_processor(list(video_frames), return_tensors="pt").to(device).to(torch.bfloat16)
+          inputs = image_processor(list(video_frames), return_tensors="pt").to(device)
           output = model(**inputs)
           video_features = output.last_hidden_state.cpu()  # Move to CPU to free GPU memory
           features.append(video_features)
