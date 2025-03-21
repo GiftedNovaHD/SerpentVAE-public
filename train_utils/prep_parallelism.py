@@ -47,7 +47,7 @@ def prep_parallelism(config: Dict):
         # Don't wrap embedding layers
         # Convert embedding parameters to bfloat16 to match FSDP mixed precision
         if hasattr(module, 'weight') and module.weight is not None:
-          module.weight.data = module.weight.data.to(torch.bfloat16)
+          module.weight.data = module.weight.data.to(config["dtype"])
         return False
       else:
         return True
@@ -56,7 +56,7 @@ def prep_parallelism(config: Dict):
                                        recurse = True
                                       )
 
-    strategy = FSDPStrategy(auto_wrap_policy = size_based_auto_wrap_policy,
+    strategy = FSDPStrategy(auto_wrap_policy = no_wrap_embedding_policy,
                             cpu_offload = CPUOffload(offload_params = False),
                             backward_prefetch = BackwardPrefetch.BACKWARD_PRE,
                             mixed_precision = MixedPrecision(param_dtype = torch.bfloat16,  # or torch.float16,
