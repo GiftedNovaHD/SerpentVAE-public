@@ -1,6 +1,6 @@
 # Training configuration
-dataset_path: "HuggingFaceFV/finevideo"
-dataset_name:
+dataset_path: "sayakpaul/ucf101-subset"
+dataset_name: "UCF101_subset.tar.gz"
 num_epochs: 10
 eval_freq: 0.001
 model_save_folder_path:

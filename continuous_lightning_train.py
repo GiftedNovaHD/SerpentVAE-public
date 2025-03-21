@@ -28,6 +28,7 @@ from serpentvae.modules.ContinuousTestLightningSerpentVAE import ContinuousTestL
 from train_utils.config_utils import load_config # For loading configs
 from train_utils.prep_continuous_test_dataloader import prep_continuous_test_dataset
 from train_utils.prep_parallelism import prep_parallelism
+from train_utils.prep_video_dataloader import prep_video_dataset
 
 if __name__ == "__main__":
   parser = argparse.ArgumentParser(description='SerpentVAE Model')
@@ -53,7 +54,7 @@ if __name__ == "__main__":
   # print(config)
 
   # Load data
-  train_dataloader, test_dataloader, val_dataloader = prep_continuous_test_dataset(config = config)
+  train_dataloader, test_dataloader, val_dataloader = prep_video_dataset(config = config)
 
   # Create model
   lightning_model = ContinuousTestLightningSerpentVAE(config = config,
