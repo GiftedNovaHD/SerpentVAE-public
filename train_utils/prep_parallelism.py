@@ -45,7 +45,6 @@ def prep_parallelism(config: Dict):
                                  recurse: bool,
                                  nonwrapped_numel: int
                                 ) -> bool:
-      print(f"Module: {module} is an instance of {type(module)}")
       if isinstance(module, nn.Embedding) or isinstance(module, SerpentVAE):
         # Don't wrap embedding layers
         # Convert embedding parameters to bfloat16 to match FSDP mixed precision
