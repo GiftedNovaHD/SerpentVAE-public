@@ -7,6 +7,7 @@ modules/
 ├── module_utils/         # Utility functions for modules
 ├── reconstruction_losses/ # Loss functions for reconstruction
 ├── sequence_mixers/      # Sequence mixing modules
+├── channel_mixers/       # Channel mixing modules
 ├── adanorm.py           # Adaptive normalization implementation (not integrated yet)
 ├── conceptmixer.py      # Concept mixing module
 ├── confidencemodule.py  # Confidence estimation module
