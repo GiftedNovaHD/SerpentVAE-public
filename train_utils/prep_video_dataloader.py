@@ -140,14 +140,14 @@ def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader
     
     print(f"Created custom splits with sizes - Train: {train_size}, Test: {test_size}, Val: {dataset_size - train_size - test_size}")
 
-  desired_category = config["desired_category"]
+  # desired_category = config["desired_category"]
 
-  def is_desired_category(sample): 
-    return sample['json']['content_parent_category'] == desired_category
+  # def is_desired_category(sample): 
+  #   return sample['json']['content_parent_category'] == desired_category
   
-  filtered_train_dataset = train_dataset.filter(is_desired_category)
-  filtered_test_dataset = test_dataset.filter(is_desired_category)
-  filtered_val_dataset = val_dataset.filter(is_desired_category)
+  # filtered_train_dataset = train_dataset.filter(is_desired_category)
+  # filtered_test_dataset = test_dataset.filter(is_desired_category)
+  # filtered_val_dataset = val_dataset.filter(is_desired_category)
 
   # Initialize model and processor once, outside the collate function
   # This avoids reloading for each batch
