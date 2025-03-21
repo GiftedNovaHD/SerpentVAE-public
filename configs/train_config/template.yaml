@@ -61,19 +61,23 @@ distribution:
 encoder:
   # Non-sequence mixer settings
   seq_mixer_layer_config:
-  mlp_inner_dim:
+  channel_mixer_layer_config:
   segment_pred_inner_dim: # Encoder segment predictor inner dimension
 
   # Sequence mixer configuration
 
+  # Channel mixer configuration
+  
 # Decoder configuration
 decoder:
   # Non-sequence mixer settings
   seq_mixer_layer_config:
-  mlp_inner_dim:
+  channel_mixer_layer_config:
   segment_pred_inner_dim: # Decoder segment predictor inner dimension
 
   # Sequence mixer configuration
+
+  # Channel mixer configuration
 
 # Confidence Module configuration
 enable_confidence_module: true # This module is used for Stochastic Varitional Inference (not implemented yet)
@@ -85,6 +89,8 @@ enable_qnet: true # We advise Q-Net to be enabled to reduce the chance of poster
 qnet:
   # Non-sequence mixer settings
   seq_mixer_layer_config:
-  mlp_inner_dim:
-  
+  channel_mixer_layer_config:
+
   # Sequence mixer configuration
+
+  # Channel mixer configuration

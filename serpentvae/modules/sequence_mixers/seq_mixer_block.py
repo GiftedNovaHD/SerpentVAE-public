@@ -5,7 +5,7 @@ from torch import Tensor
 # Import sequence mixers
 from mamba_ssm import Mamba2, Mamba
 
-def create_block(seq_mixer_name: str, seq_mixer_kwargs: Dict, hidden_dim: int, device: torch.device, dtype: torch.dtype) -> nn.Module:
+def create_seq_mixer_block(seq_mixer_name: str, seq_mixer_kwargs: Dict, hidden_dim: int, device: torch.device, dtype: torch.dtype) -> nn.Module:
   """
   Creates a sequence mixer block based on the name and kwargs
 
