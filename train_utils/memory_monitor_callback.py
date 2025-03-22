@@ -95,7 +95,7 @@ class MemoryMonitorCallback(Callback):
                 # Save checkpoint before stopping
                 if trainer.checkpoint_callback is not None:
                     print("Saving checkpoint before exiting...")
-                    checkpoint_path = trainer.checkpoint_callback.save_checkpoint(
+                    checkpoint_path = trainer.checkpoint_callback._save_checkpoint(
                         trainer, 
                         pl_module,
                         monitor_candidates=None
