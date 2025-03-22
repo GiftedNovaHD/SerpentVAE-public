@@ -96,4 +96,4 @@ if __name__ == "__main__":
   trainer.print(torch.cuda.memory_summary())
 
   # Resume training
-  # trainer.fit(model, ckpt_path = config["training_path"] + "/last.ckpt")
+  trainer.fit(model = lightning_model, train_dataloaders = train_dataloader, val_dataloaders = val_dataloader, ckpt_path = config["training_path"] + "/last.ckpt")
