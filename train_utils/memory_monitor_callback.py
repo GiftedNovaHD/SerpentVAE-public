@@ -80,6 +80,8 @@ class MemoryMonitorCallback(Callback):
         """Check memory usage at the start of each training batch."""
         if batch_idx % self.check_interval == 0:
             memory_percent = self._get_memory_usage_percent()
+
+            print(f"Memory usage: {memory_percent:.2f}%")
             
             if self.log_usage:
                 trainer.logger.log_metrics(
