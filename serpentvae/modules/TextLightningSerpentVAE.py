@@ -48,9 +48,8 @@ class TextLightningSerpentVAE(pl.LightningModule):
     
   def on_save_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
     """Save dataloader state in the checkpoint for resumption"""
-    # Make sure to save the model state
-    if self.serpent_vae is not None:
-      checkpoint["serpent_vae_state_dict"] = self.serpent_vae.state_dict()
+    # Lightning automatically saves all attributes that are nn.Modules
+    # No need to manually save self.serpent_vae as it's handled by Lightning
     
     dataloader_states = {}
     
@@ -82,9 +81,8 @@ class TextLightningSerpentVAE(pl.LightningModule):
   
   def on_load_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
     """Restore dataloader state from the checkpoint for resumption"""
-    # Load model state if it exists in the checkpoint
-    if "serpent_vae_state_dict" in checkpoint and self.serpent_vae is not None:
-      self.serpent_vae.load_state_dict(checkpoint["serpent_vae_state_dict"])
+    # Lightning automatically loads model state for all nn.Modules
+    # No need to manually load self.serpent_vae state as it's handled by Lightning
     
     if "dataloader_states" in checkpoint:
       self._dataloader_states = checkpoint.pop("dataloader_states")
