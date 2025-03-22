@@ -93,7 +93,7 @@ if __name__ == "__main__":
                        callbacks = [ModelSummary(max_depth = 5), checkpoint_callback, memory_monitor]
                       )
 
-  #trainer.fit(model = lightning_model, train_dataloaders = train_dataloader, val_dataloaders = val_dataloader)
+  # trainer.fit(model = lightning_model, train_dataloaders = train_dataloader, val_dataloaders = val_dataloader)
   trainer.print(torch.cuda.memory_summary())
 
   # Resume training
