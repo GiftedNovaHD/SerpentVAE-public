@@ -96,4 +96,19 @@ if __name__ == "__main__":
   trainer.print(torch.cuda.memory_summary())
 
   # Resume training
-  trainer.fit(model = lightning_model, train_dataloaders = train_dataloader, val_dataloaders = val_dataloader, ckpt_path = config["training_path"] + "/last.ckpt")
+  checkpoint_path = os.path.join(config["training_path"], "last.ckpt") # Default path
+
+  # Check if 'last.ckpt' exists, if not find the latest .ckpt file
+  if not os.path.exists(checkpoint_path):
+    # Find all .ckpt files in the training directory
+    checkpoint_files = [f for f in os.listdir(config["training_path"]) if f.endswith(".ckpt")]
+
+    if checkpoint_files:
+      # Get the most recently modified checkpoint file
+      checkpoint_path = os.path.join(config["training_path"], max(checkpoint_files, key=os.path.getmtime))
+      print(f"Resuming from latest checkpoint: {checkpoint_path}")
+    else:
+      print("No checkpoint found. Starting from scratch.")
+      checkpoint_path = None  # Or handle the case where no checkpoint exists
+
+  trainer.fit(model = lightning_model, train_dataloaders = train_dataloader, val_dataloaders = val_dataloader, ckpt_path = checkpoint_path)
