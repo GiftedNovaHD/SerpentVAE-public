@@ -89,5 +89,18 @@ class MemoryMonitorCallback(Callback):
                 
             if memory_percent >= self.memory_limit_percent:
                 print(f"\nStopping training! Memory usage ({memory_percent:.2f}%) exceeded threshold ({self.memory_limit_percent:.2f}%)")
+                
+                # Save checkpoint before stopping
+                if trainer.checkpoint_callback is not None:
+                    print("Saving checkpoint before exiting...")
+                    checkpoint_path = trainer.checkpoint_callback.save_checkpoint(
+                        trainer, 
+                        pl_module,
+                        monitor_candidates=None
+                    )
+                    print(f"Checkpoint saved to: {checkpoint_path}")
+                else:
+                    print("Warning: No checkpoint callback found, could not save checkpoint.")
+                
                 # Signal to the trainer that training should stop
                 trainer.should_stop = True 
