@@ -3,7 +3,7 @@ import psutil
 import torch
 from typing import Dict
 import lightning as pl
-from lightning.pytorch.callbacks import Callback
+from lightning.pytorch.callbacks import Callback, ModelCheckpoint
 
 class MemoryMonitorCallback(Callback):
     """
@@ -99,7 +99,7 @@ class MemoryMonitorCallback(Callback):
                         # Find the correct checkpoint callback
                         checkpoint_callback = None
                         for callback in trainer.callbacks:
-                            if isinstance(callback, pl.callbacks.ModelCheckpoint):
+                            if isinstance(callback, ModelCheckpoint):  # Use the imported ModelCheckpoint
                                 checkpoint_callback = callback
                                 break
                         
