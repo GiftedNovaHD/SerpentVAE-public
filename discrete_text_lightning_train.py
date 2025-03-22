@@ -119,4 +119,5 @@ if __name__ == "__main__":
               train_dataloaders = train_dataloader, 
               val_dataloaders = val_dataloader, 
               ckpt_path = checkpoint_path)
-  trainer.print(torch.cuda.memory_summary())
+  
+  trainer.print(torch.cuda.memory_summary()) # Only print after training

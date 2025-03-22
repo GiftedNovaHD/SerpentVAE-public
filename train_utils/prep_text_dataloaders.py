@@ -3,9 +3,11 @@ import psutil
 
 from typing import Dict, Tuple
 from datasets import load_dataset_builder, load_dataset
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, DistributedSampler
 
-def prep_text_dataset(config: Dict,tokenizer) -> Tuple[DataLoader, DataLoader, DataLoader]:
+from train_utils.resumable_dataset import ResumableDataset, ResumableDataLoader
+
+def prep_text_dataset(config: Dict, tokenizer) -> Tuple[DataLoader, DataLoader, DataLoader]:
   """
   Takes in the configuration and returns dataloaders for the training, testing, and validation datasets.
 
@@ -29,7 +31,7 @@ def prep_text_dataset(config: Dict,tokenizer) -> Tuple[DataLoader, DataLoader, D
   # Filter datasets to remove blank sequences
   def filter_empty(sequence):
     return not ((sequence["text"].strip() == "\n") or (sequence["text"].strip() == ""))
-
+  
   filtered_train_dataset = train_dataset.filter(filter_empty)
   filtered_test_dataset = test_dataset.filter(filter_empty)
   filtered_val_dataset = val_dataset.filter(filter_empty)
@@ -58,35 +60,44 @@ def prep_text_dataset(config: Dict,tokenizer) -> Tuple[DataLoader, DataLoader, D
 
   print(f"Number of workers for DataLoaders: {dataloader_num_workers}")
   
-  train_dataloader = DataLoader(dataset = train_texts,
-                                batch_size = config["batch_size"],
-                                shuffle = True,
-                                collate_fn = collate,
-                                num_workers = dataloader_num_workers,
-                                persistent_workers = True,
-                                pin_memory = True,
-                                pin_memory_device = config["device"]
-                               )
+  # Wrap datasets with the resumable dataset wrapper
+  resumable_train_texts = ResumableDataset(train_texts, collate)
+  resumable_test_texts = ResumableDataset(test_texts, collate)
+  resumable_val_texts = ResumableDataset(val_texts, collate)
   
-  test_dataloader = DataLoader(dataset = test_texts,
-                               batch_size = config["batch_size"],
-                               shuffle = False,
-                               collate_fn = collate,
-                               num_workers = dataloader_num_workers,
-                               persistent_workers = True,
-                               pin_memory = True,
-                               pin_memory_device = config["device"]
-                              )
+  # Create resumable dataloaders
+  train_dataloader = ResumableDataLoader(
+    dataset = resumable_train_texts,
+    batch_size = config["batch_size"],
+    shuffle = True,
+    collate_fn = collate,
+    num_workers = dataloader_num_workers,
+    persistent_workers = True,
+    pin_memory = True,
+    pin_memory_device = config["device"]
+  )
   
-  val_dataloader = DataLoader(dataset = val_texts,
-                              batch_size = config["batch_size"],
-                              shuffle = False,
-                              collate_fn = collate,
-                              num_workers = dataloader_num_workers,
-                              persistent_workers = True,
-                              pin_memory = True,
-                              pin_memory_device = config["device"]
-                             )
+  test_dataloader = ResumableDataLoader(
+    dataset = resumable_test_texts,
+    batch_size = config["batch_size"],
+    shuffle = False,
+    collate_fn = collate,
+    num_workers = dataloader_num_workers,
+    persistent_workers = True,
+    pin_memory = True,
+    pin_memory_device = config["device"]
+  )
+  
+  val_dataloader = ResumableDataLoader(
+    dataset = resumable_val_texts,
+    batch_size = config["batch_size"],
+    shuffle = False,
+    collate_fn = collate,
+    num_workers = dataloader_num_workers,
+    persistent_workers = True,
+    pin_memory = True,
+    pin_memory_device = config["device"]
+  )
 
   return train_dataloader, test_dataloader, val_dataloader
 
@@ -95,8 +106,8 @@ def count_workers() -> int:
     vCPUs = os.cpu_count() 
 
     if vCPUs is None: 
-      vCPUs = psutil.cpu_count(logical=True) 
+      vCPUs = psutil.cpu_count(logical = False)
     
     return vCPUs
   except Exception as e: 
-    return 1 
+    return 1

@@ -1,5 +1,5 @@
 from torch import Tensor, compile
-from typing import Dict
+from typing import Dict, Any
 import lightning as pl
 
 from serpentvae.utils.prep_model import prep_model
@@ -17,7 +17,6 @@ class TextLightningSerpentVAE(pl.LightningModule):
     self.config = config
     self.compile_model = compile_model
     self.serpent_vae = None
-
     
   def configure_model(self):
     if self.serpent_vae is None:
@@ -46,3 +45,40 @@ class TextLightningSerpentVAE(pl.LightningModule):
     optimizer = prep_optimizer(model = self.serpent_vae, config = self.config)
     
     return optimizer
+    
+  def on_save_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
+    """Save dataloader state in the checkpoint for resumption"""
+    dataloader_states = {}
+    
+    # Save dataloader states if they exist and have the state_dict method
+    if hasattr(self.trainer, "train_dataloader") and hasattr(self.trainer.train_dataloader, "state_dict"):
+      dataloader_states["train_dataloader"] = self.trainer.train_dataloader.state_dict()
+    
+    if hasattr(self.trainer, "val_dataloaders") and hasattr(self.trainer.val_dataloaders[0], "state_dict"):
+      dataloader_states["val_dataloader"] = self.trainer.val_dataloaders[0].state_dict()
+      
+    checkpoint["dataloader_states"] = dataloader_states
+    
+    return super().on_save_checkpoint(checkpoint)
+  
+  def on_load_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
+    """Restore dataloader state from the checkpoint for resumption"""
+    if "dataloader_states" in checkpoint:
+      self._dataloader_states = checkpoint.pop("dataloader_states")
+    else:
+      self._dataloader_states = {}
+      
+    return super().on_load_checkpoint(checkpoint)
+      
+  def setup(self, stage: str) -> None:
+    """Apply the saved dataloader states after dataloaders are set up"""
+    if stage == "fit" and hasattr(self, "_dataloader_states"):
+      # Restore train dataloader state
+      if "train_dataloader" in self._dataloader_states and hasattr(self.trainer, "train_dataloader"):
+        if hasattr(self.trainer.train_dataloader, "load_state_dict"):
+          self.trainer.train_dataloader.load_state_dict(self._dataloader_states["train_dataloader"])
+      
+      # Restore val dataloader state
+      if "val_dataloader" in self._dataloader_states and hasattr(self.trainer, "val_dataloaders"):
+        if hasattr(self.trainer.val_dataloaders[0], "load_state_dict"):
+          self.trainer.val_dataloaders[0].load_state_dict(self._dataloader_states["val_dataloader"])
