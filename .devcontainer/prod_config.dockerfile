@@ -22,8 +22,9 @@ RUN ln -sf /usr/bin/python3 /usr/bin/python && \
 
 COPY requirements.txt . 
 
-RUN pip install --no-cache-dir --upgrade pip && \
-  pip install --no-cache-dir -r requirements.txt
+RUN pip3 install --no-cache-dir --upgrade pip && \ 
+  pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124 && \
+  pip3 install --no-cache-dir -r requirements.txt
 
 ENV NVIDIA_VISIBLE_DEVICES all 
 ENV NVIDIA_DRIVER_CAPABILITIES compute,utility
