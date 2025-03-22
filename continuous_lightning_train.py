@@ -3,20 +3,8 @@ Implementation of a Lightning module for training SerpentVAE, using Fully-Sharde
 
 For multi-node strategy, it is advisable to use torchrun instead of torch.distributed.launch, as well as SLURM scripts that sets the appropriate group variables. 
 """
-import os
 import argparse
-import itertools 
-from tqdm import tqdm 
-import json
-from typing import Tuple
-
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim 
-from torch.optim import Optimizer
-from torch import random
-from torch.utils.data import DataLoader
 
 # For cleaner training loops
 import lightning as pl
@@ -78,7 +66,6 @@ if __name__ == "__main__":
                        default_root_dir= config["training_path"],
                        profiler = "pytorch",
                        precision = "bf16-true",
-                       fast_dev_run = 5
                       )
 
   trainer.fit(model = lightning_model, train_dataloaders = train_dataloader, val_dataloaders = val_dataloader)
