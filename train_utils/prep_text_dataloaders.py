@@ -52,7 +52,7 @@ def prep_text_dataset(config: Dict,tokenizer) -> Tuple[DataLoader, DataLoader, D
   
   # Get number of workers for DataLoaders
   if config["dataloader_num_workers"] is None:
-    dataloader_num_workers = count_workers()
+    dataloader_num_workers = min(16, count_workers())
   else:
     dataloader_num_workers = config["dataloader_num_workers"]
 
