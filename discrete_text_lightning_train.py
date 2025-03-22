@@ -72,7 +72,8 @@ if __name__ == "__main__":
 
   checkpoint_callback = ModelCheckpoint(dirpath = config["training_path"],
                                         every_n_train_steps = config["checkpoint_freq"],
-                                        verbose = True
+                                        verbose = True, 
+                                        save_last = True
                                       )
   
   memory_monitor = MemoryMonitorCallback(memory_limit_percent = 80.0,
