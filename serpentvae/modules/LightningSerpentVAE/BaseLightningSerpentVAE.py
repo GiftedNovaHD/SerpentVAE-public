@@ -5,8 +5,7 @@ import lightning as pl
 from serpentvae.utils.prep_model import prep_model
 from serpentvae.utils.prep_optimizer import prep_optimizer
 
-
-class TextLightningSerpentVAE(pl.LightningModule):
+class BaseLightningSerpentVAE(pl.LightningModule):
   def __init__(self,
                config: Dict,
                compile_model: bool = True
@@ -28,16 +27,17 @@ class TextLightningSerpentVAE(pl.LightningModule):
     return None
 
   def training_step(self, batch: Tensor, batch_idx: int):
-    correct_input_ids = batch["input_ids"].unsqueeze(-1)
+    # TODO: replace with correct inputs
+    correct_inputs = None
 
-    total_loss, vae_loss, confidence_loss, encoder_segment_pred_loss, decoder_segment_pred_loss = self.serpent_vae.train_step(correct_inputs = correct_input_ids)
+    total_loss, vae_loss, confidence_loss, encoder_segment_pred_loss, decoder_segment_pred_loss = self.serpent_vae.train_step(correct_inputs = correct_inputs)
 
     return total_loss
 
   def validation_step(self, batch: Tensor, batch_idx: int):
-    correct_input_ids = batch["input_ids"].unsqueeze(-1)
-
-    metrics = self.serpent_vae.eval_step(correct_inputs = correct_input_ids, is_test=False)
+    # TODO: replace with correct inputs
+    correct_inputs = None
+    metrics = self.serpent_vae.eval_step(correct_inputs = correct_inputs, is_test=False)
 
     self.log_dict(metrics, sync_dist = True)
 

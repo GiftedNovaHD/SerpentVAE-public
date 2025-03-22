@@ -19,6 +19,10 @@ from torch.distributed.fsdp import (
 
 from lightning.pytorch.strategies import FSDPStrategy, DDPStrategy
 
+from serpentvae.modules.SerpentVAE import SerpentVAE
+from serpentvae.modules.qnet import QNet
+from serpentvae.modules.LightningSerpentVAE.BaseLightningSerpentVAE import BaseLightningSerpentVAE
+
 def prep_parallelism(config: Dict):
   """
   Prepare the parallelism strategy for model training.
@@ -43,11 +47,13 @@ def prep_parallelism(config: Dict):
                                  recurse: bool,
                                  nonwrapped_numel: int
                                 ) -> bool:
-      if isinstance(module, nn.Embedding):
+      if isinstance(module, (nn.Embedding, SerpentVAE, BaseLightningSerpentVAE, QNet)):
         # Don't wrap embedding layers
         # Convert embedding parameters to bfloat16 to match FSDP mixed precision
+        print(f"Module: {module} is not wrapped with FSDP")
+
         if hasattr(module, 'weight') and module.weight is not None:
-          module.weight.data = module.weight.data.to(torch.bfloat16)
+          module.weight.data = module.weight.data.to(config["dtype"])
         return False
       else:
         return True
@@ -56,9 +62,10 @@ def prep_parallelism(config: Dict):
                                        recurse = True
                                       )
 
-    strategy = FSDPStrategy(auto_wrap_policy = size_based_auto_wrap_policy,
+    strategy = FSDPStrategy(auto_wrap_policy = no_wrap_embedding_policy,
                             cpu_offload = CPUOffload(offload_params = False),
                             backward_prefetch = BackwardPrefetch.BACKWARD_PRE,
+                            sharding_strategy = ShardingStrategy.SHARD_GRAD_OP,
                             mixed_precision = MixedPrecision(param_dtype = torch.bfloat16,  # or torch.float16,
                                                              reduce_dtype = torch.bfloat16,
                                                              buffer_dtype = torch.bfloat16

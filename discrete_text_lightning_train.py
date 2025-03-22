@@ -29,7 +29,7 @@ from lightning.pytorch.callbacks import TQDMProgressBar
 # PyTorch Automatic Mixed Precision (AMP)
 from torch.amp import autocast
 
-from serpentvae.modules.TextLightningSerpentVAE import TextLightningSerpentVAE
+from serpentvae.modules.LightningSerpentVAE.TextLightningSerpentVAE import TextLightningSerpentVAE
 from train_utils.config_utils import load_config # For loading configs
 from train_utils.prep_text_dataloaders import prep_text_dataset
 from train_utils.create_text_tokenizer import create_text_tokenizer
@@ -129,7 +129,7 @@ if __name__ == "__main__":
   # Create our custom progress bar
   progress_bar = ResumeAwareProgressBar(refresh_rate=1)
   
-  trainer = pl.Trainer(devices=1,
+  trainer = pl.Trainer(devices= -1, # Configure to use all available devices
                        accelerator="gpu",
                        strategy=parallelism_strategy, # FSDP Strategy
                        use_distributed_sampler = True,
@@ -138,6 +138,7 @@ if __name__ == "__main__":
                        limit_val_batches = 1,
                        default_root_dir= config["training_path"],
                        profiler = "pytorch",
+                       precision = "bf16-true",
                        callbacks = [ModelSummary(max_depth = 5), 
                                     checkpoint_callback, 
                                     memory_monitor,

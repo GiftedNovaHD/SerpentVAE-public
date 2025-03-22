@@ -13,3 +13,4 @@ numpy
 tqdm
 pyro-ppl
 pytest
+av
