@@ -53,9 +53,14 @@ def prep_text_dataset(config: Dict, tokenizer) -> Tuple[DataLoader, DataLoader, 
     filtered_test_dataset = test_dataset.filter(filter_empty)
     filtered_val_dataset = val_dataset.filter(filter_empty)
 
-    print(f"Number of training sequences: {len(filtered_train_dataset)}")  # Modified this line
-    print(f"Number of testing sequences: {len(filtered_test_dataset)}")  # Modified this line
-    print(f"Number of validation sequences: {len(filtered_val_dataset)}")  # Modified this line
+    # Calculate approximate lengths by iterating
+    num_train_sequences = sum(1 for _ in filtered_train_dataset)
+    num_test_sequences = sum(1 for _ in filtered_test_dataset)
+    num_val_sequences = sum(1 for _ in filtered_val_dataset)
+
+    print(f"Number of training sequences: {num_train_sequences}")
+    print(f"Number of testing sequences: {num_test_sequences}")
+    print(f"Number of validation sequences: {num_val_sequences}")
 
     def collate(batch):
         """
