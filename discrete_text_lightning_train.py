@@ -106,7 +106,7 @@ if __name__ == "__main__":
 
     if checkpoint_files:
       # Get the most recently modified checkpoint file
-      checkpoint_path = os.path.join(config["training_path"], max(checkpoint_files, key=os.path.getmtime))
+      checkpoint_path = os.path.join(config["training_path"], max(checkpoint_files, key=lambda f: os.path.getmtime(os.path.join(config["training_path"], f))))
       print(f"Resuming from latest checkpoint: {checkpoint_path}")
     else:
       print("No checkpoint found. Starting from scratch.")
