@@ -6,7 +6,7 @@ if __name__ == "__main__":
     # Set spawn method for multiprocessing to work with CUDA
     multiprocessing.set_start_method('spawn', force=True)
     
-    from train_utils.dataloaders.prep_video_dataloader import prep_video_dataset
+    from train_utils.dataloaders.fastvit_video_dataloader import prep_video_dataset
     from train_utils.config_utils import load_config
 
     # Pre-initialize CUDA if available
