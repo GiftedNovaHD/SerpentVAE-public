@@ -15,7 +15,7 @@ class ResumableIterableDataset(IterableDataset):
             if i < self.start_index:
                 continue
             self.current_index = i
-            yield item
+            yield item["text"]  # Access "text" field here
 
     def state_dict(self):
         return {'start_index': self.current_index}
@@ -53,14 +53,9 @@ def prep_text_dataset(config: Dict, tokenizer) -> Tuple[DataLoader, DataLoader, 
     filtered_test_dataset = test_dataset.filter(filter_empty)
     filtered_val_dataset = val_dataset.filter(filter_empty)
 
-    # Create sequences for training and validation
-    train_texts = filtered_train_dataset["text"]
-    test_texts = filtered_test_dataset["text"]
-    val_texts = filtered_val_dataset["text"]
-
-    print(f"Number of training sequences: {len(train_texts)}")
-    print(f"Number of testing sequences: {len(test_texts)}")
-    print(f"Number of validation sequences: {len(val_texts)}")
+    print(f"Number of training sequences: {len(filtered_train_dataset)}")  # Modified this line
+    print(f"Number of testing sequences: {len(filtered_test_dataset)}")  # Modified this line
+    print(f"Number of validation sequences: {len(filtered_val_dataset)}")  # Modified this line
 
     def collate(batch):
         """
@@ -77,9 +72,9 @@ def prep_text_dataset(config: Dict, tokenizer) -> Tuple[DataLoader, DataLoader, 
     print(f"Number of workers for DataLoaders: {dataloader_num_workers}")
 
     # Wrap the datasets with ResumableIterableDataset
-    train_dataset = ResumableIterableDataset(train_texts)
-    test_dataset = ResumableIterableDataset(test_texts)
-    val_dataset = ResumableIterableDataset(val_texts)
+    train_dataset = ResumableIterableDataset(filtered_train_dataset)
+    test_dataset = ResumableIterableDataset(filtered_test_dataset)
+    val_dataset = ResumableIterableDataset(filtered_val_dataset)
 
     train_dataloader = DataLoader(dataset=train_dataset,
                                   batch_size=config["batch_size"],
