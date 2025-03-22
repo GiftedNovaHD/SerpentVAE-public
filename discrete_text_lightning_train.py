@@ -94,9 +94,12 @@ if __name__ == "__main__":
                       )
 
   # trainer.fit(model = lightning_model, train_dataloaders = train_dataloader, val_dataloaders = val_dataloader)
-  trainer.print(torch.cuda.memory_summary())
 
-  # Resume training
+  # Ensure the training directory exists
+  if not os.path.exists(config["training_path"]):
+    print(f"Creating checkpoint directory: {config['training_path']}")
+    os.makedirs(config["training_path"], exist_ok  = True)
+  
   checkpoint_path = os.path.join(config["training_path"], "last.ckpt") # Default path
 
   # Check if 'last.ckpt' exists, if not find the latest .ckpt file
@@ -112,4 +115,8 @@ if __name__ == "__main__":
       print("No checkpoint found. Starting from scratch.")
       checkpoint_path = None  # Or handle the case where no checkpoint exists
 
-  trainer.fit(model = lightning_model, train_dataloaders = train_dataloader, val_dataloaders = val_dataloader, ckpt_path = checkpoint_path)
+  trainer.fit(model = lightning_model, 
+              train_dataloaders = train_dataloader, 
+              val_dataloaders = val_dataloader, 
+              ckpt_path = checkpoint_path)
+  trainer.print(torch.cuda.memory_summary())
