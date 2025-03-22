@@ -67,12 +67,10 @@ if __name__ == "__main__":
   parallelism_strategy = prep_parallelism(config = config)
 
   checkpoint_callback = ModelCheckpoint(dirpath = config["training_path"], every_n_train_steps = config["checkpoint_freq"])
-
-  trainer = pl.Trainer(devices=1,
   
-  trainer = pl.Trainer(devices= -1, # Configure to use all available devices
-                       accelerator="gpu",
-                       strategy=parallelism_strategy, # FSDP Strategy
+  trainer = pl.Trainer(devices = -1, # Configure to use all available devices
+                       accelerator = "gpu",
+                       strategy = parallelism_strategy, # FSDP Strategy
                        use_distributed_sampler = True,
                        max_epochs = config["num_epochs"],
                        val_check_interval = config["eval_freq"],
