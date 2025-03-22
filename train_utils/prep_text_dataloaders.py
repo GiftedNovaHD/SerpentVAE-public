@@ -3,9 +3,9 @@ import psutil
 
 from typing import Dict, Tuple
 from datasets import load_dataset_builder, load_dataset
-from torch.utils.data import DataLoader, DistributedSampler
+from torch.utils.data import DataLoader
 
-from train_utils.resumable_dataset import ResumableDataset, ResumableDataLoader
+from train_utils.resumable_dataset import ResumableDataLoader
 
 def prep_text_dataset(config: Dict, tokenizer) -> Tuple[DataLoader, DataLoader, DataLoader]:
   """
@@ -61,43 +61,36 @@ def prep_text_dataset(config: Dict, tokenizer) -> Tuple[DataLoader, DataLoader, 
     dataloader_num_workers = config["dataloader_num_workers"]
 
   print(f"Number of workers for DataLoaders: {dataloader_num_workers}")
-  
-  resumable_train_texts = ResumableDataset(train_texts, collate)
-  resumable_test_texts = ResumableDataset(test_texts, collate)
-  resumable_val_texts = ResumableDataset(val_texts, collate)
 
-  train_dataloader = ResumableDataLoader(
-    dataset = resumable_train_texts,
-    batch_size = config["batch_size"],
-    shuffle = True,
-    collate_fn = collate,
-    num_workers = dataloader_num_workers,
-    persistent_workers = True,
-    pin_memory = True,
-    pin_memory_device = config["device"]
-  )
+  train_dataloader = ResumableDataLoader(dataset = train_texts,
+                                         batch_size = config["batch_size"],
+                                         shuffle = True,
+                                         collate_fn = collate,
+                                         num_workers = dataloader_num_workers,
+                                         persistent_workers = True if dataloader_num_workers > 0 else False,
+                                         pin_memory = True,
+                                         pin_memory_device = config["device"]
+                                        )
   
-  test_dataloader = ResumableDataLoader(
-    dataset = resumable_test_texts,
-    batch_size = config["batch_size"],
-    shuffle = False,
-    collate_fn = collate,
-    num_workers = dataloader_num_workers,
-    persistent_workers = True,
-    pin_memory = True,
-    pin_memory_device = config["device"]
-  )
+  test_dataloader = ResumableDataLoader(dataset = test_texts,
+                                        batch_size = config["batch_size"],
+                                        shuffle = False,
+                                        collate_fn = collate,
+                                        num_workers = dataloader_num_workers,
+                                        persistent_workers = True if dataloader_num_workers > 0 else False,
+                                        pin_memory = True,
+                                        pin_memory_device = config["device"]
+                                       )
   
-  val_dataloader = ResumableDataLoader(
-    dataset = resumable_val_texts,
-    batch_size = config["batch_size"],
-    shuffle = False,
-    collate_fn = collate,
-    num_workers = dataloader_num_workers,
-    persistent_workers = True,
-    pin_memory = True,
-    pin_memory_device = config["device"]
-  )
+  val_dataloader = ResumableDataLoader(dataset = val_texts,
+                                       batch_size = config["batch_size"],
+                                       shuffle = False,
+                                       collate_fn = collate,
+                                       num_workers = dataloader_num_workers,
+                                       persistent_workers = True if dataloader_num_workers > 0 else False,
+                                       pin_memory = True,
+                                       pin_memory_device = config["device"]
+   )
 
   return train_dataloader, test_dataloader, val_dataloader
 

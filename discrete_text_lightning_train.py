@@ -121,7 +121,7 @@ if __name__ == "__main__":
                                         save_last = True
                                       )
   
-  memory_monitor = MemoryMonitorCallback(memory_limit_percent = 8.0,
+  memory_monitor = MemoryMonitorCallback(memory_limit_percent = 80.0,
                                          check_interval = 1,
                                          log_usage = False
                                          )
@@ -142,7 +142,8 @@ if __name__ == "__main__":
                        callbacks = [ModelSummary(max_depth = 5), 
                                     checkpoint_callback, 
                                     memory_monitor,
-                                    progress_bar]  # Add our custom progress bar
+                                    progress_bar],  # Add our custom progress bar
+                       fast_dev_run = 5
                       )
 
 # trainer.fit(model = lightning_model, train_dataloaders = train_dataloader, val_dataloaders = val_dataloader)

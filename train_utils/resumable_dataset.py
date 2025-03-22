@@ -43,6 +43,9 @@ class ResumableDataLoader(DataLoader):
         if isinstance(kwargs.get('sampler'), DistributedSampler):
             self.distributed_sampler = kwargs.get('sampler')
         
+        if not isinstance(dataset, ResumableDataset):
+            dataset = ResumableDataset(dataset = dataset, collate_fn = kwargs.get('collate_fn', None))
+
         super().__init__(dataset, **kwargs)
     
     def __iter__(self):
