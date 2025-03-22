@@ -9,6 +9,8 @@ import itertools
 from tqdm import tqdm 
 import json
 from typing import Tuple, Dict
+import glob
+import re
 
 import torch
 import torch.nn as nn
@@ -22,6 +24,7 @@ from torch.utils.data import DataLoader
 import lightning as pl
 # Modify checkpointing behaviour for pytorch lightning
 from lightning.pytorch.callbacks import ModelSummary, ModelCheckpoint
+from lightning.pytorch.callbacks import TQDMProgressBar
 
 # PyTorch Automatic Mixed Precision (AMP)
 from torch.amp import autocast
@@ -32,6 +35,48 @@ from train_utils.prep_text_dataloaders import prep_text_dataset
 from train_utils.create_text_tokenizer import create_text_tokenizer
 from train_utils.prep_parallelism import prep_parallelism
 from train_utils.memory_monitor_callback import MemoryMonitorCallback
+
+# Custom progress bar that shows proper epoch and step when resuming
+class ResumeAwareProgressBar(TQDMProgressBar):
+    def __init__(self, refresh_rate=1, process_position=0):
+        super().__init__(refresh_rate, process_position)
+        self.resumed_epoch = 0
+        self.resumed_step = 0
+        self.detected_resume = False
+    
+    def on_train_start(self, trainer, pl_module):
+        # Check if we're resuming from a checkpoint
+        if trainer.ckpt_path is not None:
+            # Extract epoch and global step from checkpoint filename or metadata
+            try:
+                # Try to load the checkpoint to get metadata
+                checkpoint = torch.load(trainer.ckpt_path, map_location="cpu")
+                if "epoch" in checkpoint:
+                    self.resumed_epoch = checkpoint["epoch"]
+                if "global_step" in checkpoint:
+                    self.resumed_step = checkpoint["global_step"]
+                self.detected_resume = True
+                print(f"Resuming from epoch {self.resumed_epoch}, global step {self.resumed_step}")
+            except Exception as e:
+                print(f"Could not extract epoch/step from checkpoint: {e}")
+        
+        super().on_train_start(trainer, pl_module)
+    
+    def get_metrics(self, trainer, pl_module):
+        items = super().get_metrics(trainer, pl_module)
+        
+        # If we're resuming, adjust the epoch display
+        if self.detected_resume:
+            # Update epoch related info in displayed metrics
+            if "epoch" in items:
+                items["epoch"] = float(items["epoch"]) + self.resumed_epoch
+            
+            # Add resumed step info to epoch display if needed
+            if "step" in items:
+                current_step = items.get("step", 0)
+                items["step"] = current_step + self.resumed_step
+                
+        return items
 
 if __name__ == "__main__":
   parser = argparse.ArgumentParser(description='SerpentVAE Model')
@@ -53,7 +98,7 @@ if __name__ == "__main__":
     
   # Check that config file exists and load it
   config = load_config(args.config)
-  
+
   #print(config)
 
   # Create tokenizer
@@ -67,7 +112,7 @@ if __name__ == "__main__":
                                         compile_model = config["compile_model"]
                                        )
 
-  # Create paraallelism strategy
+  # Create parallelism strategy
   parallelism_strategy = prep_parallelism(config = config)
 
   checkpoint_callback = ModelCheckpoint(dirpath = config["training_path"],
@@ -81,6 +126,9 @@ if __name__ == "__main__":
                                          log_usage = False
                                          )
   
+  # Create our custom progress bar
+  progress_bar = ResumeAwareProgressBar(refresh_rate=1)
+  
   trainer = pl.Trainer(devices=1,
                        accelerator="gpu",
                        strategy=parallelism_strategy, # FSDP Strategy
@@ -90,10 +138,13 @@ if __name__ == "__main__":
                        limit_val_batches = 1,
                        default_root_dir= config["training_path"],
                        profiler = "pytorch",
-                       callbacks = [ModelSummary(max_depth = 5), checkpoint_callback, memory_monitor]
+                       callbacks = [ModelSummary(max_depth = 5), 
+                                    checkpoint_callback, 
+                                    memory_monitor,
+                                    progress_bar]  # Add our custom progress bar
                       )
 
-  # trainer.fit(model = lightning_model, train_dataloaders = train_dataloader, val_dataloaders = val_dataloader)
+# trainer.fit(model = lightning_model, train_dataloaders = train_dataloader, val_dataloaders = val_dataloader)
 
   # Ensure the training directory exists
   if not os.path.exists(config["training_path"]):
