@@ -71,7 +71,7 @@ if __name__ == "__main__":
   parallelism_strategy = prep_parallelism(config = config)
 
   checkpoint_callback = ModelCheckpoint(dirpath = config["training_path"],
-                                        every_n_train_steps = config["checkpoint_freq"],
+                                        every_n_epochs = 1, 
                                         verbose = True, 
                                         save_last = True
                                       )
