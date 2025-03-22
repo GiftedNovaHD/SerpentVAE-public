@@ -18,20 +18,24 @@ sequence_mixers/
 - Mamba2
   <details>
   <summary>Mamba2 arguments</summary>
-  - `d_model`: The dimension of the model
-  - `d_state`: The size of the state
-  - `d_conv`: The length of the convolution
-  - `expand`: The expansion factor
-  - `headdim`: The dimension of the head
+
+    - `d_model`: The dimension of the model
+    - `d_state`: The size of the state
+    - `d_conv`: The length of the convolution
+    - `expand`: The expansion factor
+    - `headdim`: The dimension of the head
+    
   </details>
 
 - Mamba1
   <details>
   <summary>Mamba1 arguments</summary>
+
   - `d_model`: The dimension of the model
   - `d_state`: The size of the state
   - `d_conv`: The length of the convolution
   - `expand`: The expansion factor
+
   </details>
 
 - MultiLatentAttention
