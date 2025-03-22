@@ -71,7 +71,7 @@ if __name__ == "__main__":
   parallelism_strategy = prep_parallelism(config = config)
 
   checkpoint_callback = ModelCheckpoint(dirpath = config["training_path"],
-                                        every_n_epochs = 1, 
+                                        every_n_epochs = 1, # Save at the end of every epoch
                                         verbose = True, 
                                         save_last = True
                                       )
@@ -86,7 +86,6 @@ if __name__ == "__main__":
                        strategy=parallelism_strategy, # FSDP Strategy
                        use_distributed_sampler = True,
                        max_epochs = config["num_epochs"],
-                       val_check_interval = config["eval_freq"],
                        limit_val_batches = 1,
                        default_root_dir= config["training_path"],
                        profiler = "pytorch",
