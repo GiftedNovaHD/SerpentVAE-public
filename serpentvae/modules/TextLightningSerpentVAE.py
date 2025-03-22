@@ -54,8 +54,13 @@ class TextLightningSerpentVAE(pl.LightningModule):
     if hasattr(self.trainer, "train_dataloader") and hasattr(self.trainer.train_dataloader, "state_dict"):
       dataloader_states["train_dataloader"] = self.trainer.train_dataloader.state_dict()
     
-    if hasattr(self.trainer, "val_dataloaders") and hasattr(self.trainer.val_dataloaders[0], "state_dict"):
-      dataloader_states["val_dataloader"] = self.trainer.val_dataloaders[0].state_dict()
+    # Fix: Check if val_dataloaders exists and is a single dataloader or a list
+    if hasattr(self.trainer, "val_dataloaders"):
+      val_dataloaders = self.trainer.val_dataloaders
+      if isinstance(val_dataloaders, list) and len(val_dataloaders) > 0 and hasattr(val_dataloaders[0], "state_dict"):
+        dataloader_states["val_dataloader"] = val_dataloaders[0].state_dict()
+      elif hasattr(val_dataloaders, "state_dict"):  # It's a single dataloader, not a list
+        dataloader_states["val_dataloader"] = val_dataloaders.state_dict()
       
     checkpoint["dataloader_states"] = dataloader_states
     
@@ -78,7 +83,10 @@ class TextLightningSerpentVAE(pl.LightningModule):
         if hasattr(self.trainer.train_dataloader, "load_state_dict"):
           self.trainer.train_dataloader.load_state_dict(self._dataloader_states["train_dataloader"])
       
-      # Restore val dataloader state
+      # Restore val dataloader state - also account for both list and single dataloader cases
       if "val_dataloader" in self._dataloader_states and hasattr(self.trainer, "val_dataloaders"):
-        if hasattr(self.trainer.val_dataloaders[0], "load_state_dict"):
-          self.trainer.val_dataloaders[0].load_state_dict(self._dataloader_states["val_dataloader"])
+        val_dataloaders = self.trainer.val_dataloaders
+        if isinstance(val_dataloaders, list) and len(val_dataloaders) > 0 and hasattr(val_dataloaders[0], "load_state_dict"):
+          val_dataloaders[0].load_state_dict(self._dataloader_states["val_dataloader"])
+        elif hasattr(val_dataloaders, "load_state_dict"):  # It's a single dataloader, not a list
+          val_dataloaders.load_state_dict(self._dataloader_states["val_dataloader"])
