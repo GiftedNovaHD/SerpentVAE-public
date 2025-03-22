@@ -92,36 +92,14 @@ class MemoryMonitorCallback(Callback):
             if memory_percent >= self.memory_limit_percent:
                 print(f"\nStopping training! Memory usage ({memory_percent:.2f}%) exceeded threshold ({self.memory_limit_percent:.2f}%)")
                 
-                # Save checkpoint before stopping
-                if hasattr(trainer, "checkpoint_callback") and trainer.checkpoint_callback is not None:
-                    print("Saving checkpoint before exiting...")
-                    try:
-                        # Find the correct checkpoint callback
-                        checkpoint_callback = None
-                        for callback in trainer.callbacks:
-                            if isinstance(callback, ModelCheckpoint):  # Use the imported ModelCheckpoint
-                                checkpoint_callback = callback
-                                break
-                        
-                        if checkpoint_callback:
-                            # Use the correct API based on the Lightning version
-                            checkpoint_path = checkpoint_callback.save_checkpoint(
-                                trainer=trainer
-                            )
-                            print(f"Checkpoint saved to: {checkpoint_path}")
-                        else:
-                            print("Warning: ModelCheckpoint callback not found in trainer callbacks.")
-                    except Exception as e:
-                        print(f"Error saving checkpoint: {str(e)}")
-                        # Fallback to manual saving if the callback API fails
-                        try:
-                            checkpoint_path = os.path.join(trainer.default_root_dir, "emergency_memory_checkpoint.ckpt")
-                            trainer.save_checkpoint(checkpoint_path)
-                            print(f"Emergency checkpoint saved to: {checkpoint_path}")
-                        except Exception as inner_e:
-                            print(f"Failed to save emergency checkpoint: {str(inner_e)}")
-                else:
-                    print("Warning: No checkpoint callback found, could not save checkpoint.")
+                # Save checkpoint before stopping - go straight to the emergency save
+                # which has been shown to work in the logs
+                try:
+                    checkpoint_path = os.path.join(trainer.default_root_dir, "emergency_memory_checkpoint.ckpt")
+                    trainer.save_checkpoint(checkpoint_path)
+                    print(f"Emergency checkpoint saved to: {checkpoint_path}")
+                except Exception as e:
+                    print(f"Failed to save emergency checkpoint: {str(e)}")
                 
                 # Signal to the trainer that training should stop
                 trainer.should_stop = True
