@@ -4,7 +4,7 @@ The dev container requires the following drivers on your
 system before it sets the rest of the environment up for
 you:
 
-1. CUDA $\geq$ 12.8
+1. CUDA $\geq$ 12.4
 2. Latest Nvidia Drivers
 
 ## Troubleshooting
