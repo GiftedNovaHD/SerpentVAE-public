@@ -116,5 +116,5 @@ class BaseLightningSerpentVAE(pl.LightningModule):
         test_dataloaders = self.trainer.test_dataloaders
         if isinstance(test_dataloaders, list) and len(test_dataloaders) > 0 and hasattr(test_dataloaders[0], "load_state_dict"):
           test_dataloaders[0].load_state_dict(self._dataloader_states["test_dataloader"])
-        elif hasattr(test_dataloaders, "load_state_dict"):  # It's a single dataloader, not a list
+        elif hasattr(test_dataloaders, "load_state_dict"):  # This is a single dataloader, not a list
           test_dataloaders.load_state_dict(self._dataloader_states["test_dataloader"])
