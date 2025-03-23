@@ -96,13 +96,13 @@ if __name__ == "__main__":
                        val_check_interval = config["eval_freq"],
                        limit_val_batches = 1,
                        default_root_dir= config["training_path"],
-                       profiler = "pytorch",
+                       profiler = "pytorch" if config["is_debug"] else None,
                        precision = "bf16-true",
                        callbacks = [ModelSummary(max_depth = 5), 
                                     checkpoint_callback, 
                                     memory_monitor,
                                     progress_bar],  # Add our custom progress bar
-                       fast_dev_run = 5
+                       fast_dev_run = 5 if config["is_debug"] else None
                       )
 
 # trainer.fit(model = lightning_model, train_dataloaders = train_dataloader, val_dataloaders = val_dataloader)

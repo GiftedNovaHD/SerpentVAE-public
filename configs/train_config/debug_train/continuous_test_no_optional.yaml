@@ -4,9 +4,9 @@ dataset_name:
 num_epochs: 10
 eval_freq: 0.001
 checkpoint_freq: 50
-model_save_folder_path: "continuous-debug-model-ckpt"
-metrics_save_folder_path: "continuous-debug-metrics-ckpt"
-training_path: "continuous-debug-train-ckpt"
+model_save_folder_path: "continuous-test-no-optional-model-ckpt"
+metrics_save_folder_path: "continuous-test-no-optional-metrics-ckpt"
+training_path: "continuous-test-no-optional-train-ckpt"
 learning_rate: 1e-4
 min_learning_rate: 1e-8
 weight_decay: 1e-2
@@ -15,6 +15,7 @@ batch_size: 2
 dataloader_num_workers:
 parallelism_strategy: "ddp"
 compile_model: true
+is_debug: true
 seed: 6969
 
 # Model configuration
@@ -94,24 +95,11 @@ decoder:
     mlp_inner_dim: 768
 
 # Confidence Module configuration
-enable_confidence_module: true # This module is used for Stochastic Varitional Inference (not implemented yet)
+enable_confidence_module: false # This module is used for Stochastic Varitional Inference (not implemented yet)
 confidence_module:
-  mlp_inner_dim: 768
+  mlp_inner_dim: 
 
 # Q-Net configuration
-enable_qnet: true # We advise Q-Net to be enabled to reduce the chance of posterior collapse
+enable_qnet: false # We advise Q-Net to be enabled to reduce the chance of posterior collapse
 qnet:
-  # Non-sequence mixer settings
-  seq_mixer_layer_config: "Mamba2"
-  channel_mixer_layer_config: "MLP"
   
-  # Sequence mixer configuration
-  Mamba2:
-    mamba2_conv_length: 4
-    mamba2_expand: 1
-    mamba2_head_dim: 32 # (concept_dim * mamba_expand / qnet_mamba_head_dim = 48 = 8 * 6)
-    mamba2_state_dim: 8
-
-  # Channel mixer configuration
-  MLP:
-    mlp_inner_dim: 384
