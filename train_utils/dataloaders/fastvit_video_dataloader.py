@@ -64,7 +64,10 @@ def sample_frame_indices(clip_len, frame_sample_rate, seg_len):
 _transforms = None
 _model = None
 _device = None
-_feature_dim = 256  # LevIT 256 feature dimension
+_num_features = 16
+_feature_dim = 384
+
+_max_seq_len = None
 
 def get_image_model_and_transforms():
   """
@@ -114,7 +117,7 @@ def collate_video(batch):
 
       # Sample frames
       indices = sample_frame_indices(
-        clip_len=1,  # Keep the same number of frames as before
+        clip_len=12,  # Keep the same number of frames as before
         frame_sample_rate=1,
         seg_len=video_stream.frames
       )
@@ -136,16 +139,25 @@ def collate_video(batch):
         print(f"Frames batch shape: {frames_batch.shape}")
         
         # Process the whole batch of frames at once
-        sequence_features = model(frames_batch)
+        sequence_features = model(frames_batch) # Shape is (unpadded_seq_len, num_features, feature_dim)
         
         print(f"Sequence features shape: {sequence_features.shape}")
-        
+
         reshaped_features = rearrange(sequence_features, "seq_len num_features feature_dim -> seq_len (num_features feature_dim)")
 
         print(f"Reshaped features shape: {reshaped_features.shape}")
 
+        seq_len = reshaped_features.shape[0]
+
+        if seq_len < _max_seq_len:
+          amount_to_pad = _max_seq_len - seq_len
+
+          padding_tensor = torch.zeros(amount_to_pad, _feature_dim * _num_features, device = device, dtype = torch.bfloat16)
+
+          reshaped_features = torch.cat((padding_tensor, reshaped_features), dim = 0)
+
         # Move to CPU to free GPU memory
-        batch_features.append(sequence_features.cpu())
+        batch_features.append(reshaped_features.cpu()) # Shape is (batch_size, unpadded_seq_len, feature_dim) NOTE: feature_dim is 6144
         
         
     except Exception as e:
@@ -191,6 +203,10 @@ def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader
     test_dataloader (DataLoader): The testing dataloader
     val_dataloader (DataLoader): The validation dataloader
   """
+
+  global _max_seq_len
+
+  _max_seq_len = config["max_seq_len"]
   
   # Loading datasets 
   try:
