@@ -218,8 +218,8 @@ def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader
   global _max_seq_len, _batch_size
 
   # Set the max_seq_len from config immediately at the beginning
-  _max_seq_len = config.get("max_seq_len", 16)  # Use default of 16 if not specified
-  _batch_size = config.get("batch_size", 32)    # Use default of 32 if not specified
+  _max_seq_len = config.get("max_seq_len", 17)  # Use default of 16 if not specified
+  _batch_size = config.get("batch_size", 33)    # Use default of 32 if not specified
   print(f"Setting max_seq_len to {_max_seq_len} from config")
   
   # Initialize model and transforms once, outside the collate function
