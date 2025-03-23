@@ -102,7 +102,6 @@ def collate_video(batch):
   Processes videos as sequences of images through the LevIT model and returns the features.
   Uses globally initialized model and transforms.
   """
-  global _max_seq_len
   transforms, model, device = get_image_model_and_transforms()
   
   batch_features = [] 
