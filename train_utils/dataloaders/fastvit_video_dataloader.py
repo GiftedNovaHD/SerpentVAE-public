@@ -10,7 +10,8 @@ from PIL import Image
 
 from typing import Dict, Tuple
 from datasets import load_dataset, Video
-from torch.utils.data import DataLoader 
+from torch.utils.data import DataLoader
+from einops import rearrange
 
 # Replace VideoMAE imports with timm
 import timm
@@ -138,7 +139,11 @@ def collate_video(batch):
         sequence_features = model(frames_batch)
         
         print(f"Sequence features shape: {sequence_features.shape}")
-        print(f"Sequence features: {sequence_features}")
+        
+        reshaped_features = rearrange(sequence_features, "seq_len num_features feature_dim -> seq_len (num_features feature_dim)")
+
+        print(f"Reshaped features shape: {reshaped_features.shape}")
+
         # Move to CPU to free GPU memory
         batch_features.append(sequence_features.cpu())
         
