@@ -13,5 +13,5 @@ class ResumableProgressBar(TQDMProgressBar):
     print(f"Total training batches: {self.total_train_batches}")
 
 
-
-    super().on_train_batch_start(trainer, pl_module, batch, batch_idx)
+    self.train_progress_bar.reset(super().convert_inf(self.total_train_batches))
+    super()._update_n(self.train_progress_bar, batch_idx)
