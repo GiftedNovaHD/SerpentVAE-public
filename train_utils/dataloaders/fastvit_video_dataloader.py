@@ -106,7 +106,7 @@ def collate_video(batch, _max_seq_len: int, _batch_size: int):
   """
   transforms, model, device = get_image_model_and_transforms()
   
-  batch_features = [] 
+  batch_features = torch.tensor([]).to(device = torch.device("cpu")) 
 
   for sample in batch: 
     try:
@@ -154,6 +154,7 @@ def collate_video(batch, _max_seq_len: int, _batch_size: int):
         seq_len = reshaped_features.shape[0]
 
         if seq_len < _max_seq_len:
+          print(f"Padding sequence from {seq_len} to {_max_seq_len}")
           amount_to_pad = _max_seq_len - seq_len
 
           padding_tensor = torch.zeros(amount_to_pad, _feature_dim * _num_features, device = device, dtype = torch.bfloat16)
@@ -161,7 +162,7 @@ def collate_video(batch, _max_seq_len: int, _batch_size: int):
           reshaped_features = torch.cat((padding_tensor, reshaped_features), dim = 0)
 
         # Move to CPU to free GPU memory
-        batch_features.append(reshaped_features.cpu()) # Shape is (batch_size, unpadded_seq_len, feature_dim) NOTE: feature_dim is 6144
+        batch_features = torch.cat((batch_features, reshaped_features.cpu()), dim = 0) # Shape is (batch_size, unpadded_seq_len, feature_dim) NOTE: feature_dim is 6144
         
         
     except Exception as e:
