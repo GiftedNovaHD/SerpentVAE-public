@@ -84,7 +84,9 @@ class BaseLightningSerpentVAE(pl.LightningModule):
     return super().on_save_checkpoint(checkpoint)
   
   def on_load_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
-    """Restore dataloader state from the checkpoint for resumption"""
+    """
+    Restore dataloader state from the checkpoint for resumption
+    """
     # Lightning automatically loads model state for all nn.Modules
     # No need to manually load self.serpent_vae state as it's handled by Lightning
     
@@ -92,6 +94,16 @@ class BaseLightningSerpentVAE(pl.LightningModule):
       self._dataloader_states = checkpoint.pop("dataloader_states")
     else:
       self._dataloader_states = {}
+
+    # Print current epoch and total training batches for debugging 
+    if self.trainer is not None: 
+      print(f"""
+            Current epoch: {self.trainer.current_epoch}\n
+            Total training batches: {self.trainer.num_training_batches}
+            """
+            )
+    else: 
+      print("Trainer is not initialized")
       
     return super().on_load_checkpoint(checkpoint)
       
