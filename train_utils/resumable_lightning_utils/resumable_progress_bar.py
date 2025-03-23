@@ -1,5 +1,6 @@
 import pytorch_lightning as pl
-from typing import Any
+from typing import Any, Optional, Union
+import math
 from lightning.pytorch.callbacks import TQDMProgressBar
 
 class ResumableProgressBar(TQDMProgressBar):
@@ -13,5 +14,5 @@ class ResumableProgressBar(TQDMProgressBar):
     print(f"Total training batches: {self.total_train_batches}")
 
 
-    self.train_progress_bar.reset(super().convert_inf(self.total_train_batches))
+    self.train_progress_bar.reset(self.convert_inf(self.total_train_batches))
     super()._update_n(self.train_progress_bar, batch_idx)
