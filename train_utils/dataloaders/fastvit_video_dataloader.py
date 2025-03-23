@@ -121,31 +121,34 @@ def collate_video(batch):
       # Read frames
       video_frames = read_video_pyav(container, indices)
       
-      # Process each frame as an image
-      frame_features = []
+      # Process all frames in a single batch
       with torch.no_grad():
+        # Convert all frames to PIL and apply transforms
+        transformed_frames = []
         for frame in video_frames:
-          # Convert numpy array to PIL Image
           pil_img = Image.fromarray(frame)
-          
-          # Apply transforms and move to device
-          img_tensor = transforms(pil_img).unsqueeze(0)
-          
-          # Convert to bfloat16 before sending to device to match model's dtype
-          img_tensor = img_tensor.to(device).to(torch.bfloat16)
-          
-          # Extract features using the LevIT model
-          features = model.forward_features(img_tensor)
-          
-          # Get single feature vector per frame
-          feature = model.forward_head(features, pre_logits=True)
-          
-          # Move to CPU to free GPU memory
-          frame_features.append(feature.cpu())
+          transformed_frame = transforms(pil_img)
+          transformed_frames.append(transformed_frame)
         
-        # Stack all frame features to create a sequence
-        sequence_features = torch.cat(frame_features, dim=0)
-        batch_features.append(sequence_features)
+        # Stack all frames into a single batch tensor [num_frames, channels, height, width]
+        frames_batch = torch.stack(transformed_frames).to(device).to(torch.bfloat16)
+        
+        # Process the whole batch of frames at once
+        batch_features_output = model.forward_features(frames_batch)
+        
+        # Apply forward_head to each frame's features
+        if isinstance(batch_features_output, torch.Tensor):
+          # If output is already a tensor, apply forward_head directly
+          sequence_features = model.forward_head(batch_features_output, pre_logits=True)
+        else:
+          # If output is a more complex structure, process according to model needs
+          # This depends on your specific model architecture
+          sequence_features = torch.stack([model.forward_head(feat, pre_logits=True) 
+                                      for feat in batch_features_output])
+        
+        # Move to CPU to free GPU memory
+        batch_features.append(sequence_features.cpu())
+        
         
     except Exception as e:
       print(f"Error processing video: {e}")
