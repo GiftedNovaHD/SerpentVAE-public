@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 
 from train_utils.resumable_lightning_utils.resumable_lightning_dataloader import ResumableDataLoader
 
-def prep_text_dataset(config: Dict, tokenizer) -> Tuple[DataLoader, DataLoader, DataLoader]:
+def prep_text_dataset(config: Dict, tokenizer) -> Tuple[ResumableDataLoader, ResumableDataLoader, ResumableDataLoader]:
   """
   Takes in the configuration and returns dataloaders for the training, testing, and validation datasets.
 
@@ -90,7 +90,7 @@ def prep_text_dataset(config: Dict, tokenizer) -> Tuple[DataLoader, DataLoader, 
                                        persistent_workers = True if dataloader_num_workers > 0 else False,
                                        pin_memory = True,
                                        pin_memory_device = config["device"]
-   )
+                                      )
 
   return train_dataloader, test_dataloader, val_dataloader
 

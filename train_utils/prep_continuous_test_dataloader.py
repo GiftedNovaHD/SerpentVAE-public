@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader, TensorDataset
 
 from train_utils.resumable_lightning_utils.resumable_lightning_dataloader import ResumableDataLoader
 
-def prep_continuous_test_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader]:
+def prep_continuous_test_dataset(config: Dict) -> Tuple[ResumableDataLoader, ResumableDataLoader, ResumableDataLoader]:
   """
   Takes in the configuration and returns dataloaders for the training, testing, and validation datasets.
 
@@ -49,29 +49,31 @@ def prep_continuous_test_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, 
   print(f"Number of workers for DataLoaders: {dataloader_num_workers}")
   
   train_dataloader = ResumableDataLoader(dataset = train_dataset,
-                                batch_size = config["batch_size"],
-                                shuffle = True,
-                                num_workers = dataloader_num_workers,
-                                persistent_workers = True if dataloader_num_workers > 0 else False,
-                                pin_memory = True,
-                                pin_memory_device = config["device"]
-                               )
+                                         batch_size = config["batch_size"],
+                                         shuffle = True,
+                                         num_workers = dataloader_num_workers,
+                                         persistent_workers = True if dataloader_num_workers > 0 else False,
+                                         pin_memory = True,
+                                         pin_memory_device = config["device"]
+                                        )
+  
   test_dataloader = ResumableDataLoader(dataset = test_dataset,
-                               batch_size = config["batch_size"],
-                               shuffle = False,
-                               num_workers = dataloader_num_workers,
-                               persistent_workers = True if dataloader_num_workers > 0 else False,
-                               pin_memory = True,
-                               pin_memory_device = config["device"]
-                              )
+                                        batch_size = config["batch_size"],
+                                        shuffle = False,
+                                        num_workers = dataloader_num_workers,
+                                        persistent_workers = True if dataloader_num_workers > 0 else False,
+                                        pin_memory = True,
+                                        pin_memory_device = config["device"]
+                                       )
+  
   val_dataloader = ResumableDataLoader(dataset = val_dataset,
-                              batch_size = config["batch_size"],
-                              shuffle = False,
-                              num_workers = dataloader_num_workers,
-                              persistent_workers = True if dataloader_num_workers > 0 else False,
-                              pin_memory = True,
-                              pin_memory_device = config["device"]
-                             )
+                                        batch_size = config["batch_size"],
+                                        shuffle = False,
+                                        num_workers = dataloader_num_workers,
+                                        persistent_workers = True if dataloader_num_workers > 0 else False,
+                                        pin_memory = True,
+                                        pin_memory_device = config["device"]
+                                       )
 
   return train_dataloader, test_dataloader, val_dataloader
 
