@@ -86,7 +86,7 @@ if __name__ == "__main__":
                                         )
   
   # Create our custom progress bar
-  progress_bar = TQDMProgressBar(refresh_rate=1)
+  progress_bar = ResumableProgressBar(refresh_rate=1)
   
   trainer = pl.Trainer(devices= -1, # Configure to use all available devices
                        accelerator="gpu",
