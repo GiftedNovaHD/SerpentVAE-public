@@ -5,7 +5,7 @@ from typing import Dict, Tuple
 from datasets import load_dataset_builder, load_dataset
 from torch.utils.data import DataLoader
 
-from train_utils.resumable_dataset import ResumableDataLoader
+from train_utils.resumable_lightning_utils.resumable_lightning_dataloader import ResumableDataLoader
 
 def prep_text_dataset(config: Dict, tokenizer) -> Tuple[DataLoader, DataLoader, DataLoader]:
   """

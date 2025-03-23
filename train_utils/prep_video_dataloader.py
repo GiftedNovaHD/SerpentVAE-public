@@ -10,7 +10,7 @@ from typing import Dict, Tuple
 from datasets import load_dataset, Video
 from torch.utils.data import DataLoader 
 
-from train_utils.resumable_dataset import ResumableDataLoader
+from train_utils.resumable_lightning_utils.resumable_lightning_dataloader import ResumableDataLoader
 
 def decode_video_from_bytes(video_bytes, num_frames=16): 
   raise NotImplementedError
