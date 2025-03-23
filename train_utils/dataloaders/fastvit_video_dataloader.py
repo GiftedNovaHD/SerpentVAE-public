@@ -135,24 +135,9 @@ def collate_video(batch):
         print(f"Frames batch shape: {frames_batch.shape}")
         
         # Process the whole batch of frames at once
-        batch_features_model_output = model(frames_batch)
+        sequence_features = model(frames_batch)
         
-        print(f"Batch features model output shape: {batch_features_model_output.shape}")
-
-        batch_features_output = model.forward_features(frames_batch)
-        
-        print(f"Batch features output shape: {batch_features_output.shape}")
-        
-        # Apply forward_head to each frame's features
-        if isinstance(batch_features_output, torch.Tensor):
-          # If output is already a tensor, apply forward_head directly
-          sequence_features = model.forward_head(batch_features_output, pre_logits=True)
-          print(f"Sequence features shape: {sequence_features.shape}")
-        else:
-          # If output is a more complex structure, process according to model needs
-          # This depends on your specific model architecture
-          sequence_features = torch.stack([model.forward_head(feat, pre_logits=True) 
-                                      for feat in batch_features_output])
+        print(f"Sequence features shape: {sequence_features.shape}")
         
         # Move to CPU to free GPU memory
         batch_features.append(sequence_features.cpu())
