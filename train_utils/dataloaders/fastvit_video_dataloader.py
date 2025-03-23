@@ -132,6 +132,7 @@ def collate_video(batch):
         
         # Stack all frames into a single batch tensor [num_frames, channels, height, width]
         frames_batch = torch.stack(transformed_frames).to(device).to(torch.bfloat16)
+        print(f"Frames batch shape: {frames_batch.shape}")
         
         # Process the whole batch of frames at once
         batch_features_output = model.forward_features(frames_batch)
