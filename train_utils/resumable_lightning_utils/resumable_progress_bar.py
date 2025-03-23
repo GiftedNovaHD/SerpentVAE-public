@@ -11,3 +11,5 @@ class ResumableProgressBar(TQDMProgressBar):
     print(f"Global step: {trainer.global_step}")
     print(f"Batch {batch_idx} started")
     print(f"Total training batches: {self.total_train_batches}")
+
+    super().on_train_batch_start(trainer, pl_module, batch, batch_idx)
