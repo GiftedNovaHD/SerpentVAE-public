@@ -114,6 +114,8 @@ def collate_video(batch):
       # Open video file directly from binary data
       container = av.open(BytesIO(video_data))
       video_stream = container.streams.video[0]
+      
+      print(f"Max sequence length: {_max_seq_len}")
 
       # Sample frames
       indices = sample_frame_indices(
