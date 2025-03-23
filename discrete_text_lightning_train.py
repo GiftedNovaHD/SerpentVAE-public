@@ -78,12 +78,12 @@ if __name__ == "__main__":
                                         every_n_train_steps = config["checkpoint_freq"],
                                         verbose = True, 
                                         save_last = True
-                                      )
+                                       )
   
   memory_monitor = MemoryMonitorCallback(memory_limit_percent = 15.0,
                                          check_interval = 1,
                                          log_usage = False
-                                         )
+                                        )
   
   # Create our custom progress bar
   progress_bar = TQDMProgressBar(refresh_rate=1)
