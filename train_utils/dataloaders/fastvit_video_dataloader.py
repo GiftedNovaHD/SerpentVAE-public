@@ -113,7 +113,7 @@ def collate_video(batch):
 
       # Sample frames
       indices = sample_frame_indices(
-        clip_len=32,  # Keep the same number of frames as before
+        clip_len=1,  # Keep the same number of frames as before
         frame_sample_rate=1,
         seg_len=video_stream.frames
       )
@@ -138,7 +138,7 @@ def collate_video(batch):
         sequence_features = model(frames_batch)
         
         print(f"Sequence features shape: {sequence_features.shape}")
-        
+        print(f"Sequence features: {sequence_features}")
         # Move to CPU to free GPU memory
         batch_features.append(sequence_features.cpu())
         
