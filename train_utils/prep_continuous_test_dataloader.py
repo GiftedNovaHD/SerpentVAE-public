@@ -5,6 +5,8 @@ import torch
 from typing import Dict, Tuple
 from torch.utils.data import DataLoader, TensorDataset
 
+from train_utils.resumable_lightning_utils.resumable_lightning_dataloader import ResumableDataLoader
+
 def prep_continuous_test_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader]:
   """
   Takes in the configuration and returns dataloaders for the training, testing, and validation datasets.
@@ -46,7 +48,7 @@ def prep_continuous_test_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, 
 
   print(f"Number of workers for DataLoaders: {dataloader_num_workers}")
   
-  train_dataloader = DataLoader(dataset = train_dataset,
+  train_dataloader = ResumableDataLoader(dataset = train_dataset,
                                 batch_size = config["batch_size"],
                                 shuffle = True,
                                 num_workers = dataloader_num_workers,
@@ -54,7 +56,7 @@ def prep_continuous_test_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, 
                                 pin_memory = True,
                                 pin_memory_device = config["device"]
                                )
-  test_dataloader = DataLoader(dataset = test_dataset,
+  test_dataloader = ResumableDataLoader(dataset = test_dataset,
                                batch_size = config["batch_size"],
                                shuffle = False,
                                num_workers = dataloader_num_workers,
@@ -62,7 +64,7 @@ def prep_continuous_test_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, 
                                pin_memory = True,
                                pin_memory_device = config["device"]
                               )
-  val_dataloader = DataLoader(dataset = val_dataset,
+  val_dataloader = ResumableDataLoader(dataset = val_dataset,
                               batch_size = config["batch_size"],
                               shuffle = False,
                               num_workers = dataloader_num_workers,

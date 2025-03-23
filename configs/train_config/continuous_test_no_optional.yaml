@@ -3,9 +3,10 @@ dataset_path:
 dataset_name:
 num_epochs: 10
 eval_freq: 0.001
-model_save_folder_path:
-metrics_save_folder_path: 
-training_path: 
+checkpoint_freq: 50
+model_save_folder_path: "continuous-test-no-optional-model-ckpt"
+metrics_save_folder_path: "continuous-test-no-optional-metrics-ckpt"
+training_path: "continuous-test-no-optional-train-ckpt"
 learning_rate: 1e-4
 min_learning_rate: 1e-8
 weight_decay: 1e-2
