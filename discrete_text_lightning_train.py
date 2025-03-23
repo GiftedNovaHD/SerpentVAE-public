@@ -35,48 +35,7 @@ from train_utils.prep_text_dataloaders import prep_text_dataset
 from train_utils.create_text_tokenizer import create_text_tokenizer
 from train_utils.prep_parallelism import prep_parallelism
 from train_utils.memory_monitor_callback import MemoryMonitorCallback
-
-# Custom progress bar that shows proper epoch and step when resuming
-class ResumeAwareProgressBar(TQDMProgressBar):
-    def __init__(self, refresh_rate=1, process_position=0):
-        super().__init__(refresh_rate, process_position)
-        self.resumed_epoch = 0
-        self.resumed_step = 0
-        self.detected_resume = False
-    
-    def on_train_start(self, trainer, pl_module):
-        # Check if we're resuming from a checkpoint
-        if trainer.ckpt_path is not None:
-            # Extract epoch and global step from checkpoint filename or metadata
-            try:
-                # Try to load the checkpoint to get metadata
-                checkpoint = torch.load(trainer.ckpt_path, map_location="cpu")
-                if "epoch" in checkpoint:
-                    self.resumed_epoch = checkpoint["epoch"]
-                if "global_step" in checkpoint:
-                    self.resumed_step = checkpoint["global_step"]
-                self.detected_resume = True
-                print(f"Resuming from epoch {self.resumed_epoch}, global step {self.resumed_step}")
-            except Exception as e:
-                print(f"Could not extract epoch/step from checkpoint: {e}")
-        
-        super().on_train_start(trainer, pl_module)
-    
-    def get_metrics(self, trainer, pl_module):
-        items = super().get_metrics(trainer, pl_module)
-        
-        # If we're resuming, adjust the epoch display
-        if self.detected_resume:
-            # Update epoch related info in displayed metrics
-            if "epoch" in items:
-                items["epoch"] = float(items["epoch"]) + self.resumed_epoch
-            
-            # Add resumed step info to epoch display if needed
-            if "step" in items:
-                current_step = items.get("step", 0)
-                items["step"] = current_step + self.resumed_step
-                
-        return items
+from train_utils.resumable_lightning_utils.resumable_progress_bar import ResumableProgressBar
 
 if __name__ == "__main__":
   parser = argparse.ArgumentParser(description='SerpentVAE Model')
@@ -127,7 +86,7 @@ if __name__ == "__main__":
                                          )
   
   # Create our custom progress bar
-  progress_bar = ResumeAwareProgressBar(refresh_rate=1)
+  progress_bar = ResumableProgressBar(refresh_rate=1)
   
   trainer = pl.Trainer(devices= -1, # Configure to use all available devices
                        accelerator="gpu",
@@ -143,7 +102,7 @@ if __name__ == "__main__":
                                     checkpoint_callback, 
                                     memory_monitor,
                                     progress_bar],  # Add our custom progress bar
-                       fast_dev_run = 5
+                       fast_dev_run = None
                       )
 
 # trainer.fit(model = lightning_model, train_dataloaders = train_dataloader, val_dataloaders = val_dataloader)
