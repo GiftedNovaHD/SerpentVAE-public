@@ -136,6 +136,8 @@ def collate_video(batch):
         # Process the whole batch of frames at once
         batch_features_output = model.forward_features(frames_batch)
         
+        print(f"Batch features output shape: {batch_features_output.shape}")
+        
         # Apply forward_head to each frame's features
         if isinstance(batch_features_output, torch.Tensor):
           # If output is already a tensor, apply forward_head directly
