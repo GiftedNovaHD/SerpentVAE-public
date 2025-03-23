@@ -48,8 +48,12 @@ class BaseLightningSerpentVAE(pl.LightningModule):
     
   def on_save_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
     """Save dataloader state in the checkpoint for resumption"""
-    # Lightning automatically saves all attributes that are nn.Modules
-    # No need to manually save self.serpent_vae as it's handled by Lightning
+    # Things that are automatically saved by Lightning
+    # - Model state
+    # - Optimizer state
+    # - lr_scheduler state
+    # - Current epoch
+    # - Current global step = batch_idx + current_epoch * num_training_batches_per_epoch
     
     dataloader_states = {}
     
@@ -88,8 +92,6 @@ class BaseLightningSerpentVAE(pl.LightningModule):
       self._dataloader_states = checkpoint.pop("dataloader_states")
     else:
       self._dataloader_states = {}
-    
-    # No need to handle optimizer states - Lightning does this automatically
       
     return super().on_load_checkpoint(checkpoint)
       
