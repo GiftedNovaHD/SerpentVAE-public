@@ -129,7 +129,10 @@ def collate_video(batch):
           pil_img = Image.fromarray(frame)
           
           # Apply transforms and move to device
-          img_tensor = transforms(pil_img).unsqueeze(0).to(device)
+          img_tensor = transforms(pil_img).unsqueeze(0)
+          
+          # Convert to bfloat16 before sending to device to match model's dtype
+          img_tensor = img_tensor.to(device).to(torch.bfloat16)
           
           # Extract features using the LevIT model
           features = model.forward_features(img_tensor)
