@@ -14,7 +14,7 @@ from typing import Dict, Tuple
 from datasets import load_dataset, Video
 from torch.utils.data import DataLoader
 from einops import rearrange
-
+from functools import partial
 from train_utils.dataloaders.dataloader_utils import count_workers
 
 def read_video_pyav(container, indices): 
@@ -99,21 +99,14 @@ def get_image_model_and_transforms():
 
 
 # Move collate_video function outside of prep_video_dataset
-def collate_video(batch): 
+def collate_video(batch, _max_seq_len: int, _batch_size: int): 
   """
   Processes videos as sequences of images through the LevIT model and returns the features.
   Uses globally initialized model and transforms.
   """
-  global _max_seq_len
-  
-  # Add fallback value if _max_seq_len is None
-  if _max_seq_len is None:
-    _max_seq_len = 16  # Default fallback value
-    print("WARNING: _max_seq_len was None, using default value of 16")
-  
   transforms, model, device = get_image_model_and_transforms()
   
-  batch_features = [] 
+  batch_features = torch.tensor([]).to(device = torch.device("cpu")) 
 
   for sample in batch: 
     try:
@@ -161,6 +154,7 @@ def collate_video(batch):
         seq_len = reshaped_features.shape[0]
 
         if seq_len < _max_seq_len:
+          print(f"Padding sequence from {seq_len} to {_max_seq_len}")
           amount_to_pad = _max_seq_len - seq_len
 
           padding_tensor = torch.zeros(amount_to_pad, _feature_dim * _num_features, device = device, dtype = torch.bfloat16)
@@ -168,7 +162,7 @@ def collate_video(batch):
           reshaped_features = torch.cat((padding_tensor, reshaped_features), dim = 0)
 
         # Move to CPU to free GPU memory
-        batch_features.append(reshaped_features.cpu()) # Shape is (batch_size, unpadded_seq_len, feature_dim) NOTE: feature_dim is 6144
+        batch_features = torch.cat((batch_features, reshaped_features.cpu()), dim = 0) # Shape is (batch_size, padded/max_seq_len, feature_dim) NOTE: feature_dim is 6144
         
         
     except Exception as e:
@@ -181,7 +175,7 @@ def collate_video(batch):
     print("WARNING: All samples in batch failed processing, returning dummy tensor")
     # Create a dummy tensor with the correct shape
     # Shape: [batch_size, sequence_length, feature_dim]
-    dummy_tensor = torch.zeros((1, 16, _feature_dim), dtype=torch.float32)
+    dummy_tensor = torch.zeros((_batch_size, _max_seq_len, _num_features * _feature_dim), dtype=torch.float32)
     return dummy_tensor
     
   # Stack features if all have the same shape
@@ -215,13 +209,9 @@ def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader
     test_dataloader (DataLoader): The testing dataloader
     val_dataloader (DataLoader): The validation dataloader
   """
-
-  global _max_seq_len, _batch_size
-
   # Set the max_seq_len from config immediately at the beginning
-  _max_seq_len = config.get("max_seq_len", 17)  # Use default of 16 if not specified
-  _batch_size = config.get("batch_size", 33)    # Use default of 32 if not specified
-  print(f"Setting max_seq_len to {_max_seq_len} from config")
+  _max_seq_len = config["max_seq_len"]
+  _batch_size = config["batch_size"]
   
   # Initialize model and transforms once, outside the collate function
   # This avoids reloading for each batch
@@ -291,6 +281,8 @@ def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader
     
   print(f"Using {dataloader_num_workers} workers for data loading")
 
+  prepped_collate_video = partial(collate_video, _max_seq_len = _max_seq_len, _batch_size = _batch_size)
+
   # For iterable datasets, we can't use shuffle in the DataLoader
   # We'll rely on the dataset's built-in shuffling instead
   train_dataloader = DataLoader(
@@ -298,7 +290,7 @@ def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader
     batch_size = config["batch_size"],
     shuffle = False,  # Must be False for IterableDataset
     num_workers = dataloader_num_workers,
-    collate_fn = collate_video,
+    collate_fn = prepped_collate_video,
     prefetch_factor = 2 if dataloader_num_workers > 0 else None,  # Need this when workers > 0
     pin_memory = False    # Avoid unnecessary transfers
   )
@@ -308,7 +300,7 @@ def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader
     batch_size = config["batch_size"],
     shuffle = False, 
     num_workers = dataloader_num_workers, 
-    collate_fn = collate_video
+    collate_fn = prepped_collate_video
   )
   
   val_dataloader = DataLoader(
@@ -316,7 +308,7 @@ def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader
     batch_size = config["batch_size"],
     shuffle = False, 
     num_workers = dataloader_num_workers, 
-    collate_fn = collate_video
+    collate_fn = prepped_collate_video
   )
   
   return train_dataloader, test_dataloader, val_dataloader
