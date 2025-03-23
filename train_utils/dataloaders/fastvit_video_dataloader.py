@@ -162,7 +162,7 @@ def collate_video(batch, _max_seq_len: int, _batch_size: int):
           reshaped_features = torch.cat((padding_tensor, reshaped_features), dim = 0)
 
         # Move to CPU to free GPU memory
-        batch_features = torch.cat((batch_features, reshaped_features.cpu()), dim = 0) # Shape is (batch_size, unpadded_seq_len, feature_dim) NOTE: feature_dim is 6144
+        batch_features = torch.cat((batch_features, reshaped_features.cpu()), dim = 0) # Shape is (batch_size, padded/max_seq_len, feature_dim) NOTE: feature_dim is 6144
         
         
     except Exception as e:
