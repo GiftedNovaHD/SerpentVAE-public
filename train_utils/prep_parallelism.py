@@ -43,6 +43,8 @@ def prep_parallelism(config: Dict):
     strategy = DDPStrategy(process_group_backend='nccl')
   
   elif parallelism_config.upper() == "FSDP":
+    raise NotImplementedError("FSDP is not working yet")
+  
     def no_wrap_embedding_policy(module: nn.Module, 
                                  recurse: bool,
                                  nonwrapped_numel: int
