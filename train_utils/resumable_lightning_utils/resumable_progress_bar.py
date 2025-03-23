@@ -14,9 +14,10 @@ class ResumableProgressBar(TQDMProgressBar):
     print(f"Batch {batch_idx} started")
     print(f"Total training batches: {self.total_train_batches}")
 
+    print(type(self.total_train_batches))
 
-    self.train_progress_bar.reset(self.convert_inf(self.total_train_batches))
-    self._update_n(self.train_progress_bar, batch_idx)
+    #self.train_progress_bar.reset(self.convert_inf(self.total_train_batches))
+    #self._update_n(self.train_progress_bar, batch_idx)
 
   def convert_inf(x: Optional[Union[int, float]]) -> Optional[Union[int, float]]:
     """The tqdm doesn't support inf/nan values.
