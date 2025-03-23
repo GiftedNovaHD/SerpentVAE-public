@@ -289,7 +289,7 @@ def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader
     batch_size = config["batch_size"],
     shuffle = False,  # Must be False for IterableDataset
     num_workers = dataloader_num_workers,
-    collate_fn = collate_video,
+    collate_fn = prepped_collate_video,
     prefetch_factor = 2 if dataloader_num_workers > 0 else None,  # Need this when workers > 0
     pin_memory = False    # Avoid unnecessary transfers
   )
@@ -299,7 +299,7 @@ def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader
     batch_size = config["batch_size"],
     shuffle = False, 
     num_workers = dataloader_num_workers, 
-    collate_fn = collate_video
+    collate_fn = prepped_collate_video
   )
   
   val_dataloader = DataLoader(
@@ -307,7 +307,7 @@ def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader
     batch_size = config["batch_size"],
     shuffle = False, 
     num_workers = dataloader_num_workers, 
-    collate_fn = collate_video
+    collate_fn = prepped_collate_video
   )
   
   return train_dataloader, test_dataloader, val_dataloader
