@@ -194,7 +194,7 @@ def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader
           video_features = output.last_hidden_state.cpu()  # Move to CPU to free GPU memory
           features.append(video_features)
       except Exception as e:
-        print(f"Error processing video: {e}")
+        print(f"[Stable Video Dataloader][Collate Video] Error processing video: {e}")
         # Skip broken samples
         continue
 

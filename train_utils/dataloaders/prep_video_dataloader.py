@@ -165,7 +165,7 @@ def collate_video(batch, target_seq_len = None):
         video_features = output.last_hidden_state.cpu()  # Move to CPU to free GPU memory
         features.append(video_features)
     except Exception as e:
-      print(f"Error processing video: {e}")
+      print(f"[Collate Video][Video Dataloader] Error processing video: {e}")
       # Skip broken samples
       continue
 

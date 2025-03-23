@@ -172,7 +172,7 @@ def collate_video(batch):
         
         
     except Exception as e:
-      print(f"Error processing video: {e}")
+      print(f"[FastVIT] Error processing video: {e}")
       # Skip broken samples
       continue
 
