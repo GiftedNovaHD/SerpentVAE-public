@@ -140,6 +140,7 @@ def collate_video(batch):
         if isinstance(batch_features_output, torch.Tensor):
           # If output is already a tensor, apply forward_head directly
           sequence_features = model.forward_head(batch_features_output, pre_logits=True)
+          print(f"Sequence features shape: {sequence_features.shape}")
         else:
           # If output is a more complex structure, process according to model needs
           # This depends on your specific model architecture
