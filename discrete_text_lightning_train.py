@@ -80,7 +80,7 @@ if __name__ == "__main__":
                                         save_last = True
                                       )
   
-  memory_monitor = MemoryMonitorCallback(memory_limit_percent = 12.5,
+  memory_monitor = MemoryMonitorCallback(memory_limit_percent = 15.0,
                                          check_interval = 1,
                                          log_usage = False
                                          )
