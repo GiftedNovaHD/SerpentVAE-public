@@ -117,7 +117,7 @@ def collate_video(batch):
 
       # Sample frames
       indices = sample_frame_indices(
-        clip_len=12,  # Keep the same number of frames as before
+        clip_len=_max_seq_len,  # Keep the same number of frames as before
         frame_sample_rate=1,
         seg_len=video_stream.frames
       )
