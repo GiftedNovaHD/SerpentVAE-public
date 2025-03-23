@@ -9,12 +9,10 @@ class ResumableProgressBar(TQDMProgressBar):
     super().__init__(*args, **kwargs)
     
   def on_train_batch_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule, batch: Any, batch_idx: int) -> None:
-    print(f"Epoch {trainer.current_epoch} started")
-    print(f"Global step: {trainer.global_step}")
-    print(f"Batch {batch_idx} started")
-    print(f"Total training batches: {self.total_train_batches}")
-
-    print(type(self.total_train_batches))
+    #print(f"Epoch {trainer.current_epoch} started")
+    #print(f"Global step: {trainer.global_step}")
+    #print(f"Batch {batch_idx} started")
+    #print(f"Total training batches: {self.total_train_batches}")
 
     # Temporarily disable the bar during reset
     was_disabled = self.train_progress_bar.disable
