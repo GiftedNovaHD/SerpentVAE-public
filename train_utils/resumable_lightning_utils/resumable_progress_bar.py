@@ -29,7 +29,7 @@ def convert_inf(x: Optional[Union[int, float]]) -> Optional[Union[int, float]]:
     return None
   return x
   
-def _update_n(self, bar: _tqdm, value: int) -> None:
+def _update_n(bar: _tqdm, value: int) -> None:
   if not bar.disable:
       bar.n = value
       bar.refresh()
