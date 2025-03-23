@@ -21,7 +21,7 @@ class ResumableProgressBar(TQDMProgressBar):
     self.train_progress_bar.disable = True
     total = convert_inf(self.total_train_batches)
     self.train_progress_bar.reset(total=total)
-    
+
     _update_n(self.train_progress_bar, batch_idx)
     # Restore previous disable state
     self.train_progress_bar.disable = was_disabled
@@ -38,5 +38,5 @@ def convert_inf(x: Optional[Union[int, float]]) -> Optional[Union[int, float]]:
   
 def _update_n(bar: _tqdm, value: int) -> None:
   if not bar.disable:
-      bar.n = value
-      bar.refresh()
+    bar.n = value
+    bar.refresh()
