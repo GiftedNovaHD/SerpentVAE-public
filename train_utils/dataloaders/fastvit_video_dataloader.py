@@ -68,6 +68,7 @@ _num_features = 16
 _feature_dim = 384
 
 _max_seq_len = None
+_batch_size = None
 
 def get_image_model_and_transforms():
   """
@@ -102,6 +103,13 @@ def collate_video(batch):
   Processes videos as sequences of images through the LevIT model and returns the features.
   Uses globally initialized model and transforms.
   """
+  global _max_seq_len
+  
+  # Add fallback value if _max_seq_len is None
+  if _max_seq_len is None:
+    _max_seq_len = 16  # Default fallback value
+    print("WARNING: _max_seq_len was None, using default value of 16")
+  
   transforms, model, device = get_image_model_and_transforms()
   
   batch_features = [] 
@@ -207,11 +215,16 @@ def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader
     val_dataloader (DataLoader): The validation dataloader
   """
 
-  global _max_seq_len
+  global _max_seq_len, _batch_size
 
-  # Set the max_seq_len from config
-  _max_seq_len = config["max_seq_len"]
+  # Set the max_seq_len from config immediately at the beginning
+  _max_seq_len = config.get("max_seq_len", 16)  # Use default of 16 if not specified
+  _batch_size = config.get("batch_size", 32)    # Use default of 32 if not specified
   print(f"Setting max_seq_len to {_max_seq_len} from config")
+  
+  # Initialize model and transforms once, outside the collate function
+  # This avoids reloading for each batch
+  get_image_model_and_transforms()
   
   # Loading datasets 
   try:
@@ -267,10 +280,6 @@ def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader
     val_dataset = val_dataset.filter(is_desired_category)
     
     print(f"Filtered datasets to category: {desired_category}")
-
-  # Initialize model and transforms once, outside the collate function
-  # This avoids reloading for each batch
-  get_image_model_and_transforms()
   
   # Adjust number of workers to avoid overloading
   if config["dataloader_num_workers"] is None: 
