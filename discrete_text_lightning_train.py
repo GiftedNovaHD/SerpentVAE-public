@@ -68,8 +68,8 @@ if __name__ == "__main__":
 
   # Create model
   lightning_model = TextLightningSerpentVAE(config = config,
-                                        compile_model = config["compile_model"]
-                                       )
+                                            compile_model = config["compile_model"]
+                                           )
 
   # Create parallelism strategy
   parallelism_strategy = prep_parallelism(config = config)
@@ -80,7 +80,7 @@ if __name__ == "__main__":
                                         save_last = True
                                        )
   
-  memory_monitor = MemoryMonitorCallback(memory_limit_percent = 15.0,
+  memory_monitor = MemoryMonitorCallback(memory_limit_percent = 80.0,
                                          check_interval = 1,
                                          log_usage = False
                                         )
