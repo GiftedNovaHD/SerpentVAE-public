@@ -80,13 +80,13 @@ if __name__ == "__main__":
                                         save_last = True
                                       )
   
-  memory_monitor = MemoryMonitorCallback(memory_limit_percent = 20.0,
+  memory_monitor = MemoryMonitorCallback(memory_limit_percent = 12.5,
                                          check_interval = 1,
                                          log_usage = False
                                          )
   
   # Create our custom progress bar
-  progress_bar = ResumableProgressBar(refresh_rate=1)
+  progress_bar = TQDMProgressBar(refresh_rate=1)
   
   trainer = pl.Trainer(devices= -1, # Configure to use all available devices
                        accelerator="gpu",
