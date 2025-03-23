@@ -15,4 +15,4 @@ class ResumableProgressBar(TQDMProgressBar):
 
 
     self.train_progress_bar.reset(self.convert_inf(self.total_train_batches))
-    super()._update_n(self.train_progress_bar, batch_idx)
+    self._update_n(self.train_progress_bar, batch_idx)
