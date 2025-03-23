@@ -79,7 +79,8 @@ def get_image_model_and_transforms():
     _model = timm.create_model(
         'levit_128s.fb_dist_in1k',
         pretrained=True,
-        num_classes=0  # remove classifier nn.Linear
+        num_classes=0,  # remove classifier nn.Linear
+        global_pool=''   # disable global pooling to avoid unexpected keys
     )
     _model = _model.to(_device).to(torch.bfloat16)
     _model.eval()
@@ -89,6 +90,84 @@ def get_image_model_and_transforms():
     _transforms = timm.data.create_transform(**data_config, is_training=False)
     
   return _transforms, _model, _device
+
+
+# Move collate_video function outside of prep_video_dataset
+def collate_video(batch): 
+  """
+  Processes videos as sequences of images through the LevIT model and returns the features.
+  Uses globally initialized model and transforms.
+  """
+  transforms, model, device = get_image_model_and_transforms()
+  
+  batch_features = [] 
+
+  for sample in batch: 
+    try:
+      # Get video data - use 'avi' field instead of 'video'
+      video_data = sample['avi']
+
+      # Open video file directly from binary data
+      container = av.open(BytesIO(video_data))
+      video_stream = container.streams.video[0]
+
+      # Sample frames
+      indices = sample_frame_indices(
+        clip_len=16,  # Keep the same number of frames as before
+        frame_sample_rate=1,
+        seg_len=video_stream.frames
+      )
+
+      # Read frames
+      video_frames = read_video_pyav(container, indices)
+      
+      # Process each frame as an image
+      frame_features = []
+      with torch.no_grad():
+        for frame in video_frames:
+          # Convert numpy array to PIL Image
+          pil_img = Image.fromarray(frame)
+          
+          # Apply transforms and move to device
+          img_tensor = transforms(pil_img).unsqueeze(0).to(device)
+          
+          # Extract features using the LevIT model
+          features = model.forward_features(img_tensor)
+          
+          # Get single feature vector per frame
+          feature = model.forward_head(features, pre_logits=True)
+          
+          # Move to CPU to free GPU memory
+          frame_features.append(feature.cpu())
+        
+        # Stack all frame features to create a sequence
+        sequence_features = torch.cat(frame_features, dim=0)
+        batch_features.append(sequence_features)
+        
+    except Exception as e:
+      print(f"Error processing video: {e}")
+      # Skip broken samples
+      continue
+
+  # Handle case where all samples in the batch failed
+  if len(batch_features) == 0:
+    print("WARNING: All samples in batch failed processing, returning dummy tensor")
+    # Create a dummy tensor with the correct shape
+    # Shape: [batch_size, sequence_length, feature_dim]
+    dummy_tensor = torch.zeros((1, 16, _feature_dim), dtype=torch.float32)
+    return dummy_tensor
+    
+  # Stack features if all have the same shape
+  if all(f.shape == batch_features[0].shape for f in batch_features): 
+    stacked_features = torch.stack(batch_features)
+    # Add channel dimension to match the expected shape [batch_size, 1, sequence_length, feature_dim]
+    stacked_features = stacked_features.unsqueeze(1)
+    return stacked_features
+  else:
+    # Shapes are different, log details
+    print(f"WARNING: Inconsistent shapes in batch: {[f.shape for f in batch_features]}")
+    # Return just the first feature reshaped to look like a batch of 1
+    return batch_features[0].unsqueeze(0).unsqueeze(0)
 
 
 def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader]: 
@@ -167,82 +246,6 @@ def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader
   # Initialize model and transforms once, outside the collate function
   # This avoids reloading for each batch
   get_image_model_and_transforms()
-
-  def collate_video(batch): 
-    """
-    Processes videos as sequences of images through the LevIT model and returns the features.
-    Uses globally initialized model and transforms.
-    """
-    transforms, model, device = get_image_model_and_transforms()
-    
-    batch_features = [] 
-
-    for sample in batch: 
-      try:
-        # Get video data - use 'avi' field instead of 'video'
-        video_data = sample['avi']
-
-        # Open video file directly from binary data
-        container = av.open(BytesIO(video_data))
-        video_stream = container.streams.video[0]
-
-        # Sample frames
-        indices = sample_frame_indices(
-          clip_len=16,  # Keep the same number of frames as before
-          frame_sample_rate=1,
-          seg_len=video_stream.frames
-        )
-
-        # Read frames
-        video_frames = read_video_pyav(container, indices)
-        
-        # Process each frame as an image
-        frame_features = []
-        with torch.no_grad():
-          for frame in video_frames:
-            # Convert numpy array to PIL Image
-            pil_img = Image.fromarray(frame)
-            
-            # Apply transforms and move to device
-            img_tensor = transforms(pil_img).unsqueeze(0).to(device)
-            
-            # Extract features using the LevIT model
-            features = model.forward_features(img_tensor)
-            
-            # Get single feature vector per frame
-            feature = model.forward_head(features, pre_logits=True)
-            
-            # Move to CPU to free GPU memory
-            frame_features.append(feature.cpu())
-          
-          # Stack all frame features to create a sequence
-          sequence_features = torch.cat(frame_features, dim=0)
-          batch_features.append(sequence_features)
-          
-      except Exception as e:
-        print(f"Error processing video: {e}")
-        # Skip broken samples
-        continue
-
-    # Handle case where all samples in the batch failed
-    if len(batch_features) == 0:
-      print("WARNING: All samples in batch failed processing, returning dummy tensor")
-      # Create a dummy tensor with the correct shape
-      # Shape: [batch_size, sequence_length, feature_dim]
-      dummy_tensor = torch.zeros((1, 16, _feature_dim), dtype=torch.float32)
-      return dummy_tensor
-      
-    # Stack features if all have the same shape
-    if all(f.shape == batch_features[0].shape for f in batch_features): 
-      stacked_features = torch.stack(batch_features)
-      # Add channel dimension to match the expected shape [batch_size, 1, sequence_length, feature_dim]
-      stacked_features = stacked_features.unsqueeze(1)
-      return stacked_features
-    else:
-      # Shapes are different, log details
-      print(f"WARNING: Inconsistent shapes in batch: {[f.shape for f in batch_features]}")
-      # Return just the first feature reshaped to look like a batch of 1
-      return batch_features[0].unsqueeze(0).unsqueeze(0)
   
   # Adjust number of workers to avoid overloading
   if config["dataloader_num_workers"] is None: 
@@ -261,7 +264,7 @@ def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader
     shuffle = False,  # Must be False for IterableDataset
     num_workers = dataloader_num_workers,
     collate_fn = collate_video,
-    prefetch_factor = None,  # Reduce memory usage
+    prefetch_factor = 2 if dataloader_num_workers > 0 else None,  # Need this when workers > 0
     pin_memory = False    # Avoid unnecessary transfers
   )
   
@@ -292,4 +295,4 @@ def count_workers() -> int:
     
     return vCPUs
   except Exception as e: 
-    return 1 
+    return 1
