@@ -135,6 +135,10 @@ def collate_video(batch):
         print(f"Frames batch shape: {frames_batch.shape}")
         
         # Process the whole batch of frames at once
+        batch_features_output = model(frames_batch)
+        
+        print(f"Batch features output shape: {batch_features_output.shape}")
+
         batch_features_output = model.forward_features(frames_batch)
         
         print(f"Batch features output shape: {batch_features_output.shape}")
