@@ -102,6 +102,7 @@ def collate_video(batch):
   Processes videos as sequences of images through the LevIT model and returns the features.
   Uses globally initialized model and transforms.
   """
+  global _max_seq_len
   transforms, model, device = get_image_model_and_transforms()
   
   batch_features = [] 
@@ -199,6 +200,7 @@ def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader
       - "desired_category" (str): The category to filter by
       - "batch_size" (int): Batch size for dataloaders
       - "dataloader_num_workers" (int or None): Number of workers for dataloading
+      - "max_seq_len" (int): Maximum sequence length for video frames
 
   Returns: 
     train_dataloader (DataLoader): The training dataloader
@@ -208,7 +210,9 @@ def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader
 
   global _max_seq_len
 
+  # Set the max_seq_len from config
   _max_seq_len = config["max_seq_len"]
+  print(f"Setting max_seq_len to {_max_seq_len} from config")
   
   # Loading datasets 
   try:
