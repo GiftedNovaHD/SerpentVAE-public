@@ -1157,7 +1157,7 @@ class SerpentVAE(nn.Module):
     
     if self.discrete_input == True:
       recon_loss_bits = (reconstruction_error * torch.log2(torch.exp(torch.tensor([1], device = self.device, dtype = self.dtype))))
-      bits_per_byte = (recon_loss_bits/(torch.log2(torch.tensor([129280], device = self.device, dtype = self.dtype))/3))
+      bits_per_byte = (recon_loss_bits/(torch.log2(torch.tensor([self.vocab_size], device = self.device, dtype = self.dtype))/3))
 
     # Calculate the full mutual information
     full_mutual_info = self.statistical_mi(mu = dedup_mu,
@@ -1289,7 +1289,7 @@ class SerpentVAE(nn.Module):
       print(f"Perplexity: {torch.exp(reconstruction_loss).item()}")
 
       recon_loss_bits = (reconstruction_loss * torch.log2(torch.exp(torch.tensor([1], device = self.device, dtype = self.dtype))))
-      bits_per_byte = (recon_loss_bits/(torch.log2(torch.tensor([129280], device = self.device, dtype = self.dtype))/3))
+      bits_per_byte = (recon_loss_bits/(torch.log2(torch.tensor([self.vocab_size], device = self.device, dtype = self.dtype))/3))
 
       print(f"Bits per byte: {bits_per_byte.item()}")
 
