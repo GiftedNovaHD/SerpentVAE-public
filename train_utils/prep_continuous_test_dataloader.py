@@ -5,7 +5,7 @@ import torch
 from typing import Dict, Tuple
 from torch.utils.data import DataLoader, TensorDataset
 
-from train_utils.resumable_dataset import ResumableDataLoader
+from train_utils.resumable_lightning_utils.resumable_lightning_dataloader import ResumableDataLoader
 
 def prep_continuous_test_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader]:
   """
