@@ -3,6 +3,8 @@ import psutil
 import torch 
 import av
 import numpy as np
+import timm # Replace VideoMAE imports with timm
+
 
 from io import BytesIO
 
@@ -13,8 +15,7 @@ from datasets import load_dataset, Video
 from torch.utils.data import DataLoader
 from einops import rearrange
 
-# Replace VideoMAE imports with timm
-import timm
+from train_utils.dataloaders.dataloader_utils import count_workers
 
 def read_video_pyav(container, indices): 
   """
@@ -310,14 +311,3 @@ def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader
   )
   
   return train_dataloader, test_dataloader, val_dataloader
-  
-def count_workers() -> int: 
-  try: 
-    vCPUs = os.cpu_count() 
-
-    if vCPUs is None: 
-      vCPUs = psutil.cpu_count(logical = False)
-    
-    return vCPUs
-  except Exception as e: 
-    return 1
