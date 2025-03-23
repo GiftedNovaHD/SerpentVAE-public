@@ -175,7 +175,7 @@ def collate_video(batch, _max_seq_len: int, _batch_size: int):
     print("WARNING: All samples in batch failed processing, returning dummy tensor")
     # Create a dummy tensor with the correct shape
     # Shape: [batch_size, sequence_length, feature_dim]
-    dummy_tensor = torch.zeros((1, 16, _feature_dim), dtype=torch.float32)
+    dummy_tensor = torch.zeros((_batch_size, _max_seq_len, _num_features * _feature_dim), dtype=torch.float32)
     return dummy_tensor
     
   # Stack features if all have the same shape
