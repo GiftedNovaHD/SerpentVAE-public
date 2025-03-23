@@ -2,6 +2,7 @@ import pytorch_lightning as pl
 from typing import Any, Optional, Union
 import math
 from lightning.pytorch.callbacks import TQDMProgressBar
+import tqdm as _tqdm
 
 class ResumableProgressBar(TQDMProgressBar):
   def __init__(self, *args, **kwargs):
@@ -16,3 +17,18 @@ class ResumableProgressBar(TQDMProgressBar):
 
     self.train_progress_bar.reset(self.convert_inf(self.total_train_batches))
     self._update_n(self.train_progress_bar, batch_idx)
+
+  def convert_inf(x: Optional[Union[int, float]]) -> Optional[Union[int, float]]:
+    """The tqdm doesn't support inf/nan values.
+
+    We have to convert it to None.
+
+    """
+    if x is None or math.isinf(x) or math.isnan(x):
+        return None
+    return x
+  
+  def _update_n(bar: _tqdm, value: int) -> None:
+    if not bar.disable:
+        bar.n = value
+        bar.refresh()
