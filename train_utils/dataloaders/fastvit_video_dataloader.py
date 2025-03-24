@@ -119,7 +119,7 @@ def collate_video(batch, _max_seq_len: int, _batch_size: int, _dtype: torch.dtyp
 
   for sample_idx, sample in enumerate(batch): 
     try:
-      print(f"Processing sample {sample_idx}")
+      #print(f"Processing sample {sample_idx}")
       # Get video data - use 'avi' field instead of 'video'
       video_data = sample['avi']
 
@@ -127,8 +127,8 @@ def collate_video(batch, _max_seq_len: int, _batch_size: int, _dtype: torch.dtyp
       container = av.open(BytesIO(video_data))
       video_stream = container.streams.video[0]
       
-      print(f"Max sequence length: {_max_seq_len}")
-      print(f"Video stream frames: {video_stream.frames}")
+      #print(f"Max sequence length: {_max_seq_len}")
+      #print(f"Video stream frames: {video_stream.frames}")
 
       # Sample frames
       indices = sample_frame_indices(
@@ -136,11 +136,11 @@ def collate_video(batch, _max_seq_len: int, _batch_size: int, _dtype: torch.dtyp
         frame_sample_rate=1,
         seg_len=video_stream.frames
       )
-      print(f"Sampled indices: {indices}")
+      #print(f"Sampled indices: {indices}")
 
       # Read frames
       video_frames = read_video_pyav(container, indices)
-      print(f"Read {len(video_frames)} frames")
+      #print(f"Read {len(video_frames)} frames")
       
       # Process all frames in a single batch
       with torch.no_grad():
@@ -161,28 +161,28 @@ def collate_video(batch, _max_seq_len: int, _batch_size: int, _dtype: torch.dtyp
             
         # Stack all frames into a single batch tensor [num_frames, channels, height, width]
         frames_batch = torch.stack(transformed_frames).to(device).to(torch.bfloat16)
-        print(f"Frames batch shape: {frames_batch.shape}")
+        #print(f"Frames batch shape: {frames_batch.shape}")
         
         # Process the whole batch of frames at once
         sequence_features = model(frames_batch) # Shape is (unpadded_seq_len, num_features, feature_dim)
         
-        print(f"Sequence features shape: {sequence_features.shape}")
+        #print(f"Sequence features shape: {sequence_features.shape}")
 
         reshaped_features = rearrange(sequence_features, "seq_len num_features feature_dim -> seq_len (num_features feature_dim)")
 
-        print(f"Reshaped features shape: {reshaped_features.shape}")
+        #print(f"Reshaped features shape: {reshaped_features.shape}")
 
         seq_len = reshaped_features.shape[0]
 
         if seq_len < _max_seq_len:
-          print(f"Padding sequence from {seq_len} to {_max_seq_len}")
+          #print(f"Padding sequence from {seq_len} to {_max_seq_len}")
           amount_to_pad = _max_seq_len - seq_len
 
           padding_tensor = torch.zeros(amount_to_pad, _feature_dim * _num_features, device = device, dtype = torch.bfloat16)
 
           reshaped_features = torch.cat((padding_tensor, reshaped_features), dim = 0)
 
-          print(f"Reshaped features shape after padding: {reshaped_features.shape}")
+          #print(f"Reshaped features shape after padding: {reshaped_features.shape}")
 
         # Move to CPU to free GPU memory
         batch_features = torch.cat((batch_features, reshaped_features.cpu().unsqueeze(0)), dim = 0) # Shape is (batch_size, padded/max_seq_len, feature_dim) NOTE: feature_dim is 6144
@@ -207,15 +207,15 @@ def collate_video(batch, _max_seq_len: int, _batch_size: int, _dtype: torch.dtyp
     # Pad the batch features with zeros to match the expected batch size
     num_sequences_to_pad = _batch_size - batch_features.size(0)
 
-    print(f"Padding {num_sequences_to_pad} sequences with zeros")
+    #print(f"Padding {num_sequences_to_pad} sequences with zeros")
 
     padding_tensor = torch.zeros((num_sequences_to_pad, _max_seq_len, _num_features * _feature_dim), dtype= _dtype)
 
-    print(f"Padding tensor shape: {padding_tensor.shape}")
+    #print(f"Padding tensor shape: {padding_tensor.shape}")
 
     batch_features = torch.cat((batch_features, padding_tensor), dim = 0)
 
-    print(f"Batch features shape after padding: {batch_features.shape}")
+    #print(f"Batch features shape after padding: {batch_features.shape}")
 
     return batch_features
   
