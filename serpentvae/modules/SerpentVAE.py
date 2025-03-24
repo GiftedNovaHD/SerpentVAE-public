@@ -214,8 +214,16 @@ class SerpentVAE(nn.Module):
                                           )
 
     # Instantiate boundary operator
-    boundary_operator_name = list(boundary_operator_config.keys())[0]
-    boundary_operator_kwargs = list(boundary_operator_config.values())[0]
+    if type(boundary_operator_config) == dict:
+      boundary_operator_name = list(boundary_operator_config.keys())[0]
+      boundary_operator_kwargs = list(boundary_operator_config.values())[0]
+
+    elif type(boundary_operator_config) == str: # Case where boundary operator has no kwargs
+      boundary_operator_name = boundary_operator_config
+      boundary_operator_kwargs = {}
+
+    else:
+      raise ValueError(f"Invalid boundary operator configuration: {boundary_operator_config}")
 
     self.boundary_operator = create_boundary_module(boundary_operator_name = boundary_operator_name,
                                                     boundary_operator_kwargs = boundary_operator_kwargs,
