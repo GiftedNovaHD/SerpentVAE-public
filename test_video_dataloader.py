@@ -23,7 +23,7 @@ if __name__ == "__main__":
             print("CUDA is not available, using CPU")
         
         config = load_config("video_debug_config")
-        print(f"Loaded config: {config}")
+        #print(f"Loaded config: {config}")
         
         # Ensure config has device property
         if "device" not in config:
@@ -41,6 +41,9 @@ if __name__ == "__main__":
                 print(f"Batch shape: {batch.shape}")
                 print(f"Batch dtype: {batch.dtype}")
                 print(f"Batch device: {batch.device}")
+
+                for batch_feature in batch:
+                    print(batch_feature)
                 # Only process one batch
                 break
             except Exception as e:
