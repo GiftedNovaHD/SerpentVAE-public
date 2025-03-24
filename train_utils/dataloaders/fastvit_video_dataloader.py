@@ -55,16 +55,18 @@ def sample_frame_indices(clip_len, frame_sample_rate, seg_len):
   converted_len = int(clip_len * frame_sample_rate)
 
   if converted_len > seg_len: # This means the clip is longer than the video
-    number_of_frames = seg_len // frame_sample_rate
-    indices = np.linspace(0, seg_len - 1, num = number_of_frames)
+    number_of_frames = seg_len // frame_sample_rate # The total number of frames to sample that we can get from the video
+    indices = np.linspace(0, seg_len - 1, num = number_of_frames) # This outputs a list of floats
+    indices = np.clip(indices, 0, seg_len - 1).astype(np.int64) # This clips the values to be within the range of the video and be integers
 
   else:
     end_idx = np.random.randint(converted_len, seg_len)
     start_idx = end_idx - converted_len
     indices = np.linspace(start_idx, end_idx, num=clip_len)
-    print(f"Indices: {indices}")
+    #print(f"Indices: {indices}")
     indices = np.clip(indices, start_idx, end_idx - 1).astype(np.int64)
-    print(f"Clipped indices: {indices}")
+    #print(f"Clipped indices: {indices}")
+
   return indices
 
 
