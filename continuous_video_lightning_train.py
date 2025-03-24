@@ -3,7 +3,6 @@ Implementation of a Lightning module for training SerpentVAE, using Fully-Sharde
 
 For multi-node strategy, it is advisable to use torchrun instead of torch.distributed.launch, as well as SLURM scripts that sets the appropriate group variables. 
 """
-import os
 import argparse
 import multiprocessing
 import torch
@@ -19,6 +18,7 @@ from train_utils.prep_parallelism import prep_parallelism
 from train_utils.dataloaders.fastvit_video_dataloader import prep_video_dataset
 from train_utils.resumable_lightning_utils.memory_monitor_callback import MemoryMonitorCallback
 from train_utils.resumable_lightning_utils.resumable_progress_bar import ResumableProgressBar
+from train_utils.checkpoint_utils import find_latest_checkpoint
 
 def init_worker():
   """Initialize worker process with CUDA"""
@@ -98,25 +98,8 @@ if __name__ == "__main__":
                        fast_dev_run = 5 if config["is_debug"] else None
                       )
   
-  # Ensure the training directory exists
-  if not os.path.exists(config["training_path"]):
-    print(f"Creating checkpoint directory: {config['training_path']}")
-    os.makedirs(config["training_path"], exist_ok  = True)
-  
-  checkpoint_path = os.path.join(config["training_path"], "last.ckpt") # Default path
-
-  # Check if 'last.ckpt' exists, if not find the latest .ckpt file
-  if not os.path.exists(checkpoint_path):
-    # Find all .ckpt files in the training directory
-    checkpoint_files = [f for f in os.listdir(config["training_path"]) if f.endswith(".ckpt")]
-
-    if checkpoint_files:
-      # Get the most recently modified checkpoint file
-      checkpoint_path = os.path.join(config["training_path"], max(checkpoint_files, key=lambda f: os.path.getmtime(os.path.join(config["training_path"], f))))
-      print(f"Resuming from latest checkpoint: {checkpoint_path}")
-    else:
-      print("No checkpoint found. Starting from scratch.")
-      checkpoint_path = None  # Or handle the case where no checkpoint exists
+  # Find the latest checkpoint
+  checkpoint_path = find_latest_checkpoint(config["training_path"])
 
   trainer.fit(model = lightning_model,
               train_dataloaders = train_dataloader, 
