@@ -27,11 +27,11 @@ from torch.amp import autocast
 from serpentvae.modules.LightningSerpentVAE.VideoLightningSerpentVAE import VideoLightningSerpentVAE
 from train_utils.config_utils import load_config # For loading configs
 from train_utils.prep_parallelism import prep_parallelism
-from train_utils.dataloaders.prep_video_dataloader import prep_video_dataset
+from train_utils.dataloaders.fastvit_video_dataloader import prep_video_dataset
 
 if __name__ == "__main__":
   parser = argparse.ArgumentParser(description='SerpentVAE Model')
-  parser.add_argument('--config', type=str, default='debug_config',help='Choose with experiment configuration to use')
+  parser.add_argument('--config', type=str, default='video_debug_config',help='Choose with experiment configuration to use')
 
   # This argument is provided automatically when using torch.distributed.launch or torchrun
   # parser.add_argument('--local_rank', type=int, default=0, help='Local rank for distributed training')
