@@ -117,8 +117,9 @@ def collate_video(batch, _max_seq_len: int, _batch_size: int, _dtype: torch.dtyp
   
   batch_features = torch.tensor([]).to(device = torch.device("cpu")) 
 
-  for sample in batch: 
+  for sample_idx, sample in enumerate(batch): 
     try:
+      print(f"Processing sample {sample_idx}")
       # Get video data - use 'avi' field instead of 'video'
       video_data = sample['avi']
 
@@ -127,6 +128,7 @@ def collate_video(batch, _max_seq_len: int, _batch_size: int, _dtype: torch.dtyp
       video_stream = container.streams.video[0]
       
       print(f"Max sequence length: {_max_seq_len}")
+      print(f"Video stream frames: {video_stream.frames}")
 
       # Sample frames
       indices = sample_frame_indices(
@@ -134,19 +136,29 @@ def collate_video(batch, _max_seq_len: int, _batch_size: int, _dtype: torch.dtyp
         frame_sample_rate=1,
         seg_len=video_stream.frames
       )
+      print(f"Sampled indices: {indices}")
 
       # Read frames
       video_frames = read_video_pyav(container, indices)
+      print(f"Read {len(video_frames)} frames")
       
       # Process all frames in a single batch
       with torch.no_grad():
         # Convert all frames to PIL and apply transforms
         transformed_frames = []
-        for frame in video_frames:
-          pil_img = Image.fromarray(frame)
-          transformed_frame = transforms(pil_img)
-          transformed_frames.append(transformed_frame)
+        for frame_idx, frame in enumerate(video_frames):
+          try:
+            pil_img = Image.fromarray(frame)
+            transformed_frame = transforms(pil_img)
+            transformed_frames.append(transformed_frame)
+          except Exception as e:
+            print(f"Error processing frame {frame_idx}: {e}")
+            continue
         
+        if not transformed_frames:
+          print(f"Warning: No frames were successfully transformed for sample {sample_idx}")
+          continue
+            
         # Stack all frames into a single batch tensor [num_frames, channels, height, width]
         frames_batch = torch.stack(transformed_frames).to(device).to(torch.bfloat16)
         print(f"Frames batch shape: {frames_batch.shape}")
@@ -175,21 +187,31 @@ def collate_video(batch, _max_seq_len: int, _batch_size: int, _dtype: torch.dtyp
         # Move to CPU to free GPU memory
         batch_features = torch.cat((batch_features, reshaped_features.cpu()), dim = 0) # Shape is (batch_size, padded/max_seq_len, feature_dim) NOTE: feature_dim is 6144
         
-        
     except Exception as e:
-      print(f"[FastVIT] Error processing video: {e}")
+      print(f"[FastVIT] Error processing video sample {sample_idx}: {str(e)}")
+      import traceback
+      print(f"Traceback: {traceback.format_exc()}")
       # Skip broken samples
       continue
 
-  # Handle case where all samples in the batch failed
-  if len(batch_features) == 0:
+  if batch_features.size(0) == 0: # All samples in batch failed processing
     print("WARNING: All samples in batch failed processing, returning dummy tensor")
     # Create a dummy tensor with the correct shape
     # Shape: [batch_size, sequence_length, feature_dim]
     dummy_tensor = torch.zeros((_batch_size, _max_seq_len, _num_features * _feature_dim), dtype= _dtype)
+    
     return dummy_tensor
   
-  else:
+  elif batch_features.size(0) != _batch_size: # Some samples in batch failed processing
+    print(f"WARNING: Batch size is not equal to the expected batch size. Expected: {_batch_size}, Got: {batch_features.size(0)}")
+    # Pad the batch features with zeros to match the expected batch size
+    num_sequences_to_pad = _batch_size - batch_features.size(0)
+    padding_tensor = torch.zeros((num_sequences_to_pad, _max_seq_len, _num_features * _feature_dim), dtype= _dtype)
+    batch_features = torch.cat((batch_features, padding_tensor), dim = 0)
+
+    return batch_features
+  
+  else: # All samples in batch processed successfully
     return batch_features
 
 def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader]: 
