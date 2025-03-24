@@ -3,6 +3,7 @@ dataset_path: "aisuko/ucf101-subset"
 dataset_name: 
 num_epochs: 10
 eval_freq: 0.001
+checkpoint_freq: 5
 model_save_folder_path: "video-debug-model-ckpt"
 metrics_save_folder_path: "video-debug-metrics-ckpt"
 training_path: "video-debug-train-ckpt"
