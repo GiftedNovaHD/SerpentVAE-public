@@ -13,7 +13,8 @@ class ConceptMixer(nn.Module):
                hidden_dim: int, 
                concept_dim: int,
                device: torch.device = None,
-               dtype: torch.dtype = None):
+               dtype: torch.dtype = None
+               ):
     """
       hidden_dim: dimension of the hidden token
       concept_dim: dimension of the concept token
