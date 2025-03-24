@@ -185,7 +185,7 @@ def collate_video(batch, _max_seq_len: int, _batch_size: int, _dtype: torch.dtyp
           print(f"Reshaped features shape after padding: {reshaped_features.shape}")
 
         # Move to CPU to free GPU memory
-        batch_features = torch.cat((batch_features, reshaped_features.cpu()), dim = 0) # Shape is (batch_size, padded/max_seq_len, feature_dim) NOTE: feature_dim is 6144
+        batch_features = torch.cat((batch_features, reshaped_features.cpu().unsqueeze(0)), dim = 0) # Shape is (batch_size, padded/max_seq_len, feature_dim) NOTE: feature_dim is 6144
         
     except Exception as e:
       print(f"[FastVIT] Error processing video sample {sample_idx}: {str(e)}")
