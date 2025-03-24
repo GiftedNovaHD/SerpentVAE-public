@@ -12,7 +12,7 @@ class ResumableDataset(Dataset):
 
   We are providing map-style datasets with a `state_dict` and `load_state_dict` method.
 
-  We act as a pass-through for iterable datasets.
+  We convert iterable datasets to map-style datasets. This is done so that it is easier to work with distributed training strategies.
 
   Args:
     dataset (Union[IterableDataset, List[Any]]): A dataset to wrap.
@@ -25,18 +25,17 @@ class ResumableDataset(Dataset):
 
     if isinstance(dataset, datasets.IterableDataset):
       self.dataset = dataset.with_format("torch")
-      self.is_iterable_dataset = True
-      
-      # Get the length of the dataset
-      size = collections.deque(enumerate(self.dataset, 1), maxlen=1)
-      self.len_dataset = size[0][0] if size else 0
 
-      print("Converting to torch IterableDataset")
+      self.dataset = list(self.dataset)
 
-      assert isinstance(self.dataset, torch.utils.data.IterableDataset), "Dataset must be an instance of IterableDataset"
+      self.len_dataset = len(self.dataset)
+
+    elif isinstance(dataset, torch.utils.data.IterableDataset):
+      self.dataset = list(dataset)
+
+      self.len_dataset = len(self.dataset)
     else:
       self.dataset = dataset
-      self.is_iterable_dataset = False
 
       self.len_dataset = len(self.dataset)
   
@@ -44,27 +43,18 @@ class ResumableDataset(Dataset):
     return self.len_dataset
     
   def __getitem__(self, idx):
-    if not self.is_iterable_dataset:
-      return self.dataset[idx]
-    else:
-      return self.dataset
+    return self.dataset[idx]
   
   def state_dict(self) -> Dict[str, Any]:
     """
     Return the current state of the dataset for resumption.
     """
-    if not self.is_iterable_dataset:
-      return {
-        "current_index": self._current_index
-      }
-    else:
-      return self.dataset.state_dict()
+    return {
+      "current_index": self._current_index
+    }
     
   def load_state_dict(self, state_dict: Dict[str, Any]) -> None:
     """
     Restore the dataset state from a previously saved state_dict.
     """
-    if not self.is_iterable_dataset:
-      self._current_index = state_dict.get("current_index", 0)
-    else:
-      self.dataset.load_state_dict(state_dict)
+    self._current_index = state_dict.get("current_index", 0)
