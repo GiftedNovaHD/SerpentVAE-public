@@ -206,8 +206,16 @@ def collate_video(batch, _max_seq_len: int, _batch_size: int, _dtype: torch.dtyp
     print(f"WARNING: Batch size is not equal to the expected batch size. Expected: {_batch_size}, Got: {batch_features.size(0)}")
     # Pad the batch features with zeros to match the expected batch size
     num_sequences_to_pad = _batch_size - batch_features.size(0)
+
+    print(f"Padding {num_sequences_to_pad} sequences with zeros")
+
     padding_tensor = torch.zeros((num_sequences_to_pad, _max_seq_len, _num_features * _feature_dim), dtype= _dtype)
+
+    print(f"Padding tensor shape: {padding_tensor.shape}")
+
     batch_features = torch.cat((batch_features, padding_tensor), dim = 0)
+
+    print(f"Batch features shape after padding: {batch_features.shape}")
 
     return batch_features
   
