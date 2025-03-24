@@ -13,9 +13,6 @@ import lightning as pl
 # Modify checkpointing behavior for PyTorch Lightning
 from lightning.pytorch.callbacks import ModelCheckpoint, ModelSummary
 
-# PyTorch Automatic Mixed Precision (AMP)
-from torch.amp import autocast
-
 from serpentvae.modules.LightningSerpentVAE.ContinuousTestLightningSerpentVAE import ContinuousTestLightningSerpentVAE
 from train_utils.config_utils import load_config # For loading configs
 from train_utils.dataloaders.prep_continuous_test_dataloader import prep_continuous_test_dataset

@@ -12,10 +12,11 @@ from PIL import Image
 
 from typing import Dict, Tuple
 from datasets import load_dataset, Video
-from torch.utils.data import DataLoader
 from einops import rearrange
 from functools import partial
+
 from train_utils.dataloaders.dataloader_utils import count_workers
+from train_utils.resumable_lightning_utils.resumable_lightning_dataloader import ResumableDataLoader
 
 def read_video_pyav(container, indices): 
   """
@@ -233,7 +234,7 @@ def collate_video(batch, _max_seq_len: int, _batch_size: int, _dtype: torch.dtyp
   else: # All samples in batch processed successfully
     return batch_features
 
-def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader]: 
+def prep_video_dataset(config: Dict) -> Tuple[ResumableDataLoader, ResumableDataLoader, ResumableDataLoader]: 
   """
   Takes in the configuration and returns dataloaders for the training, testing and validation datasets.
   
@@ -327,33 +328,30 @@ def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader
 
   # For iterable datasets, we can't use shuffle in the DataLoader
   # We'll rely on the dataset's built-in shuffling instead
-  train_dataloader = DataLoader(
-    dataset = train_dataset, 
-    batch_size = config["batch_size"],
-    shuffle = False,  # Must be False for IterableDataset
-    num_workers = dataloader_num_workers,
-    collate_fn = prepped_collate_video,
-    persistent_workers = True if dataloader_num_workers > 0 else False,
-    prefetch_factor = 2 if dataloader_num_workers > 0 else None,  # Need this when workers > 0
-    pin_memory = False    # Avoid unnecessary transfers
-  )
+  train_dataloader = ResumableDataLoader(dataset = train_dataset, 
+                                         batch_size = config["batch_size"],
+                                         shuffle = False,  # Must be False for IterableDataset
+                                         num_workers = dataloader_num_workers,
+                                         collate_fn = prepped_collate_video,
+                                         persistent_workers = True if dataloader_num_workers > 0 else False,
+                                         prefetch_factor = 2 if dataloader_num_workers > 0 else None,  # Need this when workers > 0
+                                         pin_memory = False    # Avoid unnecessary transfers
+                                        )
   
-  test_dataloader = DataLoader(
-    dataset = test_dataset, 
-    batch_size = config["batch_size"],
-    shuffle = False, 
-    num_workers = dataloader_num_workers, 
-    collate_fn = prepped_collate_video,
-    persistent_workers = True if dataloader_num_workers > 0 else False
-  )
+  test_dataloader = ResumableDataLoader(dataset = test_dataset, 
+                                        batch_size = config["batch_size"],
+                                        shuffle = False, 
+                                        num_workers = dataloader_num_workers, 
+                                        collate_fn = prepped_collate_video,
+                                        persistent_workers = True if dataloader_num_workers > 0 else False
+                                       )
   
-  val_dataloader = DataLoader(
-    dataset = val_dataset, 
-    batch_size = config["batch_size"],
-    shuffle = False, 
-    num_workers = dataloader_num_workers, 
-    collate_fn = prepped_collate_video,
-    persistent_workers = True if dataloader_num_workers > 0 else False
-  )
+  val_dataloader = ResumableDataLoader(dataset = val_dataset, 
+                                       batch_size = config["batch_size"],
+                                       shuffle = False, 
+                                       num_workers = dataloader_num_workers, 
+                                       collate_fn = prepped_collate_video,
+                                       persistent_workers = True if dataloader_num_workers > 0 else False
+                                      )
   
   return train_dataloader, test_dataloader, val_dataloader

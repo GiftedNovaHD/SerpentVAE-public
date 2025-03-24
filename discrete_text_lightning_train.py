@@ -5,29 +5,14 @@ For multi-node strategy, it is advisable to use torchrun instead of torch.distri
 """
 import os
 import argparse
-import itertools 
-from tqdm import tqdm 
-import json
-from typing import Tuple, Dict
-import glob
-import re
+
 
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim 
-from torch.optim import Optimizer
-from torch import random
-from torch.utils.data import DataLoader
 
 # For cleaner training loops
 import lightning as pl
 # Modify checkpointing behaviour for pytorch lightning
 from lightning.pytorch.callbacks import ModelSummary, ModelCheckpoint
-from lightning.pytorch.callbacks import TQDMProgressBar
-
-# PyTorch Automatic Mixed Precision (AMP)
-from torch.amp import autocast
 
 from serpentvae.modules.LightningSerpentVAE.TextLightningSerpentVAE import TextLightningSerpentVAE
 from train_utils.config_utils import load_config # For loading configs
@@ -88,9 +73,9 @@ if __name__ == "__main__":
   # Create our custom progress bar
   progress_bar = ResumableProgressBar(refresh_rate=1)
   
-  trainer = pl.Trainer(devices= -1, # Configure to use all available devices
-                       accelerator="gpu",
-                       strategy=parallelism_strategy, # FSDP Strategy
+  trainer = pl.Trainer(devices = -1, # Configure to use all available devices
+                       accelerator = "gpu",
+                       strategy = parallelism_strategy, # FSDP Strategy
                        use_distributed_sampler = True,
                        max_epochs = config["num_epochs"],
                        val_check_interval = config["eval_freq"],
