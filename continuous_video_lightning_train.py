@@ -3,21 +3,9 @@ Implementation of a Lightning module for training SerpentVAE, using Fully-Sharde
 
 For multi-node strategy, it is advisable to use torchrun instead of torch.distributed.launch, as well as SLURM scripts that sets the appropriate group variables. 
 """
-import os
 import argparse
-import itertools 
-from tqdm import tqdm 
-import json
-from typing import Tuple
 import multiprocessing
-
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim 
-from torch.optim import Optimizer
-from torch import random
-from torch.utils.data import DataLoader
 
 # For cleaner training loops
 import lightning as pl
@@ -47,7 +35,7 @@ if __name__ == "__main__":
   # This argument is provided automatically when using torch.distributed.launch or torchrun
   # parser.add_argument('--local_rank', type=int, default=0, help='Local rank for distributed training')
   
-  # Set spawn method for multiprocessing to work with CUDA
+  # Set spawn method for multiprocessing to work with CUDA for dataloader workers
   multiprocessing.set_start_method('spawn', force=True)
 
   args = parser.parse_args()
