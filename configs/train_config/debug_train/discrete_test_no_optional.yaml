@@ -1,6 +1,6 @@
 # Training configuration
 dataset_path: "salesforce/wikitext"
-dataset_name: "wikitext-2-raw-v1"
+dataset_name: "wikitext-103-raw-v1"
 num_epochs: 10
 eval_freq: 1
 checkpoint_freq: 50
