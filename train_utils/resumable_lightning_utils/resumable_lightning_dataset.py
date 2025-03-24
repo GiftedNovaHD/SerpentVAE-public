@@ -1,19 +1,24 @@
-from typing import Dict, List, Any, Optional, Callable
+from typing import Dict, List, Any, Optional, Callable, Union
 import torch
 from torch.utils.data import Dataset
+from datasets import IterableDataset
 
 class ResumableDataset(Dataset): 
   """
   A wrapper around a dataset that makes it resumable by implementing `state_dict` and `load_state_dict` methods.
   """
-  def __init__(self, dataset: List, collate_fn: Callable): 
-    self.dataset = dataset
+  def __init__(self, dataset: Union[IterableDataset, List], collate_fn: Callable): 
     self.collate_fn = collate_fn
     self._current_index = 0
-  
-  def __len__(self):
-    return len(self.dataset)
-  
+
+    if isinstance(dataset, IterableDataset):
+      self.dataset = dataset.with_format("torch")
+      self.is_iterable_dataset = True
+
+      assert isinstance(self.dataset, torch.utils.data.IterableDataset), "Dataset must be an instance of IterableDataset"
+    else:
+      self.dataset = dataset
+      self.is_iterable_dataset = False
   def __len__(self):
     return len(self.dataset)
     
@@ -24,12 +29,18 @@ class ResumableDataset(Dataset):
     """
     Return the current state of the dataset for resumption.
     """
-    return {
-      "current_index": self._current_index
-    }
-  
+    if not self.is_iterable_dataset:
+      return {
+        "current_index": self._current_index
+      }
+    else:
+      return self.dataset.state_dict()
+    
   def load_state_dict(self, state_dict: Dict[str, Any]) -> None:
     """
     Restore the dataset state from a previously saved state_dict.
     """
-    self._current_index = state_dict.get("current_index", 0)
+    if not self.is_iterable_dataset:
+      self._current_index = state_dict.get("current_index", 0)
+    else:
+      self.dataset.load_state_dict(state_dict)
