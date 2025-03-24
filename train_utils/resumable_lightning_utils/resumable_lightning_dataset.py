@@ -1,7 +1,6 @@
 from typing import Dict, List, Any, Callable, Union
 import torch
 import datasets
-import collections
 
 from torch.utils.data import Dataset
 
