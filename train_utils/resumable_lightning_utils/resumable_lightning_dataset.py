@@ -47,7 +47,7 @@ class ResumableDataset(Dataset, IterableDataset):
     if not self.is_iterable_dataset:
       return self.dataset[idx]
     else:
-      return next(self.dataset)
+      return self.dataset
   
   def state_dict(self) -> Dict[str, Any]:
     """
