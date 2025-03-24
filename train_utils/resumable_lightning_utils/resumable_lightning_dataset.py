@@ -29,6 +29,7 @@ class ResumableDataset(Dataset):
     else:
       self.dataset = dataset
       self.is_iterable_dataset = False
+  
   def __len__(self):
     return len(self.dataset)
     
