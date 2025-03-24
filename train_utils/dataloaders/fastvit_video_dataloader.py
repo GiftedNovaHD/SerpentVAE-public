@@ -1,17 +1,15 @@
-import os 
-import psutil 
 import torch 
 import av
 import numpy as np
 import timm # Replace VideoMAE imports with timm
-
+import warnings
 
 from io import BytesIO
 
 from PIL import Image 
 
 from typing import Dict, Tuple
-from datasets import load_dataset, Video
+from datasets import load_dataset
 from einops import rearrange
 from functools import partial
 
@@ -168,7 +166,7 @@ def collate_video(batch, _max_seq_len: int, _batch_size: int, _dtype: torch.dtyp
             continue
         
         if not transformed_frames:
-          print(f"Warning: No frames were successfully transformed for sample {sample_idx}")
+          warnings.warn(f"Warning: No frames were successfully transformed for sample {sample_idx}")
           continue
             
         # Stack all frames into a single batch tensor [num_frames, channels, height, width]
@@ -207,7 +205,7 @@ def collate_video(batch, _max_seq_len: int, _batch_size: int, _dtype: torch.dtyp
       continue
 
   if batch_features.size(0) == 0: # All samples in batch failed processing
-    print("WARNING: All samples in batch failed processing, returning dummy tensor")
+    warnings.warn("WARNING: All samples in batch failed processing, returning dummy tensor")
     # Create a dummy tensor with the correct shape
     # Shape: [batch_size, sequence_length, feature_dim]
     dummy_tensor = torch.zeros((_batch_size, _max_seq_len, _num_features * _feature_dim), dtype= _dtype)
@@ -215,7 +213,7 @@ def collate_video(batch, _max_seq_len: int, _batch_size: int, _dtype: torch.dtyp
     return dummy_tensor
   
   elif batch_features.size(0) != _batch_size: # Some samples in batch failed processing
-    print(f"WARNING: Batch size is not equal to the expected batch size. Expected: {_batch_size}, Got: {batch_features.size(0)}")
+    warnings.warn(f"WARNING: Batch size is not equal to the expected batch size. Expected: {_batch_size}, Got: {batch_features.size(0)}")
     # Pad the batch features with zeros to match the expected batch size
     num_sequences_to_pad = _batch_size - batch_features.size(0)
 
