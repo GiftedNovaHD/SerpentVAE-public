@@ -1,12 +1,12 @@
-from typing import Dict, List, Any, Optional, Callable, Union
+from typing import Dict, List, Any, Callable, Union
 import torch
 import datasets
 import collections
 
-from torch.utils.data import Dataset, IterableDataset
+from torch.utils.data import Dataset
 
 
-class ResumableDataset(Dataset, IterableDataset): 
+class ResumableDataset(Dataset): 
   """
   A wrapper around a dataset that makes it resumable by implementing `state_dict` and `load_state_dict` methods.
 
