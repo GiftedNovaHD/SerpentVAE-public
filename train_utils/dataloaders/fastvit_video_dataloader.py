@@ -115,7 +115,7 @@ def collate_video(batch, _max_seq_len: int, _batch_size: int, _dtype: torch.dtyp
   """
   transforms, model, device = get_image_model_and_transforms()
   
-  batch_features = torch.tensor([]).to(device = torch.device("cpu")) 
+  batch_features = torch.tensor([], dtype = _dtype, device = torch.device("cpu")) 
 
   for sample_idx, sample in enumerate(batch): 
     try:
