@@ -1,6 +1,5 @@
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
-from datasets import IterableDataset
 from typing import Dict, Any
 from train_utils.resumable_lightning_utils.resumable_lightning_dataset import ResumableDataset
 

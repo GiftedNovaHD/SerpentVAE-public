@@ -23,6 +23,8 @@ class ResumableDataset(Dataset):
       self.dataset = dataset.with_format("torch")
       self.is_iterable_dataset = True
 
+      print("Converting to torch IterableDataset")
+
       assert isinstance(self.dataset, torch.utils.data.IterableDataset), "Dataset must be an instance of IterableDataset"
     else:
       self.dataset = dataset
