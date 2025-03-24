@@ -110,4 +110,3 @@ class DecoderSegmentPredictor(nn.Module):
     segment_pred = F.sigmoid(segment_pred)
 
     return segment_pred
-    

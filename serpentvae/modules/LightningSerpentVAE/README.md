@@ -4,7 +4,7 @@ This folder contains training scripts that wrap the SerpentVAE model with PyTorc
 
 ## File Structure 
 ```bash
-|LightningSerpentVAE/
+LightningSerpentVAE/
 ├── BaseLightningSerpentVAE # Base class that implements the VAE model and training loop
 ├── ContinuousTestLightningSerpentVAE # Example implementation using a continuous dataset for testing purposes     
 ├── TextLightningSerpentVAE # Example implementation using text data

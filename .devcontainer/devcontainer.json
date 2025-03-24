@@ -1,33 +1,25 @@
-{ 
+{
   "name": "Production/Debug",
-
-  "build": {
-    "dockerfile": "prod_config.dockerfile"
+  "image": "nvidia/cuda:12.4.0-devel-ubuntu22.04",
+  "runArgs": [
+    "--gpus=all"
+  ],
+  "remoteEnv": {
+    "PATH": "${containerEnv:PATH}:/usr/local/cuda/bin",
+    "LD_LIBRARY_PATH": "$LD_LIBRARY_PATH:/usr/local/cuda/lib64:/usr/local/cuda/extras/CUPTI/lib64",
+    "XLA_FLAGS": "--xla_gpu_cuda_data_dir=/usr/local/cuda"
   },
-
-  "features": {
-    // Download latest version of Anaconda
-    "ghcr.io/devcontainers/features/anaconda:1": {
-      "version": "latest"
-    },
-
-    // Download latest version of CUDA and related tools
-    "ghcr.io/devcontainers/features/nvidia-cuda:1": { 
-      "installCudnn": true,
-      "installNvtx": true,
-      "installToolkit": true,
-      "cudaVersion": "12.8",
-      "cudnnVersion": "9.8.0"
-    },
-
-    // Install GitHub CLI
-    "ghcr.io/devcontainers/features/github-cli:1": {
-      "version": "latest",
-      "installDirectlyFromGitHubRelease": true
+  "updateContentCommand": "bash .devcontainer/setup-env.sh",
+  "postCreateCommand": [
+    "nvidia-smi"
+  ],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-vsliveshare.vsliveshare-pack"
+      ]
     }
-  },
-    
-  "hostRequirements": {
-    "gpu": "optional" // To enable GPU passthrough
   }
 }

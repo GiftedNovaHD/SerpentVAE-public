@@ -1,19 +1,21 @@
 # Training configuration
-dataset_path: "aisuko/ucf101-subset"
-dataset_name: 
+dataset_path: "salesforce/wikitext"
+dataset_name: "wikitext-2-raw-v1"
 num_epochs: 10
-eval_freq: 0.001
-model_save_folder_path:
-metrics_save_folder_path: 
-training_path: 
+eval_freq: 1
+checkpoint_freq: 50
+model_save_folder_path: "discrete-test-no-optional-model-ckpt"
+metrics_save_folder_path: "discrete-test-no-optional-metrics-ckpt"
+training_path: "discrete-test-no-optional-train-ckpt"
 learning_rate: 1e-4
 min_learning_rate: 1e-8
 weight_decay: 1e-2
-max_seq_len: 256
+max_seq_len: 64
 batch_size: 2
-dataloader_num_workers: 1
+dataloader_num_workers:
 parallelism_strategy: "ddp"
 compile_model: true
+is_debug: true
 seed: 6969
 
 # Model configuration
@@ -23,11 +25,11 @@ seed: 6969
 # Global variables
 hidden_dim: 512
 concept_dim: 512
-vocab_size: # NOTE: Vocab size can be left blank to take in continuous inputs
-input_dim: 6144 # NOTE: Input dimension can be left blank for continuous inputs
+vocab_size: 129280 # NOTE: Vocab size can be left blank to take in continuous inputs
+input_dim: # NOTE: Input dimension can be left blank for continuous inputs
 
 # Reconstruction loss configuration
-recon_loss_name: "MSE"
+recon_loss_name: "CE"
 recon_loss_reduction: "mean"
 
 # Training scale factors
@@ -36,7 +38,6 @@ beta: 1.0 # This scales the KL divergence term
 ema_decay_factor: 0.75 # This is the decay factor for the EMA of the averaqe subsequence length
 
 # Embedding configuration
-# NOTE: This is for both continuous and discrete inputs
 share_input_embeddings: true
 tie_embeddings: true
 
@@ -58,7 +59,7 @@ distribution:
 # Encoder configuration
 encoder:
   # Non-sequence mixer settings
-  seq_mixer_layer_config: "2 (M2)"
+  seq_mixer_layer_config: "2 (M2)" 
   channel_mixer_layer_config: "2 (MLP)"
   segment_pred_inner_dim: 768 # Encoder segment predictor inner dimension
 
@@ -72,7 +73,7 @@ encoder:
 
   # Channel mixer configuration
   MLP:
-    mlp_inner_dim: 768  # Inner dimension for MLP channel mixer
+    mlp_inner_dim: 768
 
 # Decoder configuration
 decoder:
@@ -93,24 +94,10 @@ decoder:
     mlp_inner_dim: 768
 
 # Confidence Module configuration
-enable_confidence_module: true # This module is used for Stochastic Varitional Inference (not implemented yet)
+enable_confidence_module: false # This module is used for Stochastic Varitional Inference (not implemented yet)
 confidence_module:
-  mlp_inner_dim: 768
+  mlp_inner_dim:
 
 # Q-Net configuration
-enable_qnet: true # We advise Q-Net to be enabled to reduce the chance of posterior collapse
+enable_qnet: false # We advise Q-Net to be enabled to reduce the chance of posterior collapse
 qnet:
-  # Non-sequence mixer settings
-  seq_mixer_layer_config: "Mamba2"
-  channel_mixer_layer_config: "MLP"
-  
-  # Sequence mixer configuration
-  Mamba2:
-    mamba2_conv_length: 4
-    mamba2_expand: 1
-    mamba2_head_dim: 32 # (concept_dim * mamba_expand / qnet_mamba_head_dim = 48 = 8 * 6)
-    mamba2_state_dim: 8
-
-  # Channel mixer configuration
-  MLP:
-    mlp_inner_dim: 384

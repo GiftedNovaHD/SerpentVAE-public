@@ -23,7 +23,7 @@
             "args": [
                 "discrete_text_lightning_train.py",
                 "--config",
-                "discrete_test_no_optional"
+                "debug_train/discrete_test_no_optional"
             ],
             "presentation": {
                 "reveal": "silent",
@@ -44,7 +44,7 @@
             "args": [
                 "discrete_text_lightning_train.py",
                 "--config",
-                "discrete_debug_config"
+                "debug_train/discrete_debug_config"
             ],
             "presentation": {
                 "reveal": "silent",
@@ -65,7 +65,7 @@
             "args": [
                 "continuous_lightning_train.py",
                 "--config",
-                "continuous_debug_config"
+                "debug_train/continuous_debug_config"
             ],
             "presentation": {
                 "reveal": "silent",
@@ -86,7 +86,7 @@
             "args": [
                 "continuous_lightning_train.py",
                 "--config",
-                "continuous_test_no_optional"
+                "debug_train/continuous_test_no_optional"
             ],
             "presentation": {
                 "reveal": "silent",
