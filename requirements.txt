@@ -1,7 +1,9 @@
+av
 datasets
 einops
 einx
 torch
+torchvision
 transformers
 wandb
 causal-conv1d
@@ -11,6 +13,7 @@ pyyaml
 pyyaml-include
 numpy
 tqdm
+timm
 pyro-ppl
 pytest
 av

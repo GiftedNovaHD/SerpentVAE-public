@@ -3,29 +3,42 @@ Implementation of a Lightning module for training SerpentVAE, using Fully-Sharde
 
 For multi-node strategy, it is advisable to use torchrun instead of torch.distributed.launch, as well as SLURM scripts that sets the appropriate group variables. 
 """
-import argparse
-import torch
 import os
+import argparse
+import multiprocessing
+import torch
 
 # For cleaner training loops
 import lightning as pl
-
 # Modify checkpointing behavior for PyTorch Lightning
 from lightning.pytorch.callbacks import ModelCheckpoint, ModelSummary
 
-from serpentvae.modules.LightningSerpentVAE.ContinuousTestLightningSerpentVAE import ContinuousTestLightningSerpentVAE
+from serpentvae.modules.LightningSerpentVAE.VideoLightningSerpentVAE import VideoLightningSerpentVAE
 from train_utils.config_utils import load_config # For loading configs
-from train_utils.dataloaders.prep_continuous_test_dataloader import prep_continuous_test_dataset
 from train_utils.prep_parallelism import prep_parallelism
+from train_utils.dataloaders.fastvit_video_dataloader import prep_video_dataset
 from train_utils.resumable_lightning_utils.memory_monitor_callback import MemoryMonitorCallback
 from train_utils.resumable_lightning_utils.resumable_progress_bar import ResumableProgressBar
 
+def init_worker():
+  """Initialize worker process with CUDA"""
+  if torch.cuda.is_available():
+    # Get the worker's rank
+    worker_id = multiprocessing.current_process().name
+    # Set CUDA device based on worker ID
+    device_id = int(worker_id.split('-')[-1]) % torch.cuda.device_count()
+    torch.cuda.set_device(device_id)
+    print(f"Worker {worker_id} initialized on CUDA device {device_id}")
+
 if __name__ == "__main__":
   parser = argparse.ArgumentParser(description='SerpentVAE Model')
-  parser.add_argument('--config', type = str, default = 'debug_train/continuous_debug_config', help = 'Choose with experiment configuration to use')
+  parser.add_argument('--config', type=str, default='video_debug_config',help='Choose with experiment configuration to use')
 
   # This argument is provided automatically when using torch.distributed.launch or torchrun
   # parser.add_argument('--local_rank', type=int, default=0, help='Local rank for distributed training')
+  
+  # Set spawn method for multiprocessing to work with CUDA for dataloader workers
+  multiprocessing.set_start_method('spawn', force=True)
 
   args = parser.parse_args()
 
@@ -44,14 +57,14 @@ if __name__ == "__main__":
   # print(config)
 
   # Load data
-  train_dataloader, test_dataloader, val_dataloader = prep_continuous_test_dataset(config = config)
+  train_dataloader, test_dataloader, val_dataloader = prep_video_dataset(config = config)
 
   # Create model
-  lightning_model = ContinuousTestLightningSerpentVAE(config = config,
-                                                      compile_model = config["compile_model"]
-                                                     )
+  lightning_model = VideoLightningSerpentVAE(config = config,
+                                             compile_model = config["compile_model"]
+                                            )
 
-  # Create parallelism strategy
+  # Create paraallelism strategy
   parallelism_strategy = prep_parallelism(config = config)
 
   checkpoint_callback = ModelCheckpoint(dirpath = config["training_path"],
@@ -66,7 +79,7 @@ if __name__ == "__main__":
                                         )
   
   # Create our custom progress bar
-  progress_bar = ResumableProgressBar(refresh_rate=1)
+  progress_bar = ResumableProgressBar(refresh_rate = 1)
   
   trainer = pl.Trainer(devices = -1, # Configure to use all available devices
                        accelerator = "gpu",
@@ -81,11 +94,10 @@ if __name__ == "__main__":
                        callbacks = [ModelSummary(max_depth = 5), 
                                     checkpoint_callback, 
                                     memory_monitor,
-                                    progress_bar
-                                   ],
+                                    progress_bar],  # Add our custom progress bar
                        fast_dev_run = 5 if config["is_debug"] else None
                       )
-
+  
   # Ensure the training directory exists
   if not os.path.exists(config["training_path"]):
     print(f"Creating checkpoint directory: {config['training_path']}")
@@ -106,9 +118,10 @@ if __name__ == "__main__":
       print("No checkpoint found. Starting from scratch.")
       checkpoint_path = None  # Or handle the case where no checkpoint exists
 
-  trainer.fit(model = lightning_model, 
+  trainer.fit(model = lightning_model,
               train_dataloaders = train_dataloader, 
               val_dataloaders = val_dataloader, 
-              ckpt_path = checkpoint_path)
+              ckpt_path = checkpoint_path
+             )
   
-  trainer.print(torch.cuda.memory_summary()) # Only print after training
+  trainer.print(torch.cuda.memory_summary())

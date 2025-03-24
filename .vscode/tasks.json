@@ -7,7 +7,8 @@
                 "run discrete_text_lightning_train.py with no optional modules config",
                 "run discrete_text_lightning_train.py with debug config",
                 "run continuous_lightning_train.py with debug config",
-                "run continuous_lightning_train.py with no optional modules config"
+                "run continuous_lightning_train.py with no optional modules config",
+                "run continuous_video_lightning_train.py with video debug config"
             ],
             "dependsOrder": "parallel",
             "problemMatcher": [],
@@ -28,7 +29,8 @@
             "presentation": {
                 "reveal": "silent",
                 "panel": "new",
-                "revealProblems": "onProblem"
+                "revealProblems": "onProblem",
+                "close": true
             },
             "problemMatcher": [],
             "group": {
@@ -48,7 +50,8 @@
             "presentation": {
                 "reveal": "silent",
                 "panel": "new",
-                "revealProblems": "onProblem"
+                "revealProblems": "onProblem",
+                "close": true
             },
             "problemMatcher": [],
             "group": {
@@ -68,7 +71,8 @@
             "presentation": {
                 "reveal": "silent",
                 "panel": "new",
-                "revealProblems": "onProblem"
+                "revealProblems": "onProblem",
+                "close": true
             },
             "problemMatcher": [],
             "group": {
@@ -88,7 +92,29 @@
             "presentation": {
                 "reveal": "silent",
                 "panel": "new",
-                "revealProblems": "onProblem"
+                "revealProblems": "onProblem",
+                "close": true
+            },
+            "problemMatcher": [],
+            "group": {
+                "kind": "test",
+                "isDefault": false
+            }
+        },
+        {
+            "label": "run continuous_video_lightning_train.py with video debug config",
+            "type": "shell",
+            "command": "python",
+            "args": [
+                "continuous_video_lightning_train.py",
+                "--config",
+                "debug_train/video_debug_config"
+            ],
+            "presentation": {
+                "reveal": "silent",
+                "panel": "new",
+                "revealProblems": "onProblem",
+                "close": false
             },
             "problemMatcher": [],
             "group": {
