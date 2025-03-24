@@ -1,7 +1,10 @@
 from typing import Dict, List, Any, Optional, Callable, Union
 import torch
 import datasets
+import collections
+
 from torch.utils.data import Dataset
+
 
 class ResumableDataset(Dataset): 
   """
@@ -18,10 +21,12 @@ class ResumableDataset(Dataset):
   def __init__(self, dataset: Union[datasets.IterableDataset, List[Any]], collate_fn: Callable): 
     self.collate_fn = collate_fn
     self._current_index = 0
+    self.len_dataset = None
 
     if isinstance(dataset, datasets.IterableDataset):
       self.dataset = dataset.with_format("torch")
       self.is_iterable_dataset = True
+      self.len_dataset = len(self.dataset)
 
       print("Converting to torch IterableDataset")
 
@@ -31,7 +36,11 @@ class ResumableDataset(Dataset):
       self.is_iterable_dataset = False
   
   def __len__(self):
-    return len(self.dataset)
+    if not self.is_iterable_dataset:
+      return len(self.dataset)
+    else: 
+      size = collections.deque(enumerate(self.dataset, 1), maxlen=1)
+      return size[0][0] if size else 0
     
   def __getitem__(self, idx):
     return self.dataset[idx]
