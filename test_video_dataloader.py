@@ -2,6 +2,17 @@ import multiprocessing
 import torch
 import sys
 import traceback
+import os
+
+def init_worker():
+    """Initialize worker process with CUDA"""
+    if torch.cuda.is_available():
+        # Get the worker's rank
+        worker_id = multiprocessing.current_process().name
+        # Set CUDA device based on worker ID
+        device_id = int(worker_id.split('-')[-1]) % torch.cuda.device_count()
+        torch.cuda.set_device(device_id)
+        print(f"Worker {worker_id} initialized on CUDA device {device_id}")
 
 # Ensure proper multiprocessing method for CUDA
 if __name__ == "__main__":
@@ -23,7 +34,6 @@ if __name__ == "__main__":
             print("CUDA is not available, using CPU")
         
         config = load_config("video_debug_config")
-        #print(f"Loaded config: {config}")
         
         # Ensure config has device property
         if "device" not in config:

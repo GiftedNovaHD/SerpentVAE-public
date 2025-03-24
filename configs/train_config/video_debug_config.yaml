@@ -11,7 +11,7 @@ min_learning_rate: 1e-8
 weight_decay: 1e-2
 max_seq_len: 256
 batch_size: 2
-dataloader_num_workers: 10
+dataloader_num_workers: 1
 parallelism_strategy: "ddp"
 compile_model: true
 seed: 6969

@@ -9,6 +9,7 @@ import itertools
 from tqdm import tqdm 
 import json
 from typing import Tuple
+import multiprocessing
 
 import torch
 import torch.nn as nn
@@ -29,12 +30,25 @@ from train_utils.config_utils import load_config # For loading configs
 from train_utils.prep_parallelism import prep_parallelism
 from train_utils.dataloaders.fastvit_video_dataloader import prep_video_dataset
 
+def init_worker():
+    """Initialize worker process with CUDA"""
+    if torch.cuda.is_available():
+        # Get the worker's rank
+        worker_id = multiprocessing.current_process().name
+        # Set CUDA device based on worker ID
+        device_id = int(worker_id.split('-')[-1]) % torch.cuda.device_count()
+        torch.cuda.set_device(device_id)
+        print(f"Worker {worker_id} initialized on CUDA device {device_id}")
+
 if __name__ == "__main__":
   parser = argparse.ArgumentParser(description='SerpentVAE Model')
   parser.add_argument('--config', type=str, default='video_debug_config',help='Choose with experiment configuration to use')
 
   # This argument is provided automatically when using torch.distributed.launch or torchrun
   # parser.add_argument('--local_rank', type=int, default=0, help='Local rank for distributed training')
+  
+  # Set spawn method for multiprocessing to work with CUDA
+  multiprocessing.set_start_method('spawn', force=True)
 
   args = parser.parse_args()
 

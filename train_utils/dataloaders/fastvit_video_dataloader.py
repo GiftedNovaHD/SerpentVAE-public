@@ -88,21 +88,32 @@ def get_image_model_and_transforms():
   global _transforms, _model, _device, _feature_dim
   
   if _transforms is None or _model is None:
-    _device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    
-    # Create LevIT model
-    _model = timm.create_model(
-        'levit_128s.fb_dist_in1k',
-        pretrained=True,
-        num_classes=0,  # remove classifier nn.Linear
-        global_pool=''   # disable global pooling to avoid unexpected keys
-    )
-    _model = _model.to(_device).to(torch.bfloat16)
-    _model.eval()
-    
-    # Get model specific transforms
-    data_config = timm.data.resolve_model_data_config(_model)
-    _transforms = timm.data.create_transform(**data_config, is_training=False)
+    try:
+      # Get device safely
+      if torch.cuda.is_available():
+        _device = torch.device("cuda")
+      else:
+        _device = torch.device("cpu")
+      
+      # Create LevIT model
+      _model = timm.create_model(
+          'levit_128s.fb_dist_in1k',
+          pretrained=True,
+          num_classes=0,  # remove classifier nn.Linear
+          global_pool=''   # disable global pooling to avoid unexpected keys
+      )
+      _model = _model.to(_device).to(torch.bfloat16)
+      _model.eval()
+      
+      # Get model specific transforms
+      data_config = timm.data.resolve_model_data_config(_model)
+      _transforms = timm.data.create_transform(**data_config, is_training=False)
+      
+    except Exception as e:
+      print(f"Error initializing model and transforms: {e}")
+      import traceback
+      print(f"Traceback: {traceback.format_exc()}")
+      raise
     
   return _transforms, _model, _device
 
