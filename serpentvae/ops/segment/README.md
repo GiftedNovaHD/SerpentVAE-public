@@ -25,6 +25,22 @@ segment/
 
   ### Supported Boundary Operators
   - ChainCRP (`ChainCRP_grad.py`)
+    <details>
+    <summary>ChainCRP arguments</summary>
+
+    - `use_odds_ratio`: Whether to use the odds ratio
+    - `compression_strength`: The compression strength that the concentration parameter is scaled by
+
+    </details>
+
+  ### Creating a new boundary operator
+  To create a new boundary operator, you need to:
+  1. Create a new file in the `boundary` subfolder.
+  2. Implement the boundary operator in the new file.
+       - We assume that the forward method of the boundary operator takes in the encoder segmentation predictions of shape (batch_size, seq_len, 1)
+       - We assume that the forward method of the boundary operator returns the segmentation indices of shape (batch_size, seq_len, 1)
+  3. Add the new boundary operator to the `create_boundary_module` function in the `create_boundary_module.py` file.
+  4. Document the new boundary operator in this file.
 
 - **Replacement Operators**  
   Once the segment boundaries are established, the replacement operators (located in the `replace` subfolder) provide different strategies for replacing or aggregating tokens within each segment.  

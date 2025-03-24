@@ -26,7 +26,7 @@ from serpentvae.modules.qnet import QNet # Auxiliary Network
 from serpentvae.modules.segment_predictor import EncoderSegmentPredictor, DecoderSegmentPredictor
 
 # Import operations for segmenting
-from serpentvae.ops.segment.boundary.ChainCRP_grad import ChainCRP
+from serpentvae.ops.segment.boundary.create_boundary_module import create_boundary_module
 from serpentvae.ops.segment.replace.create_replacement_function import create_replacement_function
 
 # Import modules for creating reconstruction errors 
@@ -44,12 +44,11 @@ class SerpentVAE(nn.Module):
                distribution_config: Dict,
                encoder_config: Dict,
                decoder_config: Dict,
+               boundary_operator_config: Dict,
                recon_loss_name: str,
                recon_loss_reduction: Literal["mean", "sum"] = "mean",
                input_dim: Optional[int] = None,
                vocab_size: Optional[int] = None,
-               use_odds_ratio: bool = False,
-               compression_strength: float = 1.0,
                replacement_function_name: str = "use_last",
                alpha: float = 1.0,
                beta: float = 1.0,
@@ -117,10 +116,6 @@ class SerpentVAE(nn.Module):
     self.distribution_config = distribution_config
     self.encoder_config = encoder_config
     self.decoder_config = decoder_config
-
-    # Segmentation configuration settings
-    self.use_odds_ratio = use_odds_ratio
-    self.compression_strength = compression_strength
 
     # Confidence module configuration settings
     self.enable_confidence_module = enable_confidence_module
@@ -218,12 +213,15 @@ class SerpentVAE(nn.Module):
                                            discrete = self.discrete_input,
                                           )
 
-    # Instantiate ChainCRP
-    self.chain_crp = ChainCRP(use_odds_ratio = self.use_odds_ratio,
-                              compression_strength = self.compression_strength,
-                              dtype = self.dtype,
-                              device = self.device
-                             )
+    # Instantiate boundary operator
+    boundary_operator_name = list(boundary_operator_config.keys())[0]
+    boundary_operator_kwargs = list(boundary_operator_config.values())[0]
+
+    self.boundary_operator = create_boundary_module(boundary_operator_name = boundary_operator_name,
+                                                    boundary_operator_kwargs = boundary_operator_kwargs,
+                                                    device = self.device,
+                                                    dtype = self.dtype
+                                                   )
     
     # Instantiate replacement function
     self.replacement_function = create_replacement_function(replacement_function_name = replacement_function_name,
@@ -375,7 +373,6 @@ class SerpentVAE(nn.Module):
   def segment(self,
               concept_tokens: Tensor,
               encoder_segmentation_predictions: Tensor,
-              boundary_function: nn.Module,
               padding_mask: Tensor
              ) -> Tuple[Tensor, Tensor]:
     """
@@ -384,15 +381,16 @@ class SerpentVAE(nn.Module):
     Args:
       concept_tokens (Tensor): (batch_size, seq_len, concept_dim)
       encoder_segmentation_predictions (Tensor): (batch_size, seq_len, 1)
-      boundary_function (nn.Module): Pytorch module that decides whether to segment or not
+      padding_mask (Tensor): (batch_size, seq_len, 1)
+
+    Constants used:
+      boundary_operator (nn.Module): Pytorch module that decides whether to segment or not
       replacement_function (Callable): Function that decides how to replace the concept tokens for decoding
         replacement_function Args:
           - concept_tokens (Tensor): (batch_size, seq_len, concept_dim)
           - segment_indices (Tensor): (batch_size, seq_len, 1)
         replacement_function Returns:
           - replaced_concept_tokens (Tensor): (batch_size, seq_len, concept_dim)
-    
-      padding_mask (Tensor): (batch_size, seq_len, 1)
     
     Returns: 
       replaced_concept_tokens (Tensor): (batch_size, seq_len, concept_dim)
@@ -401,9 +399,9 @@ class SerpentVAE(nn.Module):
     batch_size, seq_len, _ = encoder_segmentation_predictions.shape
     
     # Obtain bitmask
-    segmentation_indices = boundary_function(encoder_segmentation_predictions = encoder_segmentation_predictions,
-                                             prev_batch_recon_loss = self.prev_batch_recon_loss
-                                            )
+    segmentation_indices = self.boundary_operator(encoder_segmentation_predictions = encoder_segmentation_predictions,
+                                                  prev_batch_recon_loss = self.prev_batch_recon_loss
+                                                 )
 
     # Perform a bitwise OR operation to correctly mark padding EOS tokens at ends of subsequences
     segmentation_indices = segmentation_indices.bool() | padding_mask.bool()
@@ -858,7 +856,6 @@ class SerpentVAE(nn.Module):
 
     segmented_concept_tokens, segmentation_indices = self.segment(concept_tokens = sampled_latents,
                                                                   encoder_segmentation_predictions = encoder_predicted_segments,
-                                                                  boundary_function = self.chain_crp,
                                                                   padding_mask = padding_mask
                                                                  ) # (batch_size, seq_len, concept_dim) -> (batch_size, seq_len, concept_dim)
 

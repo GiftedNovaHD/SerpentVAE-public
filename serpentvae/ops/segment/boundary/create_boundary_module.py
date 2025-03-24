@@ -1,0 +1,37 @@
+import torch
+from torch import nn as nn
+from typing import Dict
+
+# Import boundary operators
+from serpentvae.ops.segment.boundary.ChainCRP_grad import ChainCRP
+
+def create_boundary_module(boundary_operator_name: str,
+                           boundary_operator_kwargs: Dict,
+                           device: torch.device,
+                           dtype: torch.dtype
+                          ) -> nn.Module:
+  """
+  Creates a boundary operator based on the name and kwargs
+
+  Args:
+    boundary_operator_name (str): The name of the boundary operator
+    boundary_operator_kwargs (Dict): The kwargs for the boundary operator
+    device (torch.device): The device to use
+    dtype (torch.dtype): The dtype to use
+
+  Returns:
+    boundary_operator (nn.Module): The boundary operator
+  """
+  # Check possible boundary operators
+  boundary_operator_lst = ["ChainCRP"]
+
+  if boundary_operator_name not in boundary_operator_lst:
+    raise ValueError(f"{boundary_operator_name} is not a valid boundary operator")
+  
+  # Create boundary operator
+  if boundary_operator_name == "ChainCRP":
+    return ChainCRP(use_odds_ratio = boundary_operator_kwargs["use_odds_ratio"],
+                    compression_strength = boundary_operator_kwargs["compression_strength"],
+                    device = device,
+                    dtype = dtype
+                   )
