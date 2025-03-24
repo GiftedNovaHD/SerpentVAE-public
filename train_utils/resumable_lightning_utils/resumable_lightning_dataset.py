@@ -3,10 +3,10 @@ import torch
 import datasets
 import collections
 
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, IterableDataset
 
 
-class ResumableDataset(Dataset): 
+class ResumableDataset(Dataset, IterableDataset): 
   """
   A wrapper around a dataset that makes it resumable by implementing `state_dict` and `load_state_dict` methods.
 
