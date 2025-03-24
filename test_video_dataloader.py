@@ -45,14 +45,14 @@ if __name__ == "__main__":
                 for batch_feature in batch:
                     print(batch_feature)
                 # Only process one batch
-                break
+                #break
             except Exception as e:
                 print(f"Error processing batch {batch_idx}:")
                 print(f"Error type: {type(e).__name__}")
                 print(f"Error message: {str(e)}")
                 print("Traceback:")
                 traceback.print_exc()
-                break
+                #break
             
         print("Test completed successfully!")
         
