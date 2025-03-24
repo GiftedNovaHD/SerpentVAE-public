@@ -69,7 +69,6 @@ def sample_frame_indices(clip_len, frame_sample_rate, seg_len):
 
   return indices
 
-
 # Global variables for model and transforms
 # This ensures they're loaded only once
 _transforms = None
@@ -109,7 +108,7 @@ def get_image_model_and_transforms():
 
 
 # Move collate_video function outside of prep_video_dataset
-def collate_video(batch, _max_seq_len: int, _batch_size: int): 
+def collate_video(batch, _max_seq_len: int, _batch_size: int, _dtype: torch.dtype): 
   """
   Processes videos as sequences of images through the LevIT model and returns the features.
   Uses globally initialized model and transforms.
@@ -171,6 +170,8 @@ def collate_video(batch, _max_seq_len: int, _batch_size: int):
 
           reshaped_features = torch.cat((padding_tensor, reshaped_features), dim = 0)
 
+          print(f"Reshaped features shape after padding: {reshaped_features.shape}")
+
         # Move to CPU to free GPU memory
         batch_features = torch.cat((batch_features, reshaped_features.cpu()), dim = 0) # Shape is (batch_size, padded/max_seq_len, feature_dim) NOTE: feature_dim is 6144
         
@@ -185,21 +186,11 @@ def collate_video(batch, _max_seq_len: int, _batch_size: int):
     print("WARNING: All samples in batch failed processing, returning dummy tensor")
     # Create a dummy tensor with the correct shape
     # Shape: [batch_size, sequence_length, feature_dim]
-    dummy_tensor = torch.zeros((_batch_size, _max_seq_len, _num_features * _feature_dim), dtype=torch.float32)
+    dummy_tensor = torch.zeros((_batch_size, _max_seq_len, _num_features * _feature_dim), dtype= _dtype)
     return dummy_tensor
-    
-  # Stack features if all have the same shape
-  if all(f.shape == batch_features[0].shape for f in batch_features): 
-    stacked_features = torch.stack(batch_features)
-    # Add channel dimension to match the expected shape [batch_size, 1, sequence_length, feature_dim]
-    stacked_features = stacked_features.unsqueeze(1)
-    return stacked_features
+  
   else:
-    # Shapes are different, log details
-    print(f"WARNING: Inconsistent shapes in batch: {[f.shape for f in batch_features]}")
-    # Return just the first feature reshaped to look like a batch of 1
-    return batch_features[0].unsqueeze(0).unsqueeze(0)
-
+    return batch_features
 
 def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader]: 
   """
@@ -291,7 +282,7 @@ def prep_video_dataset(config: Dict) -> Tuple[DataLoader, DataLoader, DataLoader
     
   print(f"Using {dataloader_num_workers} workers for data loading")
 
-  prepped_collate_video = partial(collate_video, _max_seq_len = _max_seq_len, _batch_size = _batch_size)
+  prepped_collate_video = partial(collate_video, _max_seq_len = _max_seq_len, _batch_size = _batch_size, _dtype = config["dtype"])
 
   # For iterable datasets, we can't use shuffle in the DataLoader
   # We'll rely on the dataset's built-in shuffling instead
