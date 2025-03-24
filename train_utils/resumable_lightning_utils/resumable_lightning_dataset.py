@@ -6,6 +6,14 @@ from datasets import IterableDataset
 class ResumableDataset(Dataset): 
   """
   A wrapper around a dataset that makes it resumable by implementing `state_dict` and `load_state_dict` methods.
+
+  We are providing map-style datasets with a `state_dict` and `load_state_dict` method.
+
+  We act as a pass-through for iterable datasets.
+
+  Args:
+    dataset (Union[IterableDataset, List]): A dataset to wrap.
+    collate_fn (Callable): A collate function to use for the dataset.
   """
   def __init__(self, dataset: Union[IterableDataset, List], collate_fn: Callable): 
     self.collate_fn = collate_fn
