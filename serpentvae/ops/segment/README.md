@@ -10,9 +10,10 @@ segment/
 │   ├── ChainCRP_grad.py      # Implements ChainCRP segmenter
 │   └── __init__.py
 ├── replace/
-│   ├── helper_function.py    # Helper function to create custom replacement operations
-│   ├── mean.py               # Replacement strategy using mean aggregation over segments
-│   ├── use_last.py           # Replacement strategy using the last token of a segment
+│   ├── create_replacement_function.py # Creates a replacement function based on the name
+│   ├── helper_function.py             # Helper function to create custom replacement operations
+│   ├── mean.py                        # Replacement strategy using mean aggregation over segments
+│   ├── use_last.py                    # Replacement strategy using the last token of a segment
 │   └── __init__.py
 └── __init__.py
 ```
@@ -33,4 +34,14 @@ segment/
   ### Supported Replacement Operators
   - Mean (`mean.py`)
   - Use last token (`use_last.py`)
+
+  ### Creating a new replacement operator
+  To create a new replacement operator, you need to:
+  1. Create a new file in the `replace` subfolder.
+  2. Implement the replacement operator in the new file.
+       - We assume that the replacement function takes in a subsequence and returns a tensor of the same shape as the subsequence.
+       - The helper function will take care of applying the replacement function to each subsequence in the batch.
+  3. Add the new replacement operator to the `create_replacement_function` function in the `create_replacement_function.py` file.
+  4. Add the new replacement operator to the `replacement_function_dict` in the `create_replacement_function.py` file.
+  5. Document the new replacement operator in this file.
 

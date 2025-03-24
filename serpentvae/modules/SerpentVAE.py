@@ -17,14 +17,17 @@ from serpentvae.ops.segment.replace.use_last import use_last_replacement
 from serpentvae.ops.segment.replace.mean import mean_replacement
 
 # Import modules
+from serpentvae.modules.distributions.distributions import create_distribution
 from serpentvae.modules.tied_linear import TiedLinear
 from serpentvae.modules.encoder import Encoder
 from serpentvae.modules.decoder import Decoder
 from serpentvae.modules.confidencemodule import ConfidenceModule
 from serpentvae.modules.qnet import QNet # Auxiliary Network
 from serpentvae.modules.segment_predictor import EncoderSegmentPredictor, DecoderSegmentPredictor
+
+# Import operations for segmenting
 from serpentvae.ops.segment.boundary.ChainCRP_grad import ChainCRP
-from serpentvae.modules.distributions.distributions import create_distribution
+from serpentvae.ops.segment.replace.create_replacement_function import create_replacement_function
 
 # Import modules for creating reconstruction errors 
 from serpentvae.modules.reconstruction_losses.create_recon_loss import create_recon_loss
@@ -47,6 +50,7 @@ class SerpentVAE(nn.Module):
                vocab_size: Optional[int] = None,
                use_odds_ratio: bool = False,
                compression_strength: float = 1.0,
+               replacement_function_name: str = "use_last",
                alpha: float = 1.0,
                beta: float = 1.0,
                ema_decay_factor = 0.75,
@@ -221,6 +225,12 @@ class SerpentVAE(nn.Module):
                               device = self.device
                              )
     
+    # Instantiate replacement function
+    self.replacement_function = create_replacement_function(replacement_function_name = replacement_function_name,
+                                                            device = self.device,
+                                                            dtype = self.dtype
+                                                           )
+    
     # Set previous batch reconstruction loss for ChainCRP
     self.prev_batch_recon_loss = torch.tensor([50], dtype = self.dtype, device = self.device)
 
@@ -366,7 +376,6 @@ class SerpentVAE(nn.Module):
               concept_tokens: Tensor,
               encoder_segmentation_predictions: Tensor,
               boundary_function: nn.Module,
-              replacement_function: Callable[[Tensor, Tensor, torch.device, torch.dtype], Tensor],
               padding_mask: Tensor
              ) -> Tuple[Tensor, Tensor]:
     """
@@ -380,8 +389,6 @@ class SerpentVAE(nn.Module):
         replacement_function Args:
           - concept_tokens (Tensor): (batch_size, seq_len, concept_dim)
           - segment_indices (Tensor): (batch_size, seq_len, 1)
-          - device (torch.device): Device where tensors are stored
-          - dtype (torch.dtype): Data type of tensors
         replacement_function Returns:
           - replaced_concept_tokens (Tensor): (batch_size, seq_len, concept_dim)
     
@@ -403,11 +410,9 @@ class SerpentVAE(nn.Module):
     segmentation_indices = segmentation_indices.int()
 
     # Apply bitmask to replace concept tokens
-    replaced_concept_tokens = replacement_function(concept_tokens = concept_tokens,
-                                                   segment_indices = segmentation_indices,
-                                                   device = self.device,
-                                                   dtype = self.dtype
-                                                  )
+    replaced_concept_tokens = self.replacement_function(concept_tokens = concept_tokens,
+                                                        segment_indices = segmentation_indices
+                                                       )
 
     # NOTE: This direct return is for testing purposes only
     # return concept_tokens, torch.ones(batch_size, seq_len, 1, device=concept_tokens.device)
@@ -853,8 +858,7 @@ class SerpentVAE(nn.Module):
 
     segmented_concept_tokens, segmentation_indices = self.segment(concept_tokens = sampled_latents,
                                                                   encoder_segmentation_predictions = encoder_predicted_segments,
-                                                                  boundary_function = self.chain_crp, 
-                                                                  replacement_function = use_last_replacement,
+                                                                  boundary_function = self.chain_crp,
                                                                   padding_mask = padding_mask
                                                                  ) # (batch_size, seq_len, concept_dim) -> (batch_size, seq_len, concept_dim)
 

@@ -28,7 +28,7 @@ def mean_replacement(concept_tokens: Tensor,
     subseq = subseq.float() # Convert to float for mean calculation
 
     # Calculate the mean of the subsequence along the subseq_len dimension
-    mean_token = torch.mean(subseq, dim=0) # Shape: (concept_dim,)
+    mean_token = torch.mean(subseq, dim=0, dtype = dtype) # Shape: (concept_dim,)
 
     repeated_mean_token = mean_token.repeat(subseq_len, 1)
 

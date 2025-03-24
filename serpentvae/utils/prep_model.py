@@ -24,6 +24,7 @@ def prep_model(config: Dict) -> SerpentVAE:
                      input_dim = config["input_dim"],
                      use_odds_ratio = config["use_odds_ratio"],
                      compression_strength = config["compression_strength"],
+                     replacement_function_name = config["replacement_function"],
                      alpha = config["alpha"],
                      beta = config["beta"],
                      ema_decay_factor = config["ema_decay_factor"],
