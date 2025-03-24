@@ -179,10 +179,10 @@ class Encoder(nn.Module):
       hidden_states,
       self.last_hidden_rms_norm.weight,
       self.last_hidden_rms_norm.bias,
-      eps=self.last_hidden_rms_norm.eps,
-      residual=residual,
-      prenorm=False,
-      residual_in_fp32=self.residual_in_fp32
+      eps = self.last_hidden_rms_norm.eps,
+      residual = residual,
+      prenorm = False,
+      residual_in_fp32 = self.residual_in_fp32
     )
     
     return hidden_states

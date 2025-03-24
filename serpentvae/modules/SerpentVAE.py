@@ -682,8 +682,8 @@ class SerpentVAE(nn.Module):
   
   def segment_prediction_loss(self,
                               segmentation_predictions: Tensor,
-                              segmentation_indices: Tensor,
-                             ):
+                              segmentation_indices: Tensor
+                              ) -> Tensor:
     """
     Calculates the loss for the segmentation prediction module
 
@@ -895,7 +895,7 @@ class SerpentVAE(nn.Module):
   def subseq_length_stats(self,
                           correct_inputs: Tensor,
                           segmentation_indices: Tensor
-                         ) -> Tuple[float, float]:
+                          ) -> Tuple[float, float]:
     """
     Calculate the average subsequence length and standard deviation
 
@@ -992,7 +992,7 @@ class SerpentVAE(nn.Module):
   def ema_avg_subseq_length(self,
                             curr_avg_subseq_length: float,
                             epsilon: float = 0.75
-                           ) -> float:
+                            ) -> float:
     """
     Calculate an expoonential moving average of the average subsequence length
 
@@ -1012,7 +1012,7 @@ class SerpentVAE(nn.Module):
   def ema_stddev_subseq_length(self,
                                curr_stddev_subseq_length: float,
                                epsilon: float = 0.75
-                              ) -> float:
+                               ) -> float:
     """
     Calculate an expoonential moving average of the standard deviation of the subsequence length
 
@@ -1032,7 +1032,7 @@ class SerpentVAE(nn.Module):
   def num_active_units(self,
                        mu: Tensor,
                        threshold: float = 1e-2
-                      ) -> int:
+                       ) -> int:
     """
     Calculate number of active units in latent variables
     We basically calculate the covariance between the latent variables and see if they are above a threshold 
@@ -1077,7 +1077,7 @@ class SerpentVAE(nn.Module):
               decoder_segmentation_predictions: Tensor,
               threshold: float = 1e-2,
               is_test: bool = True
-             ):
+              ):
     """
     Output the current metrics at this training step
 

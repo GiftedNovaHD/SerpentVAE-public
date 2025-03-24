@@ -98,7 +98,7 @@ class DecoderSegmentPredictor(nn.Module):
     # NOTE: We need to detach hidden_states and concept_tokens because we don't want to backpropagate through them.
     decoder_last_hidden_states = decoder_last_hidden_states.detach()
     concept_tokens = concept_tokens.detach()
-
+    
     concept_tokens = self.latent_mlp(concept_tokens)
     concept_tokens = self.latent_proj(concept_tokens)
     

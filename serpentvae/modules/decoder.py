@@ -46,14 +46,13 @@ class DecoderLayer(nn.Module):
     self.concept_mixer_rms_norm = RMSNorm(hidden_dim)
     self.mlp_rms_norm = RMSNorm(hidden_dim)
 
-  def forward(
-    self,
-    hidden_states: Tensor,
-    concept_tokens: Tensor,
-    residual: Optional[Tensor] = None, 
-    inference_params=None, 
-    **mixer_kwargs
-    ):
+  def forward(self,
+              hidden_states: Tensor,
+              concept_tokens: Tensor,
+              residual: Optional[Tensor] = None, 
+              inference_params=None, 
+              **mixer_kwargs
+              ):
     """
       Taken from https://github.com/state-spaces/mamba/blob/main/mamba_ssm/modules/block.py
       Pass the input through the decoder layer.
