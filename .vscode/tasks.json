@@ -7,7 +7,8 @@
                 "run discrete_text_lightning_train.py with no optional modules config",
                 "run discrete_text_lightning_train.py with debug config",
                 "run continuous_lightning_train.py with debug config",
-                "run continuous_lightning_train.py with no optional modules config"
+                "run continuous_lightning_train.py with no optional modules config",
+                "run continuous_video_lightning_train.py with video debug config"
             ],
             "dependsOrder": "parallel",
             "problemMatcher": [],
@@ -107,7 +108,7 @@
             "args": [
                 "continuous_video_lightning_train.py",
                 "--config",
-                "video_debug_config"
+                "debug_train/video_debug_config"
             ],
             "presentation": {
                 "reveal": "silent",
