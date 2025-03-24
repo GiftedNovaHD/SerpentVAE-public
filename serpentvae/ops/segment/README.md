@@ -7,7 +7,7 @@ This directory contains the implementations for segmentation-related operations 
 ```sh
 segment/
 ├── boundary/
-│   ├── ChainCRP_grad.py      # Implements ChainCRP gradient-based boundary detection
+│   ├── ChainCRP_grad.py      # Implements ChainCRP segmenter
 │   └── __init__.py
 ├── replace/
 │   ├── helper_function.py    # Helper function to create custom replacement operations
