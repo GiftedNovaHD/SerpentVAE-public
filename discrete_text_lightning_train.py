@@ -3,9 +3,7 @@ Implementation of a Lightning module for training SerpentVAE, using Fully-Sharde
 
 For multi-node strategy, it is advisable to use torchrun instead of torch.distributed.launch, as well as SLURM scripts that sets the appropriate group variables. 
 """
-import os
 import argparse
-
 
 import torch
 
