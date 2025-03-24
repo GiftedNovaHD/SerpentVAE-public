@@ -27,11 +27,11 @@ segment/
   - ChainCRP (`ChainCRP_grad.py`)
     <details>
     <summary>ChainCRP arguments</summary>
-
     - `use_odds_ratio`: Whether to use the odds ratio
     - `compression_strength`: The compression strength that the concentration parameter is scaled by
-
     </details>
+  - DynVAE (`dynvae.py`)
+  - SeqVAE (`seqvae.py`)
 
   ### Creating a new boundary operator
   To create a new boundary operator, you need to:
