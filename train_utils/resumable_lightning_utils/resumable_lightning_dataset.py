@@ -12,10 +12,10 @@ class ResumableDataset(Dataset):
   We act as a pass-through for iterable datasets.
 
   Args:
-    dataset (Union[IterableDataset, List]): A dataset to wrap.
+    dataset (Union[IterableDataset, List[Any]]): A dataset to wrap.
     collate_fn (Callable): A collate function to use for the dataset.
   """
-  def __init__(self, dataset: Union[datasets.IterableDataset, List], collate_fn: Callable): 
+  def __init__(self, dataset: Union[datasets.IterableDataset, List[Any]], collate_fn: Callable): 
     self.collate_fn = collate_fn
     self._current_index = 0
 
