@@ -21,12 +21,15 @@ class ResumableDataset(Dataset):
   def __init__(self, dataset: Union[datasets.IterableDataset, List[Any]], collate_fn: Callable): 
     self.collate_fn = collate_fn
     self._current_index = 0
-    self.len_dataset = None
+    self.len_dataset = 0
 
     if isinstance(dataset, datasets.IterableDataset):
       self.dataset = dataset.with_format("torch")
       self.is_iterable_dataset = True
-      self.len_dataset = len(self.dataset)
+      
+      # Get the length of the dataset
+      size = collections.deque(enumerate(self.dataset, 1), maxlen=1)
+      self.len_dataset = size[0][0] if size else 0
 
       print("Converting to torch IterableDataset")
 
@@ -34,13 +37,11 @@ class ResumableDataset(Dataset):
     else:
       self.dataset = dataset
       self.is_iterable_dataset = False
+
+      self.len_dataset = len(self.dataset)
   
   def __len__(self):
-    if not self.is_iterable_dataset:
-      return len(self.dataset)
-    else: 
-      size = collections.deque(enumerate(self.dataset, 1), maxlen=1)
-      return size[0][0] if size else 0
+    return self.len_dataset
     
   def __getitem__(self, idx):
     return self.dataset[idx]
