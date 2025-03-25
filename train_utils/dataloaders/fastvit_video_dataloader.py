@@ -189,26 +189,30 @@ def collate_video(batch, _max_seq_len: int, _batch_size: int, _dtype: torch.dtyp
         # Process the whole batch of frames at once
         sequence_features = model(frames_batch) # Shape is (unpadded_seq_len, num_features, feature_dim)
         
-        #print(f"Sequence features shape: {sequence_features.shape}")
+        # Take the mean of the last dimension of sequence_features so that we have 16 channels (as used in SOTA (continuous) video tokenizers
+        # like NVIDIA Cosmos et. al.) 
+        mean_sequence_features = sequence_features.mean(dim = -1, dtype=torch.bfloat16) # (unpadded_seq_len, num_features, feature_dim) -> (unpadded_seq_len, num_features) 
 
-        reshaped_features = rearrange(sequence_features, "seq_len num_features feature_dim -> seq_len (num_features feature_dim)")
+        # print(f"Sequence features shape: {sequence_features.shape}")
+
+        # reshaped_features = rearrange(sequence_features, "seq_len num_features feature_dim -> seq_len (num_features feature_dim)")
 
         #print(f"Reshaped features shape: {reshaped_features.shape}")
 
-        seq_len = reshaped_features.shape[0]
+        seq_len = mean_sequence_features.shape[0]
 
         if seq_len < _max_seq_len:
           #print(f"Padding sequence from {seq_len} to {_max_seq_len}")
           amount_to_pad = _max_seq_len - seq_len
 
-          padding_tensor = torch.zeros(amount_to_pad, _feature_dim * _num_features, device = device, dtype = torch.bfloat16)
+          padding_tensor = torch.zeros(amount_to_pad, _num_features, device = device, dtype = torch.bfloat16)
 
-          reshaped_features = torch.cat((padding_tensor, reshaped_features), dim = 0)
+          mean_sequence_features = torch.cat((padding_tensor, mean_sequence_features), dim = 0)
 
           #print(f"Reshaped features shape after padding: {reshaped_features.shape}")
 
         # Move to CPU to free GPU memory
-        batch_features = torch.cat((batch_features, reshaped_features.cpu().unsqueeze(0)), dim = 0) # Shape is (batch_size, padded/max_seq_len, feature_dim) NOTE: feature_dim is 6144
+        batch_features = torch.cat((batch_features, mean_sequence_features.cpu().unsqueeze(0)), dim = 0) # Shape is (batch_size, padded/max_seq_len, feature_dim) NOTE: feature_dim is 6144
         
     except Exception as e:
       print(f"[FastVIT] Error processing video sample {sample_idx}: {str(e)}")
@@ -219,8 +223,8 @@ def collate_video(batch, _max_seq_len: int, _batch_size: int, _dtype: torch.dtyp
   if batch_features.size(0) == 0: # All samples in batch failed processing
     warnings.warn("WARNING: All samples in batch failed processing, returning dummy tensor")
     # Create a dummy tensor with the correct shape
-    # Shape: [batch_size, sequence_length, feature_dim]
-    dummy_tensor = torch.zeros((_batch_size, _max_seq_len, _num_features * _feature_dim), dtype= _dtype)
+    # Shape: [batch_size, sequence_length, num_features]
+    dummy_tensor = torch.zeros((_batch_size, _max_seq_len, _num_features), dtype= _dtype) 
     
     return dummy_tensor
   
@@ -231,7 +235,7 @@ def collate_video(batch, _max_seq_len: int, _batch_size: int, _dtype: torch.dtyp
 
     #print(f"Padding {num_sequences_to_pad} sequences with zeros")
 
-    padding_tensor = torch.zeros((num_sequences_to_pad, _max_seq_len, _num_features * _feature_dim), dtype= _dtype)
+    padding_tensor = torch.zeros((num_sequences_to_pad, _max_seq_len, _num_features), dtype= _dtype)
 
     #print(f"Padding tensor shape: {padding_tensor.shape}")
 
