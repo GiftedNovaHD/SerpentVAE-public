@@ -8,7 +8,7 @@ This folder contains the reconstruction losses that we support. It also contains
 ### Discrete Losses
 - Cross Entropy (CE)
 
-## Adding new losses
+## Adding new loss functions
 - Create a new file in the `continuous_losses` or `discrete_losses` folder with the name of the loss.
 - Refer to the `README.md` in the respective folders for details on how to implement the loss and the required arguments.
 - Add the loss to the correct dictionary in `create_recon_loss.py`

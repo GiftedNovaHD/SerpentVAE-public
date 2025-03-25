@@ -52,9 +52,9 @@ class EncoderLayer(nn.Module):
       Pass the input through the encoder layer.
 
     Args:
-      hidden_states: the sequence to the decoder layer (required) Training: (batch, sequence_length, hidden_dim) Inference: (batch, 1, hidden_dim)
-      residual: hidden_states = Mixer(LN(residual)) Training: (batch, sequence_length, hidden_dim) Inference: (batch, 1, hidden_dim)
-      inference_params: the inference parameters for the Sequence Mixer (optional)
+      - `hidden_states`: the sequence to the decoder layer (required) Training: `(batch, sequence_length, hidden_dim)` Inference: `(batch, 1, hidden_dim)`
+      - `residual`: `hidden_states = Mixer(LN(residual))` Training: `(batch, sequence_length, hidden_dim)` Inference: `(batch, 1, hidden_dim)`
+      - `inference_params`: the inference parameters for the Sequence Mixer (optional)
     """ 
     # Sequence Mixer Pass
     # Norm Pass
@@ -158,8 +158,8 @@ class Encoder(nn.Module):
               ):
     """
     Args:
-      hidden_states: the sequence to the decoder layer (required) Training: (batch, sequence_length, hidden_dim) Inference: (batch, 1, hidden_dim)
-      inference_params: the inference params for the Sequence Mixer (optional)
+      `hidden_states`: the sequence to the decoder layer (required) Training: `(batch, sequence_length, hidden_dim)` Inference: `(batch, 1, hidden_dim)`
+      `inference_params`: the inference params for the Sequence Mixer (optional)
 
     """
     # Setting up initial residual

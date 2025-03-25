@@ -16,8 +16,8 @@ class ConceptMixer(nn.Module):
                dtype: torch.dtype = None
                ):
     """
-      hidden_dim: dimension of the hidden token
-      concept_dim: dimension of the concept token
+      - `hidden_dim`: dimension of the hidden token
+      - `concept_dim`: dimension of the concept token
     """
     factory_kwargs = {"device": device, "dtype": dtype}
     super().__init__()
@@ -36,8 +36,12 @@ class ConceptMixer(nn.Module):
 
   def forward(self, hidden_token, concept_token):
     """
-      hidden_token: hidden token (batch_size, sequence_length/1, hidden_dim)
-      concept_token: concept token (batch_size, sequence_length/1,  concept_dim)
+    Args: 
+      `hidden_token`: hidden token `(batch_size, sequence_length/1, hidden_dim)`
+      `concept_token`: concept token `(batch_size, sequence_length/1,  concept_dim)`
+
+    Returns: 
+      `hidden_token_out`: modified hidden token `(batch_size, sequence_length/1, hidden_dim)`
     """
     # Project concept token 
     layer_concept_token = self.concept_proj(concept_token) # (batch_size, sequence_length/1, concept_dim) -> (batch_size, sequence_length/1, concept_dim)

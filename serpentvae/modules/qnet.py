@@ -20,11 +20,10 @@ class QNet(nn.Module):
               ):
     """
     Args: 
-      latent_dim (int): Dimension of the latent code z.
-      num_layers (int): Number of layers for the Mamba encoder 
-      conv_length (int): Convolution length used in Mamba encoder
-      mamba_expand (int): Expansion factor for the 
-
+      - `latent_dim` (int): Dimension of the latent code z.
+      - `num_layers` (int): Number of layers for the Mamba encoder 
+      - `conv_length` (int): Convolution length used in Mamba encoder
+      - `mamba_expand` (int): Expansion factor for the Mamba module
     """
     factory_kwargs = {"device": device, "dtype": dtype}    
     super(QNet, self).__init__() 
@@ -85,14 +84,14 @@ class QNet(nn.Module):
     
 
     Args: 
-      decoder_output (Tensor): (batch_size, seq_len, hidden_dim / vocab_size) Output of the decoder
+      - `decoder_output` (`Tensor`): `(batch_size, seq_len, hidden_dim / vocab_size)` Output of the decoder
       NOTE: Will be logits if using discrete tokens, else will be the hidden states of the decoder
-      targets (Tensor): (batch_size, seq_len, 1/hidden_dim) Input ground truth targets
-      segmentation_indices (Tensor): (batch_size, seq_len, 1) Binary mask indicating segment end positions
+      - `targets` (`Tensor`): `(batch_size, seq_len, 1/hidden_dim)` Input ground truth targets
+      - `segmentation_indices` (`Tensor`): `(batch_size, seq_len, 1)` Binary mask indicating segment end positions
     
     Returns: 
-      mu_q (List[Tensor]): (batch_size, num_subseq, latent_dim) Predicted mean of the Gaussian over z
-      logvar_q (List[Tensor]): (batch_size, num_subseq, latent_dim) Predicted log-variance for the Gaussian over z 
+      `mu_q` (List[Tensor]): (batch_size, num_subseq, latent_dim) Predicted mean of the Gaussian over z
+      `logvar_q` (List[Tensor]): (batch_size, num_subseq, latent_dim) Predicted log-variance for the Gaussian over z 
     """
     B, L, _ = targets.shape
 

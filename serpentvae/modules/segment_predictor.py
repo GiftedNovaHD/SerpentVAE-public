@@ -54,11 +54,11 @@ class DecoderSegmentPredictor(nn.Module):
   This module takes the hidden states from a decoder layer and predicts segmentation information representing boundaries in the sequence.
 
   Attributes:
-    hidden_dim (int): Dimension of the input hidden states.
-    concept_dim (int): Dimension of the concept tokens.
-    inner_dim (int): Dimension of the MLP's inner layer.
-    device (torch.device, optional): Device to place the module on.
-    dtype (torch.dtype, optional): Data type for the module's parameters.
+    - `hidden_dim` (`int`): Dimension of the input hidden states.
+    - `concept_dim` (`int`): Dimension of the concept tokens.
+    - `inner_dim` (`int`): Dimension of the MLP's inner layer.
+    - `device` (`torch.device`, `optional`): Device to place the module on.
+    - `dtype` (`torch.dtype`, `optional`): Data type for the module's parameters.
   
   
   """
@@ -89,11 +89,11 @@ class DecoderSegmentPredictor(nn.Module):
              ) -> Tensor:
     """
     Args:
-      decoder_last_hidden_states (Tensor): (batch_size, seq_len, hidden_dim)
-      concept_tokens (Tensor): (batch_size, seq_len, concept_dim)
+      `decoder_last_hidden_states` (`Tensor`): `(batch_size, seq_len, hidden_dim)`
+      `concept_tokens` (`Tensor`): `(batch_size, seq_len, concept_dim)`
 
     Returns:
-      segment_predictions (Tensor): (batch_size, seq_len, 1)
+      `segment_predictions` (`Tensor`): `(batch_size, seq_len, 1)`
     """
     # NOTE: We need to detach hidden_states and concept_tokens because we don't want to backpropagate through them.
     decoder_last_hidden_states = decoder_last_hidden_states.detach()

@@ -17,8 +17,6 @@ from torch.distributions import ContinuousBernoulli
 # Custom int8 definition since this is used way too much
 int8 = torch.int8
 
-from typing import Optional 
-
 # Import module utils for ensuring EOS padding tokens at the front are handled correctly
 from serpentvae.modules.module_utils.subseq_len_utils import count_whitelisted_tokens, filter_index
 
@@ -73,8 +71,10 @@ class ChainCRP(nn.Module):
     """
     batch_size, seq_len, _ = encoder_segmentation_predictions.shape
     
+    # Squeeze the last dimension to get rid of the singleton dimension
     p_n_squeezed = encoder_segmentation_predictions.squeeze(-1) # (batch_size, seq_len, 1) -> (batch_size, seq_len)
     
+    # Initialize the segmentation decisions with zeros
     segmentation = torch.zeros(batch_size, seq_len, device = self.device).to(int8)
 
     eps = 1e-8
@@ -84,7 +84,7 @@ class ChainCRP(nn.Module):
     theta = theta * self.compression_strength
     # Prepare indices for tokens 1,..., L - 1 (0-indexing, but for CRP math notation, we use 1-indexed positions.
     # NOTE: Might want to do some subscript notation when writing paper to make this clear.
-    indices = torch.arange(1, seq_len, device=self.device, dtype=theta.dtype) # (seq_len - 1, )
+    indices = torch.arange(1, seq_len, device=self.device, dtype = theta.dtype) # (seq_len - 1, )
 
     if self.use_odds_ratio: 
       p_n_squeezed_sub = p_n_squeezed[:, 1:] # (batch_size, seq_len) -> (batch_size, seq_len - 1)
@@ -105,7 +105,9 @@ class ChainCRP(nn.Module):
       crp_factor = crp_factor.unsqueeze(0).expand(batch_size, -1) # (seq_len - 1, ) -> (batch_size, seq_len - 1)
       effective_prob = p_n_squeezed_sub * crp_factor # (batch_size, seq_len - 1)
 
-    relaxed_samples = ContinuousBernoulli(probs=effective_prob).rsample()
+    # Sample from a Continuous Bernoulli distribution to enforce differentiability. 
+    # NOTE: Not Gumbel-Softmax / Sigmoid trick
+    relaxed_samples = ContinuousBernoulli(probs = effective_prob).rsample()
     hard_samples = (relaxed_samples >= 0.5).to(int8) # (batch_size, seq_len - 1)
 
 

@@ -30,13 +30,14 @@ class ConfidenceModule(nn.Module):
   def forward(self,
               encoder_last_hidden_states: Tensor,
               concept_tokens: Tensor
-             ) -> Tensor:
+              ) -> Tensor:
     """
     Args:
-        encoder_last_hidden_state (Tensor): (batch_size, seq_len, hidden_dim)
-        concept_tokens (Tensor): (batch_size, seq_len, concept_dim)
+      - `encoder_last_hidden_state` (`Tensor`): `(batch_size, seq_len, hidden_dim)`
+      - `concept_tokens` (`Tensor`): `(batch_size, seq_len, concept_dim)`
+
     Returns:
-        Tensor: (batch_size, seq_len, 1)
+      - `Tensor`: (batch_size, seq_len, 1)
     """
     
     # Compute the confidence score
