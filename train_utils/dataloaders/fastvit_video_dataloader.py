@@ -112,7 +112,6 @@ def get_image_model_and_transforms():
       
     except Exception as e:
       print(f"Error initializing model and transforms: {e}")
-      import traceback
       print(f"Traceback: {traceback.format_exc()}")
       raise
     
@@ -133,14 +132,14 @@ def collate_video(batch, _max_seq_len: int, _batch_size: int, _dtype: torch.dtyp
     try:
       #print(f"Processing sample {sample_idx}")
       # Get video data - use 'avi' field instead of 'video'
-      # video_data = sample['avi']
-      video_file_path = sample['file_name']
+      video_data = sample['avi']
+      # video_file_path = sample['file_name']
       # DEBUG
-      print(f"Processing video file: {video_file_path}")
+      # print(f"Processing video file: {video_file_path}")
 
       # Open video file directly from binary data
-      # container = av.open(BytesIO(video_data))
-      container = av.open(video_file_path)
+      container = av.open(BytesIO(video_data))
+      # container = av.open(video_file_path)
       video_stream = container.streams.video[0]
       
       #print(f"Max sequence length: {_max_seq_len}")
