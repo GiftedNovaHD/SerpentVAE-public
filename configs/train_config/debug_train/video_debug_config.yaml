@@ -1,5 +1,5 @@
 # Training configuration
-dataset_path: "aisuko/ucf101-subset"
+dataset_path: "GiftedNova/UCF101-trial"
 dataset_name: 
 num_epochs: 10
 eval_freq: 0.001

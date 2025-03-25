@@ -3,6 +3,8 @@ import av
 import numpy as np
 import timm # Replace VideoMAE imports with timm
 import warnings
+import traceback # DEBUG
+
 
 from io import BytesIO
 
@@ -133,6 +135,8 @@ def collate_video(batch, _max_seq_len: int, _batch_size: int, _dtype: torch.dtyp
       # Get video data - use 'avi' field instead of 'video'
       # video_data = sample['avi']
       video_file_path = sample['file_name']
+      # DEBUG
+      print(f"Processing video file: {video_file_path}")
 
       # Open video file directly from binary data
       # container = av.open(BytesIO(video_data))
@@ -201,7 +205,6 @@ def collate_video(batch, _max_seq_len: int, _batch_size: int, _dtype: torch.dtyp
         
     except Exception as e:
       print(f"[FastVIT] Error processing video sample {sample_idx}: {str(e)}")
-      import traceback
       print(f"Traceback: {traceback.format_exc()}")
       # Skip broken samples
       continue
@@ -263,9 +266,9 @@ def prep_video_dataset(config: Dict) -> Tuple[ResumableDataLoader, ResumableData
   # Loading datasets 
   try:
     # First try loading the predefined splits
-    train_dataset = load_dataset(path = config["dataset_path"], name = config["dataset_name"], split = "train", streaming=True)
-    test_dataset = load_dataset(path = config["dataset_path"], name = config["dataset_name"], split = "test", streaming=True)
-    val_dataset = load_dataset(path = config["dataset_path"], name = config["dataset_name"], split = "validation", streaming=True)
+    train_dataset = load_dataset(path = config["dataset_path"], name = config["dataset_name"], split = "train", streaming=False)
+    test_dataset = load_dataset(path = config["dataset_path"], name = config["dataset_name"], split = "test", streaming=False)
+    val_dataset = load_dataset(path = config["dataset_path"], name = config["dataset_name"], split = "validation", streaming=False)
     
     print("Successfully loaded predefined dataset splits.")
   
