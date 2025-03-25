@@ -3,7 +3,7 @@ import av
 import numpy as np
 import timm # Replace VideoMAE imports with timm
 import warnings
-import traceback # DEBUG
+import traceback # For debugging purposes
 
 
 from io import BytesIO
