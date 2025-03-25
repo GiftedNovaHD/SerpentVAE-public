@@ -61,7 +61,8 @@ def sample_frame_indices(clip_len, frame_sample_rate, seg_len):
     indices = np.clip(indices, 0, seg_len - 1).astype(np.int64) # This clips the values to be within the range of the video and be integers
 
   else:
-    # Handle the case where converted_len equals seg_len
+    # Handle the (edge) case where converted_len == seg_len, i.e.
+    # the video doesn't have enough frames for random sampling.
     if converted_len >= seg_len:
       # If there's no room to randomly select, just take the entire video
       indices = np.linspace(0, seg_len - 1, num=clip_len)
