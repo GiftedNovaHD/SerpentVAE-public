@@ -1,14 +1,6 @@
 # SerpentVAE
 A method to dynamically segment and compress information into latent tokens across the time domain. Compared to other methods to segment such as using perplexity of a separate model (LCM 2024), we directly use the reconstruction error of the VAE itself as a proxy for how we should segment the data, based on the observation that if reconstruction error is low, that subsequence likely represents a concept and thus can be easily compressed.
 
-## Architecture Details 
-SerpentVAE uses a Mamba-2 based encoder and decoder. In the decoder module, Mamba-2 is used to replace self-attention, and we also add a gating mechanism to modulate the information that's being passed to the hidden token that is being decoded. 
-
-During training, we randomly sample continuous segments and train the model to reconstruct the data. We slowly increase the length of the segments. 
-
-### Quantisation Scheme
-- Scale-VAE
-
 # Table of Contents
 - [SerpentVAE](#serpentvae)
   - [Architecture Details](#architecture-details)
@@ -18,6 +10,15 @@ During training, we randomly sample continuous segments and train the model to r
 - [Usage](#usage)
 - [Checklist](#checklist)
 - [Future Plans](#future-plans)
+
+
+## Architecture Details 
+SerpentVAE uses a Mamba-2 based encoder and decoder. In the decoder module, Mamba-2 is used to replace self-attention, and we also add a gating mechanism to modulate the information that's being passed to the hidden token that is being decoded. 
+
+During training, we randomly sample continuous segments and train the model to reconstruct the data. We slowly increase the length of the segments. 
+
+### Quantisation Scheme
+- Scale-VAE
 
 # Usage 
 1. Clone the repository and navigate into the cloned directory. 
