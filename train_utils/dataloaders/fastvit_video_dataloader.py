@@ -61,11 +61,18 @@ def sample_frame_indices(clip_len, frame_sample_rate, seg_len):
     indices = np.clip(indices, 0, seg_len - 1).astype(np.int64) # This clips the values to be within the range of the video and be integers
 
   else:
-    end_idx = np.random.randint(converted_len, seg_len)
-    start_idx = end_idx - converted_len
-    indices = np.linspace(start_idx, end_idx, num=clip_len)
+    # Handle the case where converted_len equals seg_len
+    if converted_len >= seg_len:
+      # If there's no room to randomly select, just take the entire video
+      indices = np.linspace(0, seg_len - 1, num=clip_len)
+    else:
+      # Normal case: There's room to randomly select a window
+      end_idx = np.random.randint(converted_len, seg_len)
+      start_idx = end_idx - converted_len
+      indices = np.linspace(start_idx, end_idx, num=clip_len)
+    
     #print(f"Indices: {indices}")
-    indices = np.clip(indices, start_idx, end_idx - 1).astype(np.int64)
+    indices = np.clip(indices, 0, seg_len - 1).astype(np.int64)
     #print(f"Clipped indices: {indices}")
 
   return indices
