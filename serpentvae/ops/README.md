@@ -17,10 +17,11 @@ ops/
 └── __init__.py
 ```
 
-### `segment/`
+### [`segment/`](segment/)
 This is the folder that contains the operations for segmenting operations, both for deciding segmentation boundaries and for replacing tokens within segments. 
 
-### `sigmoid_focal_loss.py`
-This is the folder that contains the operations for the sigmoid focal loss used in getting segment predictors to predict the segment boundaries. 
+### [`sigmoid_focal_loss.py`](sigmoid_focal_loss.py)
+This is an adapted version of a sigmoid focal loss function used in getting segment predictors to predict the segment boundaries. 
+The loss function was originally described in the [RetinaNet](https://arxiv.org/abs/1708.02002) paper and also implemented in [`torchvision`](https://pytorch.org/vision/main/generated/torchvision.ops.sigmoid_focal_loss.html). 
 
 
