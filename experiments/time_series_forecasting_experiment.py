@@ -78,4 +78,20 @@ print(train_data.shape)
 print(validation_data.shape)
 print(test_data.shape)
 
+def create_segments(data, segment_length, frequency):
+  sequence_length, num_features = data.shape
+  effective_segment_length = segment_length * frequency
+  num_segments = sequence_length // effective_segment_length
+  print(f"Number of segments: {num_segments}")
+  segments = torch.zeros(num_segments, segment_length, num_features)
+  for i in range(num_segments):
+    indices = torch.linspace(i * effective_segment_length, (i + 1) * effective_segment_length, segment_length)
+    indices = indices.long()
 
+    for seg_index, index in enumerate(indices):
+      segments[i, seg_index] = data[index]
+  return segments
+
+train_segments = create_segments(train_data, 14, 12)
+
+print(train_segments.shape)
