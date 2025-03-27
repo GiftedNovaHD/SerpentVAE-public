@@ -2,7 +2,7 @@
 dataset_path: "ETDataset/ett"
 dataset_name: "m1"
 num_epochs: 100
-eval_freq: 0.001
+eval_freq: 1
 checkpoint_freq: 50
 model_save_folder_path: "time-series-debug-model-ckpt"
 metrics_save_folder_path: "time-series-debug-metrics-ckpt"

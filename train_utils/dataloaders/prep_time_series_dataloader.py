@@ -100,7 +100,7 @@ def prep_time_series_dataset(config: Dict) -> Tuple[ResumableDataLoader, Resumab
                                          shuffle = True,
                                          num_workers = config["dataloader_num_workers"],
                                          persistent_workers = True if dataloader_num_workers > 0 else False,
-                                         prefetch_factor = 2 if dataloader_num_workers > 0 else None,  # Need this when workers > 0
+                                         prefetch_factor = 16 if dataloader_num_workers > 0 else None,  # Need this when workers > 0
                                          pin_memory = True,
                                          pin_memory_device = config["device"]
                                         )
@@ -109,14 +109,18 @@ def prep_time_series_dataset(config: Dict) -> Tuple[ResumableDataLoader, Resumab
                                         batch_size = config["batch_size"],
                                         shuffle = False, 
                                         num_workers = dataloader_num_workers,
-                                        persistent_workers = True if dataloader_num_workers > 0 else False
+                                        persistent_workers = True if dataloader_num_workers > 0 else False,
+                                        pin_memory = True,
+                                        pin_memory_device = config["device"]
                                        )
   
   val_dataloader = ResumableDataLoader(dataset = batched_val_data, 
                                        batch_size = config["batch_size"],
                                        shuffle = False, 
                                        num_workers = dataloader_num_workers, 
-                                       persistent_workers = True if dataloader_num_workers > 0 else False
+                                       persistent_workers = True if dataloader_num_workers > 0 else False,
+                                       pin_memory = True,
+                                       pin_memory_device = config["device"]
                                       )
   
   return train_dataloader, test_dataloader, val_dataloader
