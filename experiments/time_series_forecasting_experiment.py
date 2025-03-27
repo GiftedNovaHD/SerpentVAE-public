@@ -2,7 +2,7 @@ import datasets
 from datasets import load_dataset
 import torch
 from einops import rearrange
-
+from torch import Tensor
 ettm1_dataset = load_dataset("ETDataset/ett", name = "m1", multivariate = True)
 
 #ettm2_dataset = load_dataset("ETDataset/ett", name = "m2")
@@ -78,7 +78,7 @@ print(train_data.shape)
 print(validation_data.shape)
 print(test_data.shape)
 
-def create_segments(data, segment_length, frequency):
+def create_segments(data: Tensor, segment_length: int, frequency:int = 1):
   sequence_length, num_features = data.shape
   effective_segment_length = segment_length * frequency
   num_segments = sequence_length // effective_segment_length
