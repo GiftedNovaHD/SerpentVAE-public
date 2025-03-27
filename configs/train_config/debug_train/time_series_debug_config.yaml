@@ -8,14 +8,14 @@ model_save_folder_path: "time-series-debug-model-ckpt"
 metrics_save_folder_path: "time-series-debug-metrics-ckpt"
 training_path: "time-series-debug-train-ckpt"
 learning_rate: 1e-4
-min_learning_rate: 1e-8
+min_learning_rate: 5e-6
 weight_decay: 1e-2
 max_seq_len: 64
 batch_size: 64
 dataloader_num_workers: 16
 parallelism_strategy: "ddp"
 compile_model: true
-is_debug: true
+is_debug: false
 seed: 6969
 
 # Model configuration
@@ -24,7 +24,7 @@ seed: 6969
 
 # Global variables
 hidden_dim: 32
-concept_dim: 24
+concept_dim: 16
 vocab_size: # NOTE: Vocab size can be left blank to take in continuous inputs
 input_dim: 7 # NOTE: Input dimension can be left blank for continuous inputs
 
@@ -52,7 +52,7 @@ dtype: "bf16"
 boundary_operator:
   ChainCRP:
     use_odds_ratio: false
-    compression_strength: 0.25
+    compression_strength: 1.0
 
 
 # Replacement function configuration
@@ -116,7 +116,7 @@ qnet:
   Mamba2:
     mamba2_conv_length: 4
     mamba2_expand: 2
-    mamba2_head_dim: 6 # (concept_dim * mamba_expand / qnet_mamba_head_dim = 8)
+    mamba2_head_dim: 4 # (concept_dim * mamba_expand / qnet_mamba_head_dim = 8)
     mamba2_state_dim: 8
 
   # Channel mixer configuration

@@ -11,6 +11,7 @@ import torch
 import lightning as pl
 # Modify checkpointing behavior for PyTorch Lightning
 from lightning.pytorch.callbacks import ModelCheckpoint, ModelSummary
+from lightning.pytorch.loggers.wandb import WandbLogger
 
 from serpentvae.modules.LightningSerpentVAE.VideoLightningSerpentVAE import VideoLightningSerpentVAE
 from train_utils.config_utils import load_config # For loading configs
@@ -80,6 +81,8 @@ if __name__ == "__main__":
   
   # Create our custom progress bar
   progress_bar = ResumableProgressBar(refresh_rate = 1)
+
+  wandb_logger = WandbLogger(project = "SerpentVAE-Video")
   
   trainer = pl.Trainer(devices = -1, # Configure to use all available devices
                        accelerator = "gpu",
@@ -91,6 +94,7 @@ if __name__ == "__main__":
                        default_root_dir= config["training_path"],
                        profiler = "pytorch" if config["is_debug"] else None,
                        precision = "bf16-true",
+                       logger = wandb_logger,
                        callbacks = [ModelSummary(max_depth = 5), 
                                     checkpoint_callback, 
                                     memory_monitor,
