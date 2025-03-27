@@ -8,7 +8,8 @@
                 "run discrete_text_lightning_train.py with debug config",
                 "run continuous_lightning_train.py with debug config",
                 "run continuous_lightning_train.py with no optional modules config",
-                "run continuous_video_lightning_train.py with video debug config"
+                "run continuous_video_lightning_train.py with video debug config",
+                "run continuous_time_series_lightning_train.py with time series debug config"
             ],
             "dependsOrder": "parallel",
             "problemMatcher": [],
@@ -119,6 +120,27 @@
             "problemMatcher": [],
             "group": {
                 "kind": "test",
+                "isDefault": false
+            }
+        },
+        {
+            "label": "run continuous_time_series_lightning_train.py with time series debug config",
+            "type": "shell",
+            "command": "python",
+            "args": [
+                "continuous_time_series_lightning_train.py",
+                "--config",
+                "debug_train/time_series_debug_config"
+            ],
+            "presentation": {
+                "reveal": "silent",
+                "panel": "new",
+                "revealProblems": "onProblem",
+                "close": false
+            },
+            "problemMatcher": [],
+            "group": {
+                "kind": "test", 
                 "isDefault": false
             }
         }
