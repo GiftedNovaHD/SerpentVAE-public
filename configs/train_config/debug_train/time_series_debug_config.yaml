@@ -1,6 +1,6 @@
 # Training configuration
-dataset_path: "TroglodyteDerivations/ETTm2"
-dataset_name:
+dataset_path: "ETDataset/ett"
+dataset_name: "m1"
 num_epochs: 10
 eval_freq: 0.001
 checkpoint_freq: 50
@@ -23,13 +23,13 @@ seed: 6969
 # For Mamba2 head_dims, hidden_dim/concept_dim * mamba_expand / head_dim must be a multiple of 8
 
 # Global variables
-hidden_dim: 512
-concept_dim: 512
+hidden_dim: 256
+concept_dim: 256
 vocab_size: # NOTE: Vocab size can be left blank to take in continuous inputs
-input_dim: # NOTE: Input dimension can be left blank for continuous inputs
+input_dim: 7 # NOTE: Input dimension can be left blank for continuous inputs
 
 # Reconstruction loss configuration
-recon_loss_name:
+recon_loss_name: "MSE"
 recon_loss_reduction: "mean"
 
 # Training scale factors
@@ -76,7 +76,7 @@ encoder:
     mamba2_state_dim: 8
     mamba2_conv_length: 4
     mamba2_expand: 2
-    mamba2_head_dim: 64 # (hidden_dim * mamba_expand / mamba_head_dim = 64 = 8 * 8)
+    mamba2_head_dim: 32 # (hidden_dim * mamba_expand / mamba_head_dim = 64 = 8 * 8)
 
   # Channel mixer configuration
   MLP:
@@ -94,7 +94,7 @@ decoder:
     mamba2_state_dim: 8
     mamba2_conv_length: 4
     mamba2_expand: 2
-    mamba2_head_dim: 64 # (hidden_dim * mamba_expand / mamba_head_dim = 64 = 8 * 8)
+    mamba2_head_dim: 32 # (hidden_dim * mamba_expand / mamba_head_dim = 64 = 8 * 8)
 
   # Channel mixer configuration
   MLP:
