@@ -100,12 +100,12 @@ decoder:
     mlp_inner_dim: 768
 
 # Confidence Module configuration
-enable_confidence_module: true # This module is used for Stochastic Varitional Inference (not implemented yet)
+enable_confidence_module: false # This module is used for Stochastic Varitional Inference (not implemented yet)
 confidence_module:
   mlp_inner_dim: 768
 
 # Q-Net configuration
-enable_qnet: true # We advise Q-Net to be enabled to reduce the chance of posterior collapse
+enable_qnet: false # We advise Q-Net to be enabled to reduce the chance of posterior collapse
 qnet:
   # Non-sequence mixer settings
   seq_mixer_layer_config: "Mamba2"
