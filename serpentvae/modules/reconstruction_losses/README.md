@@ -4,6 +4,7 @@ This folder contains the reconstruction losses that we support. It also contains
 ## Available Losses
 ### Continuous Losses
 - Mean Squared Error (MSE)
+- Root Mean Squared Error (RMSE)
 
 ### Discrete Losses
 - Cross Entropy (CE)

@@ -3,6 +3,7 @@ This folder contains implementations of the losses for continuous inputs that we
 
 ## Available Losses
 - Mean Squared Error (MSE): `mean_squared_error.py`
+- Root Mean Squared Error (RMSE): `root_mean_squared_error.py`
 
 ## Adding new loss functions
 - Create a new file in this folder with the name of the loss.

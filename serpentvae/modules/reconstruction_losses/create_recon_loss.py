@@ -15,6 +15,7 @@ from serpentvae.modules.reconstruction_losses.discrete_losses.cross_entropy impo
 
 # Import continuous losses
 from serpentvae.modules.reconstruction_losses.continuous_losses.mean_squared_error import MeanSquaredErrorLoss
+from serpentvae.modules.reconstruction_losses.continuous_losses.root_mean_squared_error import RootMeanSquaredErrorLoss
 #from continuous_losses.mean_squared_error import MeanSquaredErrorLoss
 
 def create_recon_loss(loss_name: str,
@@ -39,8 +40,12 @@ def create_recon_loss(loss_name: str,
   if reduction not in ["mean", "sum"]:
     raise ValueError(f"{reduction} is not a valid reduction operation,")
   
-  continuous_loss_dict = {"MSE": MeanSquaredErrorLoss}
-  discrete_loss_dict = {"CE": CrossEntropyLoss}
+  continuous_loss_dict = {"MSE": MeanSquaredErrorLoss,
+                          "RMSE": RootMeanSquaredErrorLoss
+                         }
+  
+  discrete_loss_dict = {"CE": CrossEntropyLoss
+                       }
 
   if (loss_name not in continuous_loss_dict.keys()) and (loss_name not in discrete_loss_dict.keys()):
     raise ValueError(f"{loss_name} is not a valid loss function.")
