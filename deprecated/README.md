@@ -15,3 +15,4 @@ However, they are still kept here for reference or in case they are needed in th
 - `prep_video_dataloader.py`: This file contains a deprecated version of the video dataloader that was used to understand how to properly implement the video dataloader.
 - `stable_video_dataloader.py`: This file contains a deprecated version of the video dataloader that was used for initial testing, it was stable but extremely slow.
 - `test_video_dataloader.py`: This file contains a script that was used to test the video dataloaders.
+- `test_time_series_dataloader.py`: This file contains a script that was used to test the time series dataloaders.
