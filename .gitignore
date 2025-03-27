@@ -5,3 +5,4 @@
 *.pyd
 **/lightning_logs/
 **/*ckpt*/**
+wandb/
