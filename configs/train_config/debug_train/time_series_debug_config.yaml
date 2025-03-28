@@ -8,10 +8,10 @@ model_save_folder_path: "time-series-debug-model-ckpt"
 metrics_save_folder_path: "time-series-debug-metrics-ckpt"
 training_path: "time-series-debug-train-ckpt"
 learning_rate: 1e-4
-min_learning_rate: 5e-6
+min_learning_rate: 1e-7
 weight_decay: 1e-2
 max_seq_len: 64
-batch_size: 64
+batch_size: 128
 dataloader_num_workers: 16
 parallelism_strategy: "ddp"
 compile_model: true
@@ -34,7 +34,7 @@ recon_loss_reduction: "mean"
 
 # Training scale factors
 alpha: 1.0 # This scales the VMI regularization term
-beta: 1.0 # This scales the KL divergence term
+beta: 0.5 # This scales the KL divergence term
 ema_decay_factor: 0.75 # This is the decay factor for the EMA of the averaqe subsequence length
 
 # Embedding configuration
@@ -52,7 +52,7 @@ dtype: "bf16"
 boundary_operator:
   ChainCRP:
     use_odds_ratio: false
-    compression_strength: 1.0
+    compression_strength: 50
 
 
 # Replacement function configuration
@@ -66,44 +66,45 @@ distribution:
 # Encoder configuration
 encoder:
   # Non-sequence mixer settings
-  seq_mixer_layer_config: "2 (M2)" 
-  channel_mixer_layer_config: "2 (MLP)"
-  segment_pred_inner_dim: 36 # Encoder segment predictor inner dimension
+  seq_mixer_layer_config: "4 (M2)" 
+  channel_mixer_layer_config: "4 (MLP)"
+  segment_pred_inner_dim: 96 # Encoder segment predictor inner dimension
 
   # Sequence mixer configuration
   Mamba2:
     alias: "M2"
     mamba2_state_dim: 8
     mamba2_conv_length: 4
-    mamba2_expand: 2
-    mamba2_head_dim: 4 # (hidden_dim * mamba_expand / mamba_head_dim = 8)
+    mamba2_expand: 4
+    mamba2_head_dim: 2 # (hidden_dim * mamba_expand / mamba_head_dim = 8)
 
   # Channel mixer configuration
   MLP:
-    mlp_inner_dim: 48
+    mlp_inner_dim: 96
 
 # Decoder configuration
 decoder:
   # Non-sequence mixer settings
-  seq_mixer_layer_config: "2 (Mamba2)"
-  channel_mixer_layer_config: "2 (MLP)"
-  segment_pred_inner_dim: 48 # Decoder segment predictor inner dimension
+  seq_mixer_layer_config: "4 (M2)"
+  channel_mixer_layer_config: "4 (MLP)"
+  segment_pred_inner_dim: 96 # Decoder segment predictor inner dimension
 
   # Sequence mixer configuration
   Mamba2:
+    alias: "M2"
     mamba2_state_dim: 8
     mamba2_conv_length: 4
-    mamba2_expand: 2
-    mamba2_head_dim: 4 # (hidden_dim * mamba_expand / mamba_head_dim = 8)
+    mamba2_expand: 4
+    mamba2_head_dim: 2 # (hidden_dim * mamba_expand / mamba_head_dim = 8)
 
   # Channel mixer configuration
   MLP:
-    mlp_inner_dim: 48
+    mlp_inner_dim: 96
 
 # Confidence Module configuration
 enable_confidence_module: false # This module is used for Stochastic Varitional Inference (not implemented yet)
 confidence_module:
-  mlp_inner_dim: 48
+  mlp_inner_dim: 96
 
 # Q-Net configuration
 enable_qnet: false # We advise Q-Net to be enabled to reduce the chance of posterior collapse
@@ -117,7 +118,7 @@ qnet:
     mamba2_conv_length: 4
     mamba2_expand: 2
     mamba2_head_dim: 4 # (concept_dim * mamba_expand / qnet_mamba_head_dim = 8)
-    mamba2_state_dim: 8
+    mamba2_state_dim: 16
 
   # Channel mixer configuration
   MLP:
