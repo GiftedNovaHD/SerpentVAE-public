@@ -2,7 +2,7 @@
 dataset_path: "salesforce/wikitext"
 dataset_name: "wikitext-103-raw-v1"
 num_epochs: 100
-eval_freq: 1
+eval_freq: 0.05
 checkpoint_freq: 50
 model_save_folder_path: "discrete-test-no-optional-model-ckpt"
 metrics_save_folder_path: "discrete-test-no-optional-metrics-ckpt"
@@ -15,7 +15,7 @@ batch_size: 16
 dataloader_num_workers: 16
 parallelism_strategy: "ddp"
 compile_model: true
-is_debug: true
+is_debug: false
 seed: 6969
 
 # Model configuration
@@ -67,6 +67,7 @@ encoder:
   seq_mixer_layer_config: "2 (M2)" 
   channel_mixer_layer_config: "2 (MLP)"
   segment_pred_inner_dim: 768 # Encoder segment predictor inner dimension
+  num_segment_predictions: 1 # Number of segment predictions to make
 
   # Sequence mixer configuration
   Mamba2:
@@ -86,7 +87,7 @@ decoder:
   seq_mixer_layer_config: "2 (Mamba2)"
   channel_mixer_layer_config: "2 (MLP)"
   segment_pred_inner_dim: 768 # Decoder segment predictor inner dimension
-
+  num_segment_predictions: 1 # Number of segment predictions to make
   # Sequence mixer configuration
   Mamba2:
     mamba2_state_dim: 8
