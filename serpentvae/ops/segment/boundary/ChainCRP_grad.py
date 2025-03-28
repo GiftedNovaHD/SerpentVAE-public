@@ -22,10 +22,8 @@ from serpentvae.modules.module_utils.subseq_len_utils import count_whitelisted_t
 
 class ChainCRP(nn.Module): 
   def __init__(self, 
-               use_odds_ratio: bool = True,
+               use_odds_ratio: bool = False,
                compression_strength: float = 1.0,
-               warmup_epochs: int = 0,
-               warmup_subseq_length: int = 1,
                dtype: torch.dtype = None,
                device: torch.device = None
               ): 
@@ -37,13 +35,6 @@ class ChainCRP(nn.Module):
 
     self.use_odds_ratio = use_odds_ratio
     self.compression_strength = compression_strength
-    
-    assert warmup_epochs >= 0, "Warmup epochs must be non-negative"
-    assert warmup_subseq_length >= 1, "Warmup subsequence length must be at least 1"
-    
-    self.correction_factor = 0.75 # Correction factor for warmup epochs
-    self.warmup_epochs = warmup_epochs
-    self.warmup_subseq_length = warmup_subseq_length
 
     # Hardware configuration
     self.dtype = dtype
@@ -89,39 +80,6 @@ class ChainCRP(nn.Module):
     # Initialize the segmentation decisions with zeros
     segmentation = torch.zeros(batch_size, seq_len, device = self.device).to(int8)
 
-    if current_epoch < self.warmup_epochs:
-      end_prob = 1 / (self.warmup_subseq_length) * self.correction_factor
-
-      # Get the original neural predictions (token-specific)
-      original_probs = p_n_squeezed_sub
-      
-      # Sample from the neural predictions
-      relaxed_samples = ContinuousBernoulli(probs = original_probs).rsample()
-
-      # Compute statistics on the batch to scale the overall distribution
-      # while preserving relative differences between tokens
-      detached_relaxed_samples = relaxed_samples.clone().detach()
-      relaxed_sample_mean = detached_relaxed_samples.mean()
-      relaxed_sample_std = detached_relaxed_samples.std()
-
-      inverse_normal_cdf = Normal(0, 1).icdf(torch.tensor(1 - end_prob))
-      a = (1 / relaxed_sample_std).clone().detach()
-      b = (- (inverse_normal_cdf + (relaxed_sample_mean / relaxed_sample_std))).clone().detach()
-      
-      # Apply sigmoid scaling for the forward pass
-      scaled_relaxed_samples = torch.sigmoid(a * relaxed_samples + b)
-      scaled_relaxed_samples = scaled_relaxed_samples.clamp(min = 1e-8, max = 1 - 1e-8)
-      
-      # Use straight-through estimator:
-      # Forward pass uses the scaled values (with target average frequency)
-      # Backward pass uses the original token-specific probabilities
-      hard_samples = (scaled_relaxed_samples >= 0.5).detach() + (original_probs - original_probs.detach())
-
-      segmentation[:, :-1] = (hard_samples >= 0.5).to(int8) # (batch_size, seq_len)
-      segmentation[:, -1] = 1 # (batch_size, seq_len)
-
-      return segmentation.unsqueeze(-1) # (batch_size, seq_len, 1)
-
     eps = 1e-8
     # Differentiable scalar parameter theta
     theta = 1.0 / (prev_batch_recon_loss + eps) # (1, ) -> (1, ) 
@@ -142,6 +100,7 @@ class ChainCRP(nn.Module):
       # Combine odds multiplicatively 
       effective_odds = neural_odds * crp_odds
       effective_prob = effective_odds / (1 + effective_odds)
+
     else:
       crp_factor = 1 - (theta / (indices + theta)) # (seq_len - 1, )
       crp_factor = crp_factor.unsqueeze(0).expand(batch_size, -1) # (seq_len - 1, ) -> (batch_size, seq_len - 1)
