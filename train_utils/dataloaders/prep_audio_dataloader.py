@@ -94,6 +94,7 @@ def prep_audio_dataset(config: Dict) -> Tuple[ResumableDataLoader, ResumableData
   train_dataloader = ResumableDataLoader(train_dataset, 
                                         batch_size = _batch_size, 
                                         shuffle = True, 
+                                        collate_fn = prepped_collate_audio,
                                         num_workers = dataloader_num_workers, 
                                         persistent_workers = True if dataloader_num_workers > 0 else False, 
                                         prefetch_factor = 2 if dataloader_num_workers > 0 else None
@@ -102,6 +103,7 @@ def prep_audio_dataset(config: Dict) -> Tuple[ResumableDataLoader, ResumableData
   test_dataloader = ResumableDataLoader(test_dataset, 
                                         batch_size = _batch_size, 
                                         shuffle = False, 
+                                        collate_fn = prepped_collate_audio,
                                         num_workers = dataloader_num_workers, 
                                         persistent_workers = True if dataloader_num_workers > 0 else False
                                         )
@@ -109,6 +111,7 @@ def prep_audio_dataset(config: Dict) -> Tuple[ResumableDataLoader, ResumableData
   val_dataloader = ResumableDataLoader(val_dataset, 
                                        batch_size = _batch_size, 
                                        shuffle = False, 
+                                       collate_fn = prepped_collate_audio,
                                        num_workers = dataloader_num_workers, 
                                        persistent_workers = True if dataloader_num_workers > 0 else False
                                        )
