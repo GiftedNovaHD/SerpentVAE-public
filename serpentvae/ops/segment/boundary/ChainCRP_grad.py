@@ -83,7 +83,7 @@ class ChainCRP(nn.Module):
     eps = 1e-8
     # Differentiable scalar parameter theta
     theta = 1.0 / (prev_batch_recon_loss + eps) # (1, ) -> (1, ) 
-    theta = torch.sqrt(theta) # Clamp theta to prevent it from exploding too much
+    theta = theta ** 0.5 # Clamp theta to prevent it from exploding too much
     theta = theta * self.compression_strength
     # Prepare indices for tokens 1,..., L - 1 (0-indexing, but for CRP math notation, we use 1-indexed positions.
     # NOTE: Might want to do some subscript notation when writing paper to make this clear.
@@ -109,7 +109,7 @@ class ChainCRP(nn.Module):
     # Sample from a Continuous Bernoulli distribution to enforce differentiability. 
     # NOTE: Not Gumbel-Softmax / Sigmoid trick
     relaxed_samples = ContinuousBernoulli(probs = effective_prob).rsample()
-    hard_samples = (relaxed_samples >= 0.5).to(int8) # (batch_size, seq_len - 1)
+    hard_samples = (relaxed_samples >= 0.9).to(int8) # (batch_size, seq_len - 1)
 
 
     # Segmentation decisions. Note that the first and last tokens are always segment starts and segment ends respectively.
