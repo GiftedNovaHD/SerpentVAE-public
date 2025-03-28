@@ -92,8 +92,14 @@ class ChainCRP(nn.Module):
     if current_epoch < self.warmup_epochs:
       end_prob = 1 / (self.warmup_subseq_length) * self.correction_factor
 
-      relaxed_samples = ContinuousBernoulli(probs = p_n_squeezed_sub).rsample()
+      # Get the original neural predictions (token-specific)
+      original_probs = p_n_squeezed_sub
+      
+      # Sample from the neural predictions
+      relaxed_samples = ContinuousBernoulli(probs = original_probs).rsample()
 
+      # Compute statistics on the batch to scale the overall distribution
+      # while preserving relative differences between tokens
       detached_relaxed_samples = relaxed_samples.clone().detach()
       relaxed_sample_mean = detached_relaxed_samples.mean()
       relaxed_sample_std = detached_relaxed_samples.std()
@@ -101,14 +107,17 @@ class ChainCRP(nn.Module):
       inverse_normal_cdf = Normal(0, 1).icdf(torch.tensor(1 - end_prob))
       a = (1 / relaxed_sample_std).clone().detach()
       b = (- (inverse_normal_cdf + (relaxed_sample_mean / relaxed_sample_std))).clone().detach()
+      
+      # Apply sigmoid scaling for the forward pass
+      scaled_relaxed_samples = torch.sigmoid(a * relaxed_samples + b)
+      scaled_relaxed_samples = scaled_relaxed_samples.clamp(min = 1e-8, max = 1 - 1e-8)
+      
+      # Use straight-through estimator:
+      # Forward pass uses the scaled values (with target average frequency)
+      # Backward pass uses the original token-specific probabilities
+      hard_samples = (scaled_relaxed_samples >= 0.5).detach() + (original_probs - original_probs.detach())
 
-      relaxed_samples = torch.sigmoid(a * relaxed_samples + b)
-
-      relaxed_samples = relaxed_samples.clamp(min = 1e-8, max = 1 - 1e-8)
-
-      hard_samples = (relaxed_samples >= 0.5).to(int8) # (batch_size, seq_len - 1)
-
-      segmentation[:, :-1] = hard_samples # (batch_size, seq_len)
+      segmentation[:, :-1] = (hard_samples >= 0.5).to(int8) # (batch_size, seq_len)
       segmentation[:, -1] = 1 # (batch_size, seq_len)
 
       return segmentation.unsqueeze(-1) # (batch_size, seq_len, 1)
