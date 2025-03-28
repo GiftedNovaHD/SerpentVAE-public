@@ -11,7 +11,7 @@ learning_rate: 1e-4
 min_learning_rate: 1e-7
 weight_decay: 1e-2
 max_seq_len: 64
-batch_size: 128
+batch_size: 64
 dataloader_num_workers: 16
 parallelism_strategy: "ddp"
 compile_model: true
@@ -52,7 +52,7 @@ dtype: "bf16"
 boundary_operator:
   ChainCRP:
     use_odds_ratio: false
-    compression_strength: 50
+    compression_strength: 100
 
 
 # Replacement function configuration
@@ -61,14 +61,14 @@ replacement_function: "use_last"
 # Distribution configuration
 distribution:
   ScaledNormal:
-    dist_desired_std: 1.0
+    dist_desired_std: 1.5
 
 # Encoder configuration
 encoder:
   # Non-sequence mixer settings
-  seq_mixer_layer_config: "4 (M2)" 
-  channel_mixer_layer_config: "4 (MLP)"
-  segment_pred_inner_dim: 96 # Encoder segment predictor inner dimension
+  seq_mixer_layer_config: "3 (M2)" 
+  channel_mixer_layer_config: "3 (MLP)"
+  segment_pred_inner_dim: 192 # Encoder segment predictor inner dimension
 
   # Sequence mixer configuration
   Mamba2:
@@ -80,14 +80,14 @@ encoder:
 
   # Channel mixer configuration
   MLP:
-    mlp_inner_dim: 96
+    mlp_inner_dim: 64
 
 # Decoder configuration
 decoder:
   # Non-sequence mixer settings
-  seq_mixer_layer_config: "4 (M2)"
-  channel_mixer_layer_config: "4 (MLP)"
-  segment_pred_inner_dim: 96 # Decoder segment predictor inner dimension
+  seq_mixer_layer_config: "3 (M2)"
+  channel_mixer_layer_config: "3 (MLP)"
+  segment_pred_inner_dim: 192 # Decoder segment predictor inner dimension
 
   # Sequence mixer configuration
   Mamba2:
@@ -99,7 +99,7 @@ decoder:
 
   # Channel mixer configuration
   MLP:
-    mlp_inner_dim: 96
+    mlp_inner_dim: 64
 
 # Confidence Module configuration
 enable_confidence_module: false # This module is used for Stochastic Varitional Inference (not implemented yet)
