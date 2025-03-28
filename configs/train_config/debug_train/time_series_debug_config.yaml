@@ -52,7 +52,7 @@ dtype: "bf16"
 boundary_operator:
   ChainCRP:
     use_odds_ratio: false
-    compression_strength: 10
+    compression_strength: 7.5
 
 
 # Replacement function configuration
@@ -66,13 +66,17 @@ distribution:
 # Encoder configuration
 encoder:
   # Non-sequence mixer settings
-  seq_mixer_layer_config: "5 (GRU)" 
-  channel_mixer_layer_config: "5 (MLP)"
-  segment_pred_inner_dim: 192 # Encoder segment predictor inner dimension
+  seq_mixer_layer_config: "4 (M2)" 
+  channel_mixer_layer_config: "4 (MLP)"
+  segment_pred_inner_dim: 256 # Encoder segment predictor inner dimension
 
   # Sequence mixer configuration
-  GRU:
-    gru_state_dim_per_hidden_dim: 16
+  Mamba2:
+    alias: "M2"
+    mamba2_conv_length: 4
+    mamba2_expand: 4
+    mamba2_head_dim: 2 # (hidden_dim * mamba_expand / qnet_mamba_head_dim = 8)
+    mamba2_state_dim: 32
 
   # Channel mixer configuration
   MLP:
@@ -81,13 +85,17 @@ encoder:
 # Decoder configuration
 decoder:
   # Non-sequence mixer settings
-  seq_mixer_layer_config: "3 (GRU)"
-  channel_mixer_layer_config: "3 (MLP)"
-  segment_pred_inner_dim: 192 # Decoder segment predictor inner dimension
+  seq_mixer_layer_config: "2 (M2)"
+  channel_mixer_layer_config: "2 (MLP)"
+  segment_pred_inner_dim: 384 # Decoder segment predictor inner dimension
 
   # Sequence mixer configuration
-  GRU:
-    gru_state_dim_per_hidden_dim: 16
+  Mamba2:
+    alias: "M2"
+    mamba2_conv_length: 4
+    mamba2_expand: 4
+    mamba2_head_dim: 2 # (hidden_dim * mamba_expand / qnet_mamba_head_dim = 8)
+    mamba2_state_dim: 32
 
   # Channel mixer configuration
   MLP:
