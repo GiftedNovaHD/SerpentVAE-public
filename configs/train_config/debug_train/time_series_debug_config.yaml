@@ -15,7 +15,7 @@ batch_size: 16
 dataloader_num_workers: 16
 parallelism_strategy: "ddp"
 compile_model: true
-is_debug: true
+is_debug: false
 seed: 6969
 
 # Model configuration
@@ -53,8 +53,8 @@ boundary_operator:
   ChainCRP:
     use_odds_ratio: false
     compression_strength: 7.5
-    warmup_epochs: 10
-    warmup_subseq_length: 10
+    warmup_epochs: 50
+    warmup_subseq_length: 15
 
 
 # Replacement function configuration
