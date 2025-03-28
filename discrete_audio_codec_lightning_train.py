@@ -24,7 +24,7 @@ if __name__ == "__main__":
   parser = argparse.ArgumentParser(description = "SerpentVAE Model")
   parser.add_argument("--config", 
                       type = str, 
-                      default = "debug_train/discrete_audio_codec_debug_config", 
+                      default = "debug_train/audio_debug_config", 
                       help = "Choose with experiment configuration to use"
                       )
   
