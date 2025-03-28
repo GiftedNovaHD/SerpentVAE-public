@@ -24,6 +24,7 @@ class ChainCRP(nn.Module):
   def __init__(self, 
                use_odds_ratio: bool = False,
                compression_strength: float = 1.0,
+               recon_threshold: float = 0.4,
                dtype: torch.dtype = None,
                device: torch.device = None
               ): 
@@ -35,6 +36,7 @@ class ChainCRP(nn.Module):
 
     self.use_odds_ratio = use_odds_ratio
     self.compression_strength = compression_strength
+    self.recon_threshold = torch.tensor(recon_threshold, device = device, dtype = dtype)
 
     # Hardware configuration
     self.dtype = dtype
@@ -78,45 +80,64 @@ class ChainCRP(nn.Module):
     # Initialize the segmentation decisions with zeros
     segmentation = torch.zeros(batch_size, seq_len, device = self.device).to(int8)
 
-    eps = 1e-8
-    # Differentiable scalar parameter theta
-    theta = 1.0 / (prev_batch_recon_loss + eps) # (1, ) -> (1, ) 
-    theta = theta ** 0.5 # Clamp theta to prevent it from exploding too much
-    theta = theta * self.compression_strength
-    # Prepare indices for tokens 1,..., L - 1 (0-indexing, but for CRP math notation, we use 1-indexed positions.
-    # NOTE: Might want to do some subscript notation when writing paper to make this clear.
-    indices = torch.arange(1, seq_len, device=self.device, dtype = theta.dtype) # (seq_len - 1, )
+    if prev_batch_recon_loss < self.recon_threshold:
+      eps = 1e-8
+      # Differentiable scalar parameter theta
+      theta = 1.0 / (prev_batch_recon_loss + eps) # (1, ) -> (1, ) 
+      theta = theta ** 0.5 # Clamp theta to prevent it from exploding too much
+      theta = theta * self.compression_strength
+      # Prepare indices for tokens 1,..., L - 1 (0-indexing, but for CRP math notation, we use 1-indexed positions.
+      # NOTE: Might want to do some subscript notation when writing paper to make this clear.
+      indices = torch.arange(1, seq_len, device=self.device, dtype = theta.dtype) # (seq_len - 1, )
 
-    if self.use_odds_ratio:
-      # Compute the odds ratio for for each p_{n} 
-      neural_odds = p_n_squeezed_sub / (1 - p_n_squeezed_sub + eps) # (batch_size, seq_len - 1, num_segment_predictions)
+      if self.use_odds_ratio:
+        # Compute the odds ratio for for each p_{n} 
+        neural_odds = p_n_squeezed_sub / (1 - p_n_squeezed_sub + eps) # (batch_size, seq_len - 1, num_segment_predictions)
 
-      # Compute the CRP odds which is given by odds = theta / i 
-      crp_odds = theta / indices # (seq_len - 1, )
-      crp_odds = crp_odds.unsqueeze(0).expand(batch_size, -1) # (seq_len - 1, ) -> (batch_size, seq_len - 1)
-      crp_odds = crp_odds.unsqueeze(-1).expand(-1, -1, num_segment_predictions) # (batch_size, seq_len - 1) -> (batch_size, seq_len - 1, num_segment_predictions)
+        # Compute the CRP odds which is given by odds = theta / i 
+        crp_odds = theta / indices # (seq_len - 1, )
+        crp_odds = crp_odds.unsqueeze(0).expand(batch_size, -1) # (seq_len - 1, ) -> (batch_size, seq_len - 1)
+        crp_odds = crp_odds.unsqueeze(-1).expand(-1, -1, num_segment_predictions) # (batch_size, seq_len - 1) -> (batch_size, seq_len - 1, num_segment_predictions)
 
-      # Combine odds multiplicatively 
-      effective_odds = neural_odds * crp_odds
-      effective_prob = effective_odds / (1 + effective_odds)
+        # Combine odds multiplicatively 
+        effective_odds = neural_odds * crp_odds
+        effective_prob = effective_odds / (1 + effective_odds)
 
+      else:
+        crp_factor = 1 - (theta / (indices + theta)) # (seq_len - 1, )
+        crp_factor = crp_factor.unsqueeze(0).expand(batch_size, -1) # (seq_len - 1, ) -> (batch_size, seq_len - 1)
+        crp_factor = crp_factor.unsqueeze(-1).expand(-1, -1, num_segment_predictions) # (batch_size, seq_len - 1) -> (batch_size, seq_len - 1, num_segment_predictions)
+
+        effective_prob = p_n_squeezed_sub * crp_factor # (batch_size, seq_len - 1, num_segment_predictions)
+
+      # Sample from a Continuous Bernoulli distribution to enforce differentiability. 
+      # NOTE: Not Gumbel-Softmax / Sigmoid trick
+      relaxed_samples = ContinuousBernoulli(probs = effective_prob).rsample()
+      hard_samples = (relaxed_samples >= 0.75).to(int8) # (batch_size, seq_len - 1, num_segment_predictions)
+      hard_samples = torch.all(hard_samples, dim = -1) # (batch_size, seq_len - 1, num_segment_predictions) -> (batch_size, seq_len - 1)
+
+
+      # Segmentation decisions. Note that the first and last tokens are always segment starts and segment ends respectively.
+      segmentation[:, :-1] = hard_samples # (batch_size, seq_len)
+      # NOTE: This ensures that the last token is always a segment end
+      segmentation[:, -1] = 1 # (batch_size, seq_len)
+
+      return segmentation.to(int8).unsqueeze(-1) # (batch_size, seq_len, 1)
+    
     else:
-      crp_factor = 1 - (theta / (indices + theta)) # (seq_len - 1, )
-      crp_factor = crp_factor.unsqueeze(0).expand(batch_size, -1) # (seq_len - 1, ) -> (batch_size, seq_len - 1)
-      crp_factor = crp_factor.unsqueeze(-1).expand(-1, -1, num_segment_predictions) # (batch_size, seq_len - 1) -> (batch_size, seq_len - 1, num_segment_predictions)
+      recon_error_difference = torch.abs(prev_batch_recon_loss - self.recon_threshold)
 
-      effective_prob = p_n_squeezed_sub * crp_factor # (batch_size, seq_len - 1, num_segment_predictions)
+      # We want to shorten subsequences lengths by increasing the probability of a boundary between tokens.
+      effective_probs = p_n_squeezed_sub * (1 + recon_error_difference ** 2)
+      effective_probs = torch.clamp(effective_probs, min = 1e-8, max = 1 - 1e-8)
 
-    # Sample from a Continuous Bernoulli distribution to enforce differentiability. 
-    # NOTE: Not Gumbel-Softmax / Sigmoid trick
-    relaxed_samples = ContinuousBernoulli(probs = effective_prob).rsample()
-    hard_samples = (relaxed_samples >= 0.75).to(int8) # (batch_size, seq_len - 1, num_segment_predictions)
-    hard_samples = torch.all(hard_samples, dim = -1) # (batch_size, seq_len - 1, num_segment_predictions) -> (batch_size, seq_len - 1)
+      relaxed_samples = ContinuousBernoulli(probs = effective_probs).rsample() # (batch_size, seq_len - 1, num_segment_predictions)
+      hard_samples = (relaxed_samples >= 0.75).to(int8) # (batch_size, seq_len - 1, num_segment_predictions)
+      hard_samples = torch.all(hard_samples, dim = -1) # (batch_size, seq_len - 1, num_segment_predictions) -> (batch_size, seq_len - 1)
 
+      segmentation[:, :-1] = hard_samples # (batch_size, seq_len)
+      # NOTE: This ensures that the last token is always a segment end
+      segmentation[:, -1] = 1 # (batch_size, seq_len)
 
-    # Segmentation decisions. Note that the first and last tokens are always segment starts and segment ends respectively.
-    segmentation[:, :-1] = hard_samples # (batch_size, seq_len)
-    # NOTE: This ensures that the last token is always a segment end
-    segmentation[:, -1] = 1 # (batch_size, seq_len)
-
-    return segmentation.to(int8).unsqueeze(-1) # (batch_size, seq_len, 1)
+      return segmentation.to(int8).unsqueeze(-1) # (batch_size, seq_len, 1)
+      

@@ -52,9 +52,8 @@ dtype: "bf16"
 boundary_operator:
   ChainCRP:
     use_odds_ratio: false
-    compression_strength: 10
-    warmup_epochs:
-    warmup_subseq_length:
+    compression_strength: 0.02
+    recon_threshold: 0.4 # Only below this threshold will we try to increase the subsequence length
 
 
 # Replacement function configuration
@@ -68,8 +67,8 @@ distribution:
 # Encoder configuration
 encoder:
   # Non-sequence mixer settings
-  seq_mixer_layer_config: "6 (M2)" 
-  channel_mixer_layer_config: "6 (MLP)"
+  seq_mixer_layer_config: "3 (M2)" 
+  channel_mixer_layer_config: "3 (MLP)"
   segment_pred_inner_dim: 256 # Encoder segment predictor inner dimension
   num_segment_predictions: 2 # Number of segment predictions to make
 
@@ -83,13 +82,13 @@ encoder:
 
   # Channel mixer configuration
   MLP:
-    mlp_inner_dim: 64
+    mlp_inner_dim: 32
 
 # Decoder configuration
 decoder:
   # Non-sequence mixer settings
-  seq_mixer_layer_config: "3 (M2)"
-  channel_mixer_layer_config: "3 (MLP)"
+  seq_mixer_layer_config: "2 (M2)"
+  channel_mixer_layer_config: "2 (MLP)"
   segment_pred_inner_dim: 384 # Decoder segment predictor inner dimension
   num_segment_predictions: 2 # Number of segment predictions to make
   
@@ -103,7 +102,7 @@ decoder:
 
   # Channel mixer configuration
   MLP:
-    mlp_inner_dim: 64
+    mlp_inner_dim: 32
 
 # Confidence Module configuration
 enable_confidence_module: false # This module is used for Stochastic Varitional Inference (not implemented yet)

@@ -34,6 +34,7 @@ def create_boundary_module(boundary_operator_name: str,
   if boundary_operator_name == "ChainCRP":
     return ChainCRP(use_odds_ratio = boundary_operator_kwargs["use_odds_ratio"],
                     compression_strength = boundary_operator_kwargs["compression_strength"],
+                    recon_threshold = boundary_operator_kwargs["recon_threshold"],
                     device = device,
                     dtype = dtype
                    )
