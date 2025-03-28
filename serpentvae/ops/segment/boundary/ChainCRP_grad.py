@@ -64,18 +64,16 @@ class ChainCRP(nn.Module):
       How it works: 
 
     Args: 
-      encoder_segmentation_predictions (Tensor): (batch_size, seq_len, 1) 
+      encoder_segmentation_predictions (Tensor): (batch_size, seq_len, num_segment_predictions) 
       prev_batch_recon_loss (Tensor): (1, )
       current_epoch (int): Current epoch number
 
     Returns: 
       segmentation_decisions (Tensor): (batch_size, seq_len, 1)
     """
-    batch_size, seq_len, _ = encoder_segmentation_predictions.shape
+    batch_size, seq_len, num_segment_predictions = encoder_segmentation_predictions.shape
     
-    # Squeeze the last dimension to get rid of the singleton dimension
-    p_n_squeezed = encoder_segmentation_predictions.squeeze(-1) # (batch_size, seq_len, 1) -> (batch_size, seq_len)
-    p_n_squeezed_sub = p_n_squeezed[:, 1:] # (batch_size, seq_len) -> (batch_size, seq_len - 1)
+    p_n_squeezed_sub = encoder_segmentation_predictions[:, 1:, :] # (batch_size, seq_len, num_segment_predictions) -> (batch_size, seq_len - 1, num_segment_predictions)
 
     # Initialize the segmentation decisions with zeros
     segmentation = torch.zeros(batch_size, seq_len, device = self.device).to(int8)
@@ -91,11 +89,12 @@ class ChainCRP(nn.Module):
 
     if self.use_odds_ratio:
       # Compute the odds ratio for for each p_{n} 
-      neural_odds = p_n_squeezed_sub / (1 - p_n_squeezed_sub + eps) # (batch_size, seq_len - 1)
+      neural_odds = p_n_squeezed_sub / (1 - p_n_squeezed_sub + eps) # (batch_size, seq_len - 1, num_segment_predictions)
 
       # Compute the CRP odds which is given by odds = theta / i 
       crp_odds = theta / indices # (seq_len - 1, )
       crp_odds = crp_odds.unsqueeze(0).expand(batch_size, -1) # (seq_len - 1, ) -> (batch_size, seq_len - 1)
+      crp_odds = crp_odds.unsqueeze(-1).expand(-1, -1, num_segment_predictions) # (batch_size, seq_len - 1) -> (batch_size, seq_len - 1, num_segment_predictions)
 
       # Combine odds multiplicatively 
       effective_odds = neural_odds * crp_odds
@@ -104,12 +103,15 @@ class ChainCRP(nn.Module):
     else:
       crp_factor = 1 - (theta / (indices + theta)) # (seq_len - 1, )
       crp_factor = crp_factor.unsqueeze(0).expand(batch_size, -1) # (seq_len - 1, ) -> (batch_size, seq_len - 1)
-      effective_prob = p_n_squeezed_sub * crp_factor # (batch_size, seq_len - 1)
+      crp_factor = crp_factor.unsqueeze(-1).expand(-1, -1, num_segment_predictions) # (batch_size, seq_len - 1) -> (batch_size, seq_len - 1, num_segment_predictions)
+
+      effective_prob = p_n_squeezed_sub * crp_factor # (batch_size, seq_len - 1, num_segment_predictions)
 
     # Sample from a Continuous Bernoulli distribution to enforce differentiability. 
     # NOTE: Not Gumbel-Softmax / Sigmoid trick
     relaxed_samples = ContinuousBernoulli(probs = effective_prob).rsample()
-    hard_samples = (relaxed_samples >= 0.9).to(int8) # (batch_size, seq_len - 1)
+    hard_samples = (relaxed_samples >= 0.75).to(int8) # (batch_size, seq_len - 1, num_segment_predictions)
+    hard_samples = torch.all(hard_samples, dim = -1) # (batch_size, seq_len - 1, num_segment_predictions) -> (batch_size, seq_len - 1)
 
 
     # Segmentation decisions. Note that the first and last tokens are always segment starts and segment ends respectively.

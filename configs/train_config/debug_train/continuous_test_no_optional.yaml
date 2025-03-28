@@ -68,7 +68,7 @@ encoder:
   seq_mixer_layer_config: "2 (M2)" 
   channel_mixer_layer_config: "2 (MLP)"
   segment_pred_inner_dim: 768 # Encoder segment predictor inner dimension
-  num_segment_predictions: 1 # Number of segment predictions to make
+  num_segment_predictions: 2 # Number of segment predictions to make
 
   # Sequence mixer configuration
   Mamba2:
@@ -88,7 +88,7 @@ decoder:
   seq_mixer_layer_config: "2 (Mamba2)"
   channel_mixer_layer_config: "2 (MLP)"
   segment_pred_inner_dim: 768 # Decoder segment predictor inner dimension
-  num_segment_predictions: 1 # Number of segment predictions to make
+  num_segment_predictions: 2 # Number of segment predictions to make
   
   # Sequence mixer configuration
   Mamba2:
