@@ -15,7 +15,6 @@ from lightning.pytorch.callbacks import ModelSummary, ModelCheckpoint
 from serpentvae.modules.LightningSerpentVAE.AudioLightningSerpentVAE import AudioLightningSerpentVAE
 from train_utils.config_utils import load_config # For loading configs
 from train_utils.dataloaders.prep_audio_dataloader import prep_audio_dataset
-from train_utils.create_text_tokenizer import create_text_tokenizer
 from train_utils.prep_parallelism import prep_parallelism
 from train_utils.resumable_lightning_utils.memory_monitor_callback import MemoryMonitorCallback
 from train_utils.resumable_lightning_utils.resumable_progress_bar import ResumableProgressBar
