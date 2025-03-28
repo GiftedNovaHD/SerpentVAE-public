@@ -12,7 +12,7 @@ import torch.nn.functional as F
 
 from torch import Tensor
 from torch import nn
-from torch.distributions import ContinuousBernoulli
+from torch.distributions import ContinuousBernoulli, Normal
 
 # Custom int8 definition since this is used way too much
 int8 = torch.int8
@@ -24,6 +24,8 @@ class ChainCRP(nn.Module):
   def __init__(self, 
                use_odds_ratio: bool = True,
                compression_strength: float = 1.0,
+               warmup_epochs: int = 0,
+               warmup_subseq_length: int = 1,
                dtype: torch.dtype = None,
                device: torch.device = None
               ): 
@@ -35,6 +37,13 @@ class ChainCRP(nn.Module):
 
     self.use_odds_ratio = use_odds_ratio
     self.compression_strength = compression_strength
+    
+    assert warmup_epochs >= 0, "Warmup epochs must be non-negative"
+    assert warmup_subseq_length >= 1, "Warmup subsequence length must be at least 1"
+    
+    self.correction_factor = 0.75 # Correction factor for warmup epochs
+    self.warmup_epochs = warmup_epochs
+    self.warmup_subseq_length = warmup_subseq_length
 
     # Hardware configuration
     self.dtype = dtype
@@ -42,7 +51,8 @@ class ChainCRP(nn.Module):
     
   def forward(self,
               encoder_segmentation_predictions: Tensor,
-              prev_batch_recon_loss: Tensor
+              prev_batch_recon_loss: Tensor,
+              current_epoch: int
              ): 
     """
     Given a batch of encoder segmentation predictions
@@ -65,7 +75,8 @@ class ChainCRP(nn.Module):
     Args: 
       encoder_segmentation_predictions (Tensor): (batch_size, seq_len, 1) 
       prev_batch_recon_loss (Tensor): (1, )
-      
+      current_epoch (int): Current epoch number
+
     Returns: 
       segmentation_decisions (Tensor): (batch_size, seq_len, 1)
     """
@@ -73,9 +84,34 @@ class ChainCRP(nn.Module):
     
     # Squeeze the last dimension to get rid of the singleton dimension
     p_n_squeezed = encoder_segmentation_predictions.squeeze(-1) # (batch_size, seq_len, 1) -> (batch_size, seq_len)
-    
+    p_n_squeezed_sub = p_n_squeezed[:, 1:] # (batch_size, seq_len) -> (batch_size, seq_len - 1)
+
     # Initialize the segmentation decisions with zeros
     segmentation = torch.zeros(batch_size, seq_len, device = self.device).to(int8)
+
+    if current_epoch < self.warmup_epochs:
+      end_prob = 1 / (self.warmup_subseq_length) * self.correction_factor
+
+      relaxed_samples = ContinuousBernoulli(probs = p_n_squeezed_sub).rsample()
+
+      detached_relaxed_samples = relaxed_samples.clone().detach()
+      relaxed_sample_mean = detached_relaxed_samples.mean()
+      relaxed_sample_std = detached_relaxed_samples.std()
+
+      inverse_normal_cdf = Normal(0, 1).icdf(torch.tensor(1 - end_prob))
+      a = (1 / relaxed_sample_std).clone().detach()
+      b = (- (inverse_normal_cdf + (relaxed_sample_mean / relaxed_sample_std))).clone().detach()
+
+      relaxed_samples = torch.sigmoid(a * relaxed_samples + b)
+
+      relaxed_samples = relaxed_samples.clamp(min = 1e-8, max = 1 - 1e-8)
+
+      hard_samples = (relaxed_samples >= 0.5).to(int8) # (batch_size, seq_len - 1)
+
+      segmentation[:, :-1] = hard_samples # (batch_size, seq_len)
+      segmentation[:, -1] = 1 # (batch_size, seq_len)
+
+      return segmentation.unsqueeze(-1) # (batch_size, seq_len, 1)
 
     eps = 1e-8
     # Differentiable scalar parameter theta
@@ -86,9 +122,7 @@ class ChainCRP(nn.Module):
     # NOTE: Might want to do some subscript notation when writing paper to make this clear.
     indices = torch.arange(1, seq_len, device=self.device, dtype = theta.dtype) # (seq_len - 1, )
 
-    if self.use_odds_ratio: 
-      p_n_squeezed_sub = p_n_squeezed[:, 1:] # (batch_size, seq_len) -> (batch_size, seq_len - 1)
-      
+    if self.use_odds_ratio:
       # Compute the odds ratio for for each p_{n} 
       neural_odds = p_n_squeezed_sub / (1 - p_n_squeezed_sub + eps) # (batch_size, seq_len - 1)
 
@@ -99,8 +133,7 @@ class ChainCRP(nn.Module):
       # Combine odds multiplicatively 
       effective_odds = neural_odds * crp_odds
       effective_prob = effective_odds / (1 + effective_odds)
-    else: 
-      p_n_squeezed_sub = p_n_squeezed[:, 1:] # (batch_size, seq_len) -> (batch_size, seq_len - 1)
+    else:
       crp_factor = 1 - (theta / (indices + theta)) # (seq_len - 1, )
       crp_factor = crp_factor.unsqueeze(0).expand(batch_size, -1) # (seq_len - 1, ) -> (batch_size, seq_len - 1)
       effective_prob = p_n_squeezed_sub * crp_factor # (batch_size, seq_len - 1)

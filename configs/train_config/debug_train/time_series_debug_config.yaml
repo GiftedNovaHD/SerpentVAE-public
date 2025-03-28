@@ -15,7 +15,7 @@ batch_size: 16
 dataloader_num_workers: 16
 parallelism_strategy: "ddp"
 compile_model: true
-is_debug: false
+is_debug: true
 seed: 6969
 
 # Model configuration
@@ -53,6 +53,8 @@ boundary_operator:
   ChainCRP:
     use_odds_ratio: false
     compression_strength: 7.5
+    warmup_epochs: 10
+    warmup_subseq_length: 10
 
 
 # Replacement function configuration
@@ -66,8 +68,8 @@ distribution:
 # Encoder configuration
 encoder:
   # Non-sequence mixer settings
-  seq_mixer_layer_config: "4 (M2)" 
-  channel_mixer_layer_config: "4 (MLP)"
+  seq_mixer_layer_config: "5 (M2)" 
+  channel_mixer_layer_config: "5 (MLP)"
   segment_pred_inner_dim: 256 # Encoder segment predictor inner dimension
 
   # Sequence mixer configuration
@@ -75,8 +77,8 @@ encoder:
     alias: "M2"
     mamba2_conv_length: 4
     mamba2_expand: 4
-    mamba2_head_dim: 2 # (hidden_dim * mamba_expand / qnet_mamba_head_dim = 8)
-    mamba2_state_dim: 32
+    mamba2_head_dim: 4 # (hidden_dim * mamba_expand / qnet_mamba_head_dim = 8)
+    mamba2_state_dim: 16
 
   # Channel mixer configuration
   MLP:
@@ -85,8 +87,8 @@ encoder:
 # Decoder configuration
 decoder:
   # Non-sequence mixer settings
-  seq_mixer_layer_config: "2 (M2)"
-  channel_mixer_layer_config: "2 (MLP)"
+  seq_mixer_layer_config: "3 (M2)"
+  channel_mixer_layer_config: "3 (MLP)"
   segment_pred_inner_dim: 384 # Decoder segment predictor inner dimension
 
   # Sequence mixer configuration
@@ -94,8 +96,8 @@ decoder:
     alias: "M2"
     mamba2_conv_length: 4
     mamba2_expand: 4
-    mamba2_head_dim: 2 # (hidden_dim * mamba_expand / qnet_mamba_head_dim = 8)
-    mamba2_state_dim: 32
+    mamba2_head_dim: 4 # (hidden_dim * mamba_expand / qnet_mamba_head_dim = 8)
+    mamba2_state_dim: 16
 
   # Channel mixer configuration
   MLP:
