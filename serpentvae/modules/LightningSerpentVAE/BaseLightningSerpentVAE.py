@@ -19,7 +19,7 @@ class BaseLightningSerpentVAE(pl.LightningModule):
     
   def configure_model(self):
     if self.serpent_vae is None:
-      if self.compile_model == True:
+      if self.compile_model is True:
         self.serpent_vae = compile(prep_model(config = self.config))
       else:
         self.serpent_vae = prep_model(config = self.config)
