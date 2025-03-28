@@ -60,7 +60,7 @@ def prep_time_series_dataset(config: Dict) -> Tuple[ResumableDataLoader, Resumab
   full_dataset_tensor = rearrange(full_dataset_tensor, "num_features time_steps -> time_steps num_features")
 
   # Normalize the data
-  full_dataset_tensor = (full_dataset_tensor - full_dataset_tensor.mean(dim = 0)) / full_dataset_tensor.std(dim = 0) # Normalize each feature along the time dimension
+  full_dataset_tensor = (full_dataset_tensor - full_dataset_tensor.mean(dim = 0)) / (full_dataset_tensor.std(dim = 0) * (1/0.15)) # Normalize each feature along the time dimension with SD of 0.15
 
   #print(full_dataset_tensor.shape)
 
