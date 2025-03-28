@@ -50,27 +50,6 @@ def create_seq_mixer_block(seq_mixer_name: str, seq_mixer_kwargs: Dict, hidden_d
                         dtype = dtype
                        )
     
-    elif seq_mixer_name == "RNN":
-      seq_mixer = nn.RNNCell(input_size = hidden_dim,
-                             hidden_size = hidden_dim * seq_mixer_kwargs["rnn_state_dim_per_hidden_dim"],
-                             device = device,
-                             dtype = dtype
-                            )
-      
-    elif seq_mixer_name == "LSTM":
-      seq_mixer = nn.LSTMCell(input_size = hidden_dim,
-                              hidden_size = hidden_dim * seq_mixer_kwargs["lstm_state_dim_per_hidden_dim"],
-                              device = device,
-                              dtype = dtype
-                             )
-      
-    elif seq_mixer_name == "GRU":
-      seq_mixer = nn.GRUCell(input_size = hidden_dim,
-                             hidden_size = hidden_dim * seq_mixer_kwargs["gru_state_dim_per_hidden_dim"],
-                             device = device,
-                             dtype = dtype
-                            )
-    
     elif seq_mixer_name == "MultiLatentAttention":
       raise NotImplementedError("MultiLatentAttention is not implemented yet")
     
