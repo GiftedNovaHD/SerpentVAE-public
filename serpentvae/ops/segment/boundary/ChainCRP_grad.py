@@ -24,7 +24,7 @@ class ChainCRP(nn.Module):
   def __init__(self, 
                use_odds_ratio: bool = False,
                compression_strength: float = 1.0,
-               recon_threshold: float = 0.4,
+               recon_threshold: float = 0.0,
                dtype: torch.dtype = None,
                device: torch.device = None
               ): 
@@ -36,7 +36,8 @@ class ChainCRP(nn.Module):
 
     self.use_odds_ratio = use_odds_ratio
     self.compression_strength = compression_strength
-    self.recon_threshold = torch.tensor(recon_threshold, device = device, dtype = dtype)
+
+    self.recon_threshold = torch.tensor(float(recon_threshold), device = device, dtype = dtype)
 
     # Hardware configuration
     self.dtype = dtype
