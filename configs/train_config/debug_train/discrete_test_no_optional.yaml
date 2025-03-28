@@ -1,7 +1,7 @@
 # Training configuration
 dataset_path: "salesforce/wikitext"
 dataset_name: "wikitext-103-raw-v1"
-num_epochs: 10
+num_epochs: 100
 eval_freq: 1
 checkpoint_freq: 50
 model_save_folder_path: "discrete-test-no-optional-model-ckpt"
@@ -11,8 +11,8 @@ learning_rate: 1e-4
 min_learning_rate: 1e-8
 weight_decay: 1e-2
 max_seq_len: 64
-batch_size: 2
-dataloader_num_workers:
+batch_size: 16
+dataloader_num_workers: 16
 parallelism_strategy: "ddp"
 compile_model: true
 is_debug: true
@@ -52,8 +52,6 @@ boundary_operator:
   ChainCRP:
     use_odds_ratio: false
     compression_strength: 1.0
-    warmup_epochs: 10
-    warmup_subseq_length: 10
 
 # Replacement function configuration
 replacement_function: "use_last"

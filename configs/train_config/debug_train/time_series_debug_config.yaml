@@ -52,9 +52,9 @@ dtype: "bf16"
 boundary_operator:
   ChainCRP:
     use_odds_ratio: false
-    compression_strength: 7.5
-    warmup_epochs: 50
-    warmup_subseq_length: 15
+    compression_strength: 10
+    warmup_epochs:
+    warmup_subseq_length:
 
 
 # Replacement function configuration
@@ -68,8 +68,8 @@ distribution:
 # Encoder configuration
 encoder:
   # Non-sequence mixer settings
-  seq_mixer_layer_config: "5 (M2)" 
-  channel_mixer_layer_config: "5 (MLP)"
+  seq_mixer_layer_config: "6 (M2)" 
+  channel_mixer_layer_config: "6 (MLP)"
   segment_pred_inner_dim: 256 # Encoder segment predictor inner dimension
 
   # Sequence mixer configuration
