@@ -17,3 +17,4 @@ timm
 pyro-ppl
 pytest
 wandb
+vector-quantize-pytorch
