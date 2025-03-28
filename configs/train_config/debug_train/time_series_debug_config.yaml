@@ -92,6 +92,7 @@ decoder:
   channel_mixer_layer_config: "3 (MLP)"
   segment_pred_inner_dim: 384 # Decoder segment predictor inner dimension
   num_segment_predictions: 1 # Number of segment predictions to make
+  
   # Sequence mixer configuration
   Mamba2:
     alias: "M2"
