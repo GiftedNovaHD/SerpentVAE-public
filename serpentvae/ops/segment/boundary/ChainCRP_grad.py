@@ -113,7 +113,7 @@ class ChainCRP(nn.Module):
       # Sample from a Continuous Bernoulli distribution to enforce differentiability. 
       # NOTE: Not Gumbel-Softmax / Sigmoid trick
       relaxed_samples = ContinuousBernoulli(probs = effective_prob).rsample()
-      hard_samples = (relaxed_samples >= 0.75).to(int8) # (batch_size, seq_len - 1, num_segment_predictions)
+      hard_samples = (relaxed_samples >= 0.6).to(int8) # (batch_size, seq_len - 1, num_segment_predictions)
       hard_samples = torch.all(hard_samples, dim = -1) # (batch_size, seq_len - 1, num_segment_predictions) -> (batch_size, seq_len - 1)
 
 
@@ -128,11 +128,11 @@ class ChainCRP(nn.Module):
       recon_error_difference = torch.abs(prev_batch_recon_loss - self.recon_threshold)
 
       # We want to shorten subsequences lengths by increasing the probability of a boundary between tokens.
-      effective_probs = p_n_squeezed_sub * (1 + recon_error_difference ** 2)
+      effective_probs = p_n_squeezed_sub * (1 + recon_error_difference * 2)
       effective_probs = torch.clamp(effective_probs, min = 1e-8, max = 1 - 1e-8)
 
       relaxed_samples = ContinuousBernoulli(probs = effective_probs).rsample() # (batch_size, seq_len - 1, num_segment_predictions)
-      hard_samples = (relaxed_samples >= 0.75).to(int8) # (batch_size, seq_len - 1, num_segment_predictions)
+      hard_samples = (relaxed_samples >= 0.6).to(int8) # (batch_size, seq_len - 1, num_segment_predictions)
       hard_samples = torch.all(hard_samples, dim = -1) # (batch_size, seq_len - 1, num_segment_predictions) -> (batch_size, seq_len - 1)
 
       segmentation[:, :-1] = hard_samples # (batch_size, seq_len)
