@@ -72,7 +72,7 @@ encoder:
 
   # Sequence mixer configuration
   GRU:
-    rnn_state_dim_per_hidden_dim: 16
+    gru_state_dim_per_hidden_dim: 16
 
   # Channel mixer configuration
   MLP:
@@ -87,7 +87,7 @@ decoder:
 
   # Sequence mixer configuration
   GRU:
-    rnn_state_dim_per_hidden_dim: 16
+    gru_state_dim_per_hidden_dim: 16
 
   # Channel mixer configuration
   MLP:
