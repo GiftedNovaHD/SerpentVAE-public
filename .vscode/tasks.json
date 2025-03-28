@@ -8,7 +8,6 @@
                 "run discrete_text_lightning_train.py with debug config",
                 "run continuous_lightning_train.py with debug config",
                 "run continuous_lightning_train.py with no optional modules config",
-                "run continuous_video_lightning_train.py with video debug config",
                 "run continuous_time_series_lightning_train.py with time series debug config"
             ],
             "dependsOrder": "parallel",

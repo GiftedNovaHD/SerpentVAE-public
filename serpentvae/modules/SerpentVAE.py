@@ -381,34 +381,36 @@ class SerpentVAE(nn.Module):
   def segment(self,
               concept_tokens: Tensor,
               encoder_segmentation_predictions: Tensor,
-              padding_mask: Tensor
+              padding_mask: Tensor,
+              current_epoch: int
              ) -> Tuple[Tensor, Tensor]:
     """
     Decides how to segment a sequence of input tokens based on the concept tokens
 
     Args:
-      `concept_tokens` (`Tensor`): `(batch_size, seq_len, concept_dim)`
-      `encoder_segmentation_predictions` (`Tensor`): `(batch_size, seq_len, 1)`
-      `padding_mask` (`Tensor`): `(batch_size, seq_len, 1)`
-
+      concept_tokens (Tensor): (batch_size, seq_len, concept_dim)
+      encoder_segmentation_predictions (Tensor): (batch_size, seq_len, 1)
+      padding_mask (Tensor): (batch_size, seq_len, 1)
+      current_epoch (int): Current epoch number
     Constants used:
-      `boundary_operator` (`nn.Module`): PyTorch module that decides whether to segment or not
-      `replacement_function` (`Callable`): Function that decides how to replace the concept tokens for decoding
-        `replacement_function` Args:
-          - concept_tokens (`Tensor`): `(batch_size, seq_len, concept_dim)`
-          - segment_indices (`Tensor`): `(batch_size, seq_len, 1)`
-        `replacement_function` Returns:
-          - replaced_concept_tokens (`Tensor`): `(batch_size, seq_len, concept_dim)`
+      boundary_operator (nn.Module): PyTorch module that decides whether to segment or not
+      replacement_function (Callable): Function that decides how to replace the concept tokens for decoding
+        replacement_function Args:
+          - concept_tokens (Tensor): (batch_size, seq_len, concept_dim)
+          - segment_indices (Tensor): (batch_size, seq_len, 1)
+        replacement_function Returns:
+          - replaced_concept_tokens (Tensor): (batch_size, seq_len, concept_dim)
     
     Returns: 
-      - `replaced_concept_tokens` (`Tensor`): `(batch_size, seq_len, concept_dim)`
-      - `segment_indices` (`Tensor`): `(batch_size, seq_len, 1)`
+      - replaced_concept_tokens (Tensor): (batch_size, seq_len, concept_dim)
+      - segment_indices (Tensor): (batch_size, seq_len, 1)
     """
     batch_size, seq_len, _ = encoder_segmentation_predictions.shape
     
     # Obtain bitmask
     segmentation_indices = self.boundary_operator(encoder_segmentation_predictions = encoder_segmentation_predictions,
-                                                  prev_batch_recon_loss = self.prev_batch_recon_loss
+                                                  prev_batch_recon_loss = self.prev_batch_recon_loss,
+                                                  current_epoch = current_epoch
                                                  )
 
     # Perform a bitwise OR operation to correctly mark padding EOS tokens at ends of subsequences
@@ -805,7 +807,7 @@ class SerpentVAE(nn.Module):
 
     return avg_confidence_loss
   
-  def forward(self, inputs: Tensor):
+  def forward(self, inputs: Tensor, current_epoch: int):
     """
     Forward process for SerpentVAE
 
@@ -816,7 +818,7 @@ class SerpentVAE(nn.Module):
     
     Args:
       inputs (Tensor): (batch_size, seq_len, 1/hidden_dim) # These are the ids from the discrete sequence or the vectors from the continuous sequence
-
+      current_epoch (int): Current epoch number
     Returns:
       decoded_logits (Tensor) (batch_size, seq_len, vocab_size/input_dim)
       mu (Tensor): (batch_size, seq_len, latent_dim)
@@ -864,7 +866,8 @@ class SerpentVAE(nn.Module):
 
     segmented_concept_tokens, segmentation_indices = self.segment(concept_tokens = sampled_latents,
                                                                   encoder_segmentation_predictions = encoder_predicted_segments,
-                                                                  padding_mask = padding_mask
+                                                                  padding_mask = padding_mask,
+                                                                  current_epoch = current_epoch
                                                                  ) # (batch_size, seq_len, concept_dim) -> (batch_size, seq_len, concept_dim)
 
     # Predict reconstruction error (Confidence) 
@@ -1227,12 +1230,13 @@ class SerpentVAE(nn.Module):
     
     return metrics
 
-  def train_step(self, correct_inputs: Tensor):
+  def train_step(self, correct_inputs: Tensor, current_epoch: int):
     """
     Calculates the overall loss at each training step of SerpentVAE
     
     Args: 
       correct_inputs (Tensor): (batch_size, seq_len, 1/input_dim)
+      current_epoch (int): Current epoch number
 
     Returns: 
       total_loss (Tensor): (1,)
@@ -1251,7 +1255,7 @@ class SerpentVAE(nn.Module):
     # decoder_predicted_segments: (batch_size, seq_len, 1)
     # predicted_confidence: (batch_size, seq_len, 1)
 
-    predicted_logits, mu, logvar, sampled_latents, segmentation_indices, encoder_predicted_segments, decoder_predicted_segments, predicted_confidence = self.forward(correct_inputs)
+    predicted_logits, mu, logvar, sampled_latents, segmentation_indices, encoder_predicted_segments, decoder_predicted_segments, predicted_confidence = self.forward(correct_inputs, current_epoch)
 
     # Change mu, logvar, sampled_latents based on segmentation_indices
     end_indices = bitmask_to_end_indices(segmentation_indices, inclusive = True)
@@ -1363,9 +1367,9 @@ class SerpentVAE(nn.Module):
 
     return total_loss, loss_objective, confidence_loss, encoder_segment_prediction_loss, decoder_segment_prediction_loss
   
-  def eval_step(self, correct_inputs: Tensor, is_test: bool = True):
+  def eval_step(self, correct_inputs: Tensor, current_epoch: int, is_test: bool = True):
     with torch.no_grad():
-      predicted_logits, mu, logvar, sampled_latents, segmentation_indices, encoder_predicted_segments, decoder_predicted_segments, predicted_confidence = self.forward(correct_inputs)
+      predicted_logits, mu, logvar, sampled_latents, segmentation_indices, encoder_predicted_segments, decoder_predicted_segments, predicted_confidence = self.forward(correct_inputs, current_epoch)
 
       # Get metrics
       metrics = self.metrics(correct_inputs = correct_inputs,

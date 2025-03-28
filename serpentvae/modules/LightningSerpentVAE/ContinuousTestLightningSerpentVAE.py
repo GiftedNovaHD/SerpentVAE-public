@@ -17,14 +17,19 @@ class ContinuousTestLightningSerpentVAE(BaseLightningSerpentVAE):
   def training_step(self, batch: Tensor, batch_idx: int):
     correct_inputs = batch[0]
 
-    total_loss, vae_loss, confidence_loss, encoder_segment_pred_loss, decoder_segment_pred_loss = self.serpent_vae.train_step(correct_inputs = correct_inputs)
+    total_loss, vae_loss, confidence_loss, encoder_segment_pred_loss, decoder_segment_pred_loss = self.serpent_vae.train_step(correct_inputs = correct_inputs,
+                                                                                                                              current_epoch = self.current_epoch
+                                                                                                                             )
 
     return total_loss
 
   def validation_step(self, batch: Tensor, batch_idx: int):
     correct_inputs = batch[0]
 
-    metrics = self.serpent_vae.eval_step(correct_inputs = correct_inputs, is_test=False)
+    metrics = self.serpent_vae.eval_step(correct_inputs = correct_inputs, 
+                                         current_epoch = self.current_epoch,
+                                         is_test=False
+                                        )
 
     self.log_dict(metrics, sync_dist = True)
 
