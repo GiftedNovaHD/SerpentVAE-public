@@ -81,7 +81,7 @@ class ChainCRP(nn.Module):
     # Initialize the segmentation decisions with zeros
     segmentation = torch.zeros(batch_size, seq_len, device = self.device).to(int8)
 
-    if prev_batch_recon_loss < self.recon_threshold:
+    if prev_batch_recon_loss < self.recon_threshold: # Reconstruction loss is low, so we want to increase the subsequence length.
       eps = 1e-8
       # Differentiable scalar parameter theta
       theta = 1.0 / (prev_batch_recon_loss + eps) # (1, ) -> (1, ) 
@@ -110,35 +110,23 @@ class ChainCRP(nn.Module):
         crp_factor = crp_factor.unsqueeze(-1).expand(-1, -1, num_segment_predictions) # (batch_size, seq_len - 1) -> (batch_size, seq_len - 1, num_segment_predictions)
 
         effective_prob = p_n_squeezed_sub * crp_factor # (batch_size, seq_len - 1, num_segment_predictions)
-
-      # Sample from a Continuous Bernoulli distribution to enforce differentiability. 
-      # NOTE: Not Gumbel-Softmax / Sigmoid trick
-      relaxed_samples = ContinuousBernoulli(probs = effective_prob).rsample()
-      hard_samples = (relaxed_samples >= 0.6).to(int8) # (batch_size, seq_len - 1, num_segment_predictions)
-      hard_samples = torch.all(hard_samples, dim = -1) # (batch_size, seq_len - 1, num_segment_predictions) -> (batch_size, seq_len - 1)
-
-
-      # Segmentation decisions. Note that the first and last tokens are always segment starts and segment ends respectively.
-      segmentation[:, :-1] = hard_samples # (batch_size, seq_len)
-      # NOTE: This ensures that the last token is always a segment end
-      segmentation[:, -1] = 1 # (batch_size, seq_len)
-
-      return segmentation.to(int8).unsqueeze(-1) # (batch_size, seq_len, 1)
     
-    else:
+    else: # Reconstruction loss is too high, so we want to decrease the subsequence length.
       recon_error_difference = torch.abs(prev_batch_recon_loss - self.recon_threshold)
 
       # We want to shorten subsequences lengths by increasing the probability of a boundary between tokens.
       effective_probs = p_n_squeezed_sub * (1 + recon_error_difference * 2)
       effective_probs = torch.clamp(effective_probs, min = 1e-8, max = 1 - 1e-8)
 
-      relaxed_samples = ContinuousBernoulli(probs = effective_probs).rsample() # (batch_size, seq_len - 1, num_segment_predictions)
-      hard_samples = (relaxed_samples >= 0.6).to(int8) # (batch_size, seq_len - 1, num_segment_predictions)
-      hard_samples = torch.all(hard_samples, dim = -1) # (batch_size, seq_len - 1, num_segment_predictions) -> (batch_size, seq_len - 1)
+    # Sample from a Continuous Bernoulli distribution to enforce differentiability. 
+    # NOTE: Not Gumbel-Softmax / Sigmoid trick
+    relaxed_samples = ContinuousBernoulli(probs = effective_prob).rsample()
+    hard_samples = (relaxed_samples >= 0.6).to(int8) # (batch_size, seq_len - 1, num_segment_predictions)
+    hard_samples = torch.all(hard_samples, dim = -1) # (batch_size, seq_len - 1, num_segment_predictions) -> (batch_size, seq_len - 1)
+    
+    segmentation[:, :-1] = hard_samples # (batch_size, seq_len)
+    # NOTE: This ensures that the last token is always a segment end
+    segmentation[:, -1] = 1 # (batch_size, seq_len)
 
-      segmentation[:, :-1] = hard_samples # (batch_size, seq_len)
-      # NOTE: This ensures that the last token is always a segment end
-      segmentation[:, -1] = 1 # (batch_size, seq_len)
-
-      return segmentation.to(int8).unsqueeze(-1) # (batch_size, seq_len, 1)
+    return segmentation.to(int8).unsqueeze(-1) # (batch_size, seq_len, 1)
       
