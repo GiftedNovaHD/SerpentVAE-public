@@ -65,6 +65,7 @@ encoder:
   seq_mixer_layer_config:
   channel_mixer_layer_config:
   segment_pred_inner_dim: # Encoder segment predictor inner dimension
+  num_segment_predictions: # Number of segment predictions to make
 
   # Sequence mixer configuration
 
@@ -76,7 +77,7 @@ decoder:
   seq_mixer_layer_config:
   channel_mixer_layer_config:
   segment_pred_inner_dim: # Decoder segment predictor inner dimension
-
+  num_segment_predictions: # Number of segment predictions to make
   # Sequence mixer configuration
 
   # Channel mixer configuration

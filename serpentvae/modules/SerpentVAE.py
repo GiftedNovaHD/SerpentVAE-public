@@ -248,6 +248,7 @@ class SerpentVAE(nn.Module):
     # Instantiate the segment predictor
     self.encoder_segment_predictor = EncoderSegmentPredictor(hidden_dim = hidden_dim,
                                                              inner_dim = encoder_config["segment_pred_inner_dim"],
+                                                             num_segment_predictions = encoder_config["num_segment_predictions"],
                                                              device = self.device,
                                                              dtype = self.dtype
                                                             )
@@ -255,6 +256,7 @@ class SerpentVAE(nn.Module):
     self.decoder_segment_predictor = DecoderSegmentPredictor(hidden_dim = hidden_dim,
                                                              concept_dim = concept_dim,
                                                              inner_dim = decoder_config["segment_pred_inner_dim"],
+                                                             num_segment_predictions = decoder_config["num_segment_predictions"],
                                                              device = self.device,
                                                              dtype = self.dtype
                                                             )
@@ -305,14 +307,14 @@ class SerpentVAE(nn.Module):
     Produce hidden states for each token
 
     Args:
-      - `hidden_states` (`Tensor`): `(batch_size, seq_len, hidden_dim)`
-      - inference_params (`dict`): Dictionary of inference parameters
+      - hidden_states (Tensor): (batch_size, seq_len, hidden_dim)
+      - inference_params (dict): Dictionary of inference parameters
         - At training, `infernce_params` is None
         - At inference, `inference_params` is a dictionary of inference parameters
       - **kwargs: Additional keyword arguments
 
     Returns:
-      - `hidden_states` (`Tensor`): `(batch_size, seq_len, hidden_dim)`
+      - hidden_states (Tensor): (batch_size, seq_len, hidden_dim)
     """
     
     hidden_states = self.encoder(hidden_states, inference_params=inference_params, **kwargs)
@@ -326,12 +328,12 @@ class SerpentVAE(nn.Module):
     Samples the latent state and returns distribution parameters
     
     Args: 
-      - `hidden_states` (`Tensor`): `(batch_size, seq_len, hidden_dim)`
+      - hidden_states (Tensor): (batch_size, seq_len, hidden_dim)
     
     Returns:
-      `sampled_latents` (`Tensor`): `(batch_size, seq_len, concept_dim)`
-      `mu` (`Tensor`): `(batch_size, seq_len, concept_dim)`
-      `logvar` (`Tensor`): `(batch_size, seq_len, concept_dim)`
+      - sampled_latents (Tensor): (batch_size, seq_len, concept_dim)
+      - mu (Tensor): (batch_size, seq_len, concept_dim)
+      - logvar (Tensor): (batch_size, seq_len, concept_dim)
     """
     sampled_latents, mu, logvar = self.distribution(hidden_states)
     
@@ -345,11 +347,11 @@ class SerpentVAE(nn.Module):
     
     NOTE: In the case of a continuous input, we assume that the padding vector is all 0s
     Args:
-      - `inputs` (`Tensor`): `(batch_size, seq_len, 1/hidden_dim)`
+      - inputs (Tensor): (batch_size, seq_len, 1/hidden_dim)
     
     Returns:
-      - `padding_mask` (`Tensor`): `(batch_size, seq_len, 1)`
-        - `1` indicates the end of a subsequence
+      - padding_mask (Tensor): (batch_size, seq_len, 1)
+        - "1" indicates the end of a subsequence
     """
     # Detach inputs from computational graph
     inputs = inputs.detach()
@@ -389,7 +391,7 @@ class SerpentVAE(nn.Module):
 
     Args:
       concept_tokens (Tensor): (batch_size, seq_len, concept_dim)
-      encoder_segmentation_predictions (Tensor): (batch_size, seq_len, 1)
+      encoder_segmentation_predictions (Tensor): (batch_size, seq_len, num_segment_predictions)
       padding_mask (Tensor): (batch_size, seq_len, 1)
       current_epoch (int): Current epoch number
     Constants used:
@@ -405,7 +407,7 @@ class SerpentVAE(nn.Module):
       - replaced_concept_tokens (Tensor): (batch_size, seq_len, concept_dim)
       - segment_indices (Tensor): (batch_size, seq_len, 1)
     """
-    batch_size, seq_len, _ = encoder_segmentation_predictions.shape
+    batch_size, seq_len, num_segment_predictions = encoder_segmentation_predictions.shape
     
     # Obtain bitmask
     segmentation_indices = self.boundary_operator(encoder_segmentation_predictions = encoder_segmentation_predictions,
@@ -454,10 +456,10 @@ class SerpentVAE(nn.Module):
     Predicts when the segment should end for the encoder
 
     Args:
-      - `hidden_states` (`Tensor`): `(batch_size, seq_len, hidden_dim)`
+      - hidden_states (Tensor): (batch_size, seq_len, hidden_dim)
 
     Returns:
-      - `segment_preds` (`Tensor`): `(batch_size, seq_len, 1)`
+      - segment_preds (Tensor): (batch_size, seq_len, num_segment_predictions)
     """
     segment_preds = self.encoder_segment_predictor(hidden_states)
 
@@ -471,11 +473,11 @@ class SerpentVAE(nn.Module):
     Predicts when the segment should end for the decoder
 
     Args:
-      - `hidden_states` (`Tensor`): `(batch_size, seq_len, hidden_dim)`
-      - `concept_tokens` (`Tensor`): `(batch_size, seq_len, concept_dim)`
+      - hidden_states (Tensor): (batch_size, seq_len, hidden_dim)
+      - concept_tokens (Tensor): (batch_size, seq_len, concept_dim)
 
     Returns:
-      - `segment_preds` (`Tensor`): `(batch_size, seq_len, 1)`
+      - segment_preds (Tensor): (batch_size, seq_len, num_segment_predictions)
     """
     segment_preds = self.decoder_segment_predictor(hidden_states, concept_tokens)
 
@@ -491,12 +493,12 @@ class SerpentVAE(nn.Module):
     Decodes the latent state into a sequence of concept tokens, 
     
     Args: 
-      `hidden_states` (`Tensor`): `(batch_size, seq_len, hidden_dim)`
-      `concept_tokens` (`Tensor`): `(batch_size, seq_len, concept_dim)`
-      `inference_params` (`dict`): `Dictionary of inference parameters`
+      - hidden_states (Tensor): (batch_size, seq_len, hidden_dim)
+      - concept_tokens (Tensor): (batch_size, seq_len, concept_dim)
+      - inference_params (dict): Dictionary of inference parameters
     
     Returns: 
-      `decoded_hidden_tokens` (Tensor): `(batch_size, seq_len, hidden_dim)`
+      - decoded_hidden_tokens (Tensor): (batch_size, seq_len, hidden_dim)
     """
     
     # Decode hidden states based on concept tokens
@@ -524,13 +526,13 @@ class SerpentVAE(nn.Module):
     Here, we can compute the KL-divergence without using Monte-Carlo sampling
 
     Args:
-      `mu` (`List[Tensor]`): `(batch_size, num_subseq, concept_dim)`
-      `logvar` (`List[Tensor]`): `(batch_size, num_subseq, concept_dim)`
+      - mu (List[Tensor]): (batch_size, num_subseq, concept_dim)
+      - logvar (List[Tensor]): (batch_size, num_subseq, concept_dim)
 
     NOTE: For mu, logvar and z batch_size dimension is a list while num_subseq and concept_dim are tensors
 
     Return: 
-      `mi_per_batch` (`Scalar`): `(1,)`
+      - mi_per_batch (Scalar): (1,)
     """    
     all_kl = torch.tensor([], device=self.device)
     
@@ -707,8 +709,8 @@ class SerpentVAE(nn.Module):
     So we just keep decoding as long as we have not run out of concept tokens
     
     Args:
-      segmentation_predictions (Tensor): (batch_size, seq_len, 1)
-      segmentation_indices (Tensor): (batch_size, seq_len, 1)
+      - segmentation_predictions (Tensor): (batch_size, seq_len, num_segment_predictions)
+      - segmentation_indices (Tensor): (batch_size, seq_len, 1)
 
     Returns:
       segmentation_prediction_loss (Scalar): (1,)
@@ -718,8 +720,10 @@ class SerpentVAE(nn.Module):
     # Make end indices the same as the segmentation indices
     end_indices = segmentation_indices
 
+    segmentation_predictions = torch.mean(segmentation_predictions, dim = -1)
+
     # Flatten 3D tensors to 1D so each prediction / target pair corresponds to a single element
-    segmentation_predictions = rearrange(segmentation_predictions, "batch_size seq_len 1 -> (batch_size seq_len)")
+    segmentation_predictions = rearrange(segmentation_predictions, "batch_size seq_len -> (batch_size seq_len)")
     end_indices = rearrange(end_indices, "batch_size seq_len 1 -> (batch_size seq_len)")
 
     # Calculate weighing factor alpha for each batch
@@ -858,7 +862,7 @@ class SerpentVAE(nn.Module):
     # across seq_len, we have a different mu and logvar
 
     # Predict encoder segmentation
-    encoder_predicted_segments = self.encoder_segmentation_predictions(hidden_states) # (batch_size, seq_len, hidden_dim) -> (batch_size, seq_len, 1)
+    encoder_predicted_segments = self.encoder_segmentation_predictions(hidden_states) # (batch_size, seq_len, hidden_dim) -> (batch_size, seq_len, num_segment_predictions)
 
     # Segment the concepts (originally for testing)
     # def dummy():
@@ -887,7 +891,7 @@ class SerpentVAE(nn.Module):
     decoded_hidden_tokens = self.decode(dec_hidden_states, segmented_concept_tokens) # hidden_states: (batch_size, seq_len, hidden_dim), concept_tokens: (batch_size, seq_len, hidden_dim) -> (batch_size, seq_len, hidden_dim)
 
     # Predict decoder segmentation
-    decoder_predicted_segments = self.decoder_segmentation_predictions(decoded_hidden_tokens, segmented_concept_tokens) # (batch_size, seq_len, hidden_dim) -> (batch_size, seq_len, 1)
+    decoder_predicted_segments = self.decoder_segmentation_predictions(decoded_hidden_tokens, segmented_concept_tokens) # (batch_size, seq_len, hidden_dim) -> (batch_size, seq_len, num_segment_predictions)
 
     #print(f"Decoded hidden tokens max: {decoded_hidden_tokens.max()}, min: {decoded_hidden_tokens.min()}")
     if self.discrete_input == True: # Discrete input
