@@ -138,8 +138,12 @@ def collate_audio(batch, _max_seq_len: int, _batch_size: int, _dtype: torch.dtyp
         print(f"Error: Sample {sample_idx} does not have \"pt\" field")
         continue
         
-      # Load the pt file using BytesIO
-      audio_values = torch.load(BytesIO(sample['pt']))
+      # Load the pt file using BytesIO with weights_only=True for safety
+      try:
+        audio_values = torch.load(BytesIO(sample["pt"]), weights_only=True)
+      except Exception as e:
+        print(f"Error loading pt file for sample {sample_idx}: {str(e)}")
+        continue
       
       # Ensure we have a tensor
       if not isinstance(audio_values, Tensor):
