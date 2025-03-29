@@ -15,42 +15,25 @@ class AudioLightningSerpentVAE(BaseLightningSerpentVAE):
     return super().configure_model()
 
   def training_step(self, batch: Tensor, batch_idx: int):
-    # Check if batch is valid (non-empty)
-    if batch is None or batch.size(0) == 0 or torch.all(batch == 0):
-      # Skip this batch with a small dummy loss to avoid training issues
-      self.log("skipped_batch", 1.0, prog_bar=True)
-      return torch.tensor(0.0, requires_grad=True)
-    
-    # Get the indices of the audio samples that are non-zero
-    non_zero_indices = torch.nonzero(batch, as_tuple=False)
+    correct_inputs = batch
 
-    # Pad the rest of the audio samples with 0s
-    padded_batch = torch.zeros_like(batch)
-    padded_batch[non_zero_indices[:, 0], :, non_zero_indices[:, 1]] = batch[non_zero_indices[:, 0], :, non_zero_indices[:, 1]]
+    #print(f"Training correct inputs shape: {correct_inputs.shape}")
 
-    correct_inputs = padded_batch
-
-    total_loss, vae_loss, confidence_loss, encoder_segment_pred_loss, decoder_segment_pred_loss = self.serpent_vae.train_step(correct_inputs = correct_inputs)
+    total_loss, vae_loss, confidence_loss, encoder_segment_pred_loss, decoder_segment_pred_loss = self.serpent_vae.train_step(correct_inputs = correct_inputs,
+                                                                                                                              current_epoch = self.current_epoch
+                                                                                                                             )
 
     return total_loss
     
   def validation_step(self, batch: Tensor, batch_idx: int):
-    # Check if batch is valid (non-empty)
-    if batch is None or batch.size(0) == 0 or torch.all(batch == 0):
-      # Skip this batch with a small dummy loss to avoid training issues
-      self.log("skipped_batch", 1.0, prog_bar=True)
-      return torch.tensor(0.0, requires_grad=True)
-    
-    # Get the indices of the audio samples that are non-zero
-    non_zero_indices = torch.nonzero(batch, as_tuple=False)
+    correct_inputs = batch
 
-    # Pad the rest of the audio samples with 0s
-    padded_batch = torch.zeros_like(batch)
-    padded_batch[non_zero_indices[:, 0], :, non_zero_indices[:, 1]] = batch[non_zero_indices[:, 0], :, non_zero_indices[:, 1]]
+    #print(f"Validation correct inputs shape: {correct_inputs.shape}")
 
-    correct_inputs = padded_batch
-
-    metrics = self.serpent_vae.eval_step(correct_inputs = correct_inputs, is_test = True)
+    metrics = self.serpent_vae.eval_step(correct_inputs = correct_inputs,
+                                         current_epoch = self.current_epoch,
+                                         is_test = True
+                                        )
 
     self.log_dict(metrics, sync_dist = True)
 

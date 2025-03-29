@@ -77,9 +77,9 @@ def prep_audio_dataset(config: Dict) -> Tuple[ResumableDataLoader, ResumableData
     test_dataset = shuffled_dataset.select(range(train_size, train_size + test_size))
     val_dataset = shuffled_dataset.select(range(train_size + test_size, dataset_size))
 
-    train_dataset = train_dataset.to_iterable_dataset()
-    test_dataset = test_dataset.to_iterable_dataset()
-    val_dataset = val_dataset.to_iterable_dataset()
+    train_dataset = train_dataset
+    test_dataset = test_dataset
+    val_dataset = val_dataset
 
     print(f"Created custom splits with sizes - Train: {train_size}, Test: {test_size}, Val: {dataset_size - train_size - test_size}")
 
@@ -129,15 +129,43 @@ def collate_audio(batch, _max_seq_len: int, _batch_size: int, _dtype: torch.dtyp
   Returns:
     Tensor: Processed batch of audio samples with shape [batch_size, max_seq_len]
   """
-  batch_features = torch.zeros((_batch_size, _max_seq_len), dtype=_dtype)
+  batch_features = torch.zeros((_batch_size, _max_seq_len, 1), dtype=torch.int64)
   
+  print(f"DEBUG: Processing batch with {len(batch)} samples")
+  
+  # First, check if any samples were actually loaded
+  if len(batch) == 0:
+    print("WARNING: Empty batch received, returning zero tensor")
+    return batch_features
+  
+  successful_samples = 0
   for sample_idx, sample in enumerate(batch):
+    # NOTE: sample is a dict with fields "pt": bytes, "__key__": str, "__url__": str
     try:
       # Skip invalid samples
       if not isinstance(sample, dict) or 'pt' not in sample:
         print(f"WARNING: Sample {sample_idx} does not have 'pt' field, skipping")
         continue
       
+      # Get the pt data
+      pt_data = sample['pt']
+      if pt_data is None:
+        print(f"ERROR: Sample {sample_idx} has None in 'pt' field, skipping")
+        continue
+      
+      # Use exact same loading approach as in load_audio_dataset_experiments.py
+      try:
+        audio_values = torch.load(BytesIO(pt_data))
+
+        audio_values = audio_values + 3 # Shift all indices by 3 to account for BOS, EOS and PAD tokens
+      
+      except Exception as e:
+        print(f"ERROR: Failed loading pt file for sample {sample_idx}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        continue
+
+      # Check if we got a valid tensor
       audio_values = torch.load(BytesIO(sample['pt']), weights_only=True)
       
       # Ensure we have a tensor
@@ -145,6 +173,35 @@ def collate_audio(batch, _max_seq_len: int, _batch_size: int, _dtype: torch.dtyp
         print(f"WARNING: Loaded data is not a tensor. Type: {type(audio_values)}")
         continue
       
+      audio_values = audio_values.squeeze(0).squeeze(0) # (1, 1, seq_len) -> (seq_len)
+
+      audio_values = torch.cat(tensors=(torch.tensor([0], dtype = torch.int64), 
+                                        audio_values,
+                                        torch.tensor([1], dtype = torch.int64)
+                                       ), 
+                               dim = 0
+                              ) # Prepend BOS token and append EOS token
+
+      # Shape of audio_values: (seq_len + 2)
+
+      seq_len = audio_values.shape[0]
+      
+      if seq_len < _max_seq_len: # We need to pad the sequence 
+        num_pad_tokens = _max_seq_len - seq_len
+        audio_values = torch.cat(tensors = (torch.tensor([2] * num_pad_tokens, dtype = torch.int64), 
+                                            audio_values
+                                           ), 
+                                 dim = 0
+                                ) # Pad with PAD tokens
+
+      elif seq_len > _max_seq_len: # We need to truncate the sequence
+        audio_values = audio_values[:_max_seq_len]
+
+      # Shape of audio_values: (_max_seq_len)
+
+      batch_features[sample_idx] = audio_values.unsqueeze(-1)
+      
+      successful_samples += 1
       # Process the tensor - flatten to 1D if needed (it should be a 1D tensor of discrete codes)
       if audio_values.dim() > 1:
         # It's a multidimensional tensor - take the first index from each dimension
@@ -161,5 +218,11 @@ def collate_audio(batch, _max_seq_len: int, _batch_size: int, _dtype: torch.dtyp
     except Exception as e:
       print(f"WARNING: Error processing sample {sample_idx}: {str(e)}")
       continue
+  
+  if successful_samples == 0:
+    print("WARNING: No samples were processed successfully!")
+  
+  elif successful_samples < _batch_size:
+    print(f"WARNING: Only {successful_samples} samples were processed successfully out of {_batch_size} samples")
   
   return batch_features

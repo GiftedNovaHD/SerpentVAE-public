@@ -102,14 +102,14 @@ class ChainCRP(nn.Module):
 
         # Combine odds multiplicatively 
         effective_odds = neural_odds * crp_odds
-        effective_prob = effective_odds / (1 + effective_odds)
+        effective_probs = effective_odds / (1 + effective_odds)
 
       else:
         crp_factor = 1 - (theta / (indices + theta)) # (seq_len - 1, )
         crp_factor = crp_factor.unsqueeze(0).expand(batch_size, -1) # (seq_len - 1, ) -> (batch_size, seq_len - 1)
         crp_factor = crp_factor.unsqueeze(-1).expand(-1, -1, num_segment_predictions) # (batch_size, seq_len - 1) -> (batch_size, seq_len - 1, num_segment_predictions)
 
-        effective_prob = p_n_squeezed_sub * crp_factor # (batch_size, seq_len - 1, num_segment_predictions)
+        effective_probs = p_n_squeezed_sub * crp_factor # (batch_size, seq_len - 1, num_segment_predictions)
     
     else: # Reconstruction loss is too high, so we want to decrease the subsequence length.
       recon_error_difference = torch.abs(prev_batch_recon_loss - self.recon_threshold)
@@ -120,7 +120,7 @@ class ChainCRP(nn.Module):
 
     # Sample from a Continuous Bernoulli distribution to enforce differentiability. 
     # NOTE: Not Gumbel-Softmax / Sigmoid trick
-    relaxed_samples = ContinuousBernoulli(probs = effective_prob).rsample()
+    relaxed_samples = ContinuousBernoulli(probs = effective_probs).rsample()
     hard_samples = (relaxed_samples >= 0.6).to(int8) # (batch_size, seq_len - 1, num_segment_predictions)
     hard_samples = torch.all(hard_samples, dim = -1) # (batch_size, seq_len - 1, num_segment_predictions) -> (batch_size, seq_len - 1)
     

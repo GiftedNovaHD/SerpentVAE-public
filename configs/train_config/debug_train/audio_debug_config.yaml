@@ -12,7 +12,7 @@ min_learning_rate: 1e-8
 weight_decay: 1e-2
 max_seq_len: 64
 batch_size: 2
-dataloader_num_workers: 16
+dataloader_num_workers: 1
 parallelism_strategy: "ddp"
 compile_model: true
 is_debug: true
@@ -25,7 +25,7 @@ seed: 6969
 # Global variables
 hidden_dim: 512
 concept_dim: 512
-vocab_size: 4096 # NOTE: Vocab size can be left blank to take in continuous inputs
+vocab_size: 4099 # NOTE: Vocab size can be left blank to take in continuous inputs
 input_dim: # NOTE: Input dimension can be left blank for continuous inputs
 
 # Reconstruction loss configuration
