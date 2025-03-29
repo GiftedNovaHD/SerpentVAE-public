@@ -153,7 +153,7 @@ def collate_audio(batch, _max_seq_len: int, _batch_size: int, _dtype: torch.dtyp
       
       # Use exact same loading approach as in load_audio_dataset_experiments.py
       try:
-        audio_values = torch.load(BytesIO(pt_data))
+        audio_values = torch.load(BytesIO(pt_data), weights_only = True)
 
         audio_values = audio_values + 3 # Shift all indices by 3 to account for BOS, EOS and PAD tokens
       
