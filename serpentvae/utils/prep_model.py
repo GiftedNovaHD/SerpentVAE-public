@@ -22,6 +22,7 @@ def prep_model(config: Dict) -> SerpentVAE:
                      recon_loss_name = config["recon_loss_name"],
                      recon_loss_reduction = config["recon_loss_reduction"],
                      vocab_size = config["vocab_size"],
+                     special_token_ids = config["special_token_ids"],
                      input_dim = config["input_dim"],
                      replacement_function_name = config["replacement_function"],
                      alpha = config["alpha"],

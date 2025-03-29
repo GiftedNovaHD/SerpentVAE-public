@@ -49,6 +49,7 @@ class SerpentVAE(nn.Module):
                recon_loss_reduction: Literal["mean", "sum"] = "mean",
                input_dim: Optional[int] = None,
                vocab_size: Optional[int] = None,
+               special_token_ids: Optional[Dict] = None,
                replacement_function_name: str = "use_last",
                alpha: float = 1.0,
                beta: float = 1.0,
@@ -101,11 +102,16 @@ class SerpentVAE(nn.Module):
     # Vocabulary configuration and figuring out whether input is discrete or continuous
     if (vocab_size is None) and (input_dim is not None): # Continuous inputs
       self.vocab_size = None
+      self.special_token_ids = None
       self.input_dim = input_dim
       self.discrete_input = False
 
     elif (vocab_size is not None) and (input_dim is None): # Discrete inputs
       self.vocab_size = vocab_size
+      self.special_token_ids = special_token_ids
+      self.bos_token_id = special_token_ids["BOS_token_id"]
+      self.eos_token_id = special_token_ids["EOS_token_id"]
+      self.pad_token_id = special_token_ids["PAD_token_id"]
       self.input_dim = None
       self.discrete_input = True
 
@@ -357,11 +363,9 @@ class SerpentVAE(nn.Module):
     inputs = inputs.detach()
 
     if self.discrete_input == True: # Discrete inputs
-      # NOTE: 
-      # EOS token_id: 1
-      # _pad_ token_id: 2
+      # NOTE:
       # Make EOS tokens and _pad_ tokens end of subsequences
-      padding_mask = torch.isin(inputs, torch.tensor([1, 2], device = self.device))
+      padding_mask = torch.isin(inputs, torch.tensor([self.eos_token_id, self.pad_token_id], device = self.device))
     
     else: # Continuous inputs
       # NOTE: We assume that the padding vector is all 0s
@@ -938,10 +942,10 @@ class SerpentVAE(nn.Module):
     # print(f"correct_inputs: {correct_inputs}")
     if self.discrete_input == True:
       # Calculate the number of content tokens
-      num_content_tokens = count_whitelisted_tokens(tensor = correct_inputs, blacklist = [1, 2], device = self.device)
+      num_content_tokens = count_whitelisted_tokens(tensor = correct_inputs, blacklist = [self.eos_token_id, self.pad_token_id], device = self.device)
 
       # Get the indices of the first tokens that are not padding tokens
-      sentence_start_indices = filter_index(tensor = correct_inputs.clone(), blacklist = 1, device = self.device)
+      sentence_start_indices = filter_index(tensor = correct_inputs.clone(), blacklist = [self.eos_token_id, self.pad_token_id], device = self.device)
 
     else:
       # Calculate the number of content tokens
