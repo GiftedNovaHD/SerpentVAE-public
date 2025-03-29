@@ -139,7 +139,7 @@ def collate_audio(batch, _max_seq_len: int, _batch_size: int, _dtype: torch.dtyp
         continue
         
       # Load the pt file using BytesIO
-      audio_values = torch.load(BytesIO(sample['pt']))[-1]
+      audio_values = torch.load(BytesIO(sample['pt']))
       
       # Ensure we have a tensor
       if not isinstance(audio_values, Tensor):
