@@ -133,28 +133,38 @@ def collate_audio(batch, _max_seq_len: int, _batch_size: int, _dtype: torch.dtyp
   
   for sample_idx, sample in enumerate(batch):
     try:
-      # Directly try to load the pt file
-      if not hasattr(sample, 'pt_file') or sample.pt_file is None:
-        print(f"Error: Sample {sample_idx} does not have a pt_file attribute")
-        continue
-        
-      # Load the pt file using BytesIO
-      if isinstance(sample.pt_file, bytes):
-        audio_values = torch.load(BytesIO(sample.pt_file))[-1]
-      else:
+      # Extract the audio data based on our formatted values - the actual audio values are in the last tensor of the tuple
+      if isinstance(sample, tuple) and len(sample) > 0:
+        # If the sample is a tuple of tensors, the last one contains the values
+        audio_values = sample[-1]
+      elif isinstance(sample, dict) and 'audio' in sample:
+        # If the sample is a dictionary with an 'audio' key
+        audio_data = sample['audio']
+        if isinstance(audio_data, tuple) and len(audio_data) > 0:
+          audio_values = audio_data[-1]
+        else:
+          audio_values = audio_data
+      elif hasattr(sample, 'pt_file') and sample.pt_file is not None:
+        # If the sample has a pt_file attribute
         audio_values = torch.load(sample.pt_file)[-1]
+      else:
+        # Assume the sample itself is the tensor we need
+        audio_values = sample
+      # If we get here, we're assuming the sample itself is the tensor we need 
+      if not isinstance(audio_values, Tensor) and audio_values == sample:
+        print(f"Warning: Assuming sample is the tensor we need. Type: {type(audio_values)}")
+        audio_values = torch.tensor(audio_values) if not isinstance(audio_values, Tensor) else audio_values
       
-      # Ensure we have a tensor
-      if not isinstance(audio_values, Tensor):
-        print(f"Error: Loaded data is not a tensor. Type: {type(audio_values)}")
-        continue
-        
       # Extract the values and ensure it's a 2D tensor
-      if audio_values.dim() == 1:
-        audio_values = audio_values.unsqueeze(0)
-      elif audio_values.dim() > 2:
-        # Take the first batch and channel if there are more dimensions
-        audio_values = audio_values[0, 0]
+      if isinstance(audio_values, Tensor):
+        if audio_values.dim() == 1:
+          audio_values = audio_values.unsqueeze(0)
+        elif audio_values.dim() > 2:
+          # Take the first batch and channel if there are more dimensions
+          audio_values = audio_values[0, 0]
+      else:
+        print(f"Warning: Unexpected audio data type: {type(audio_values)}")
+        continue
       
       # Get the sequence length of the current sample
       seq_len = torch.min(torch.tensor([audio_values.shape[1] if audio_values.dim() > 1 else audio_values.shape[0], _max_seq_len]))
