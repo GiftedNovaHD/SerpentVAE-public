@@ -53,6 +53,7 @@ boundary_operator:
   ChainCRP:
     use_odds_ratio: false
     compression_strength: 1.0
+    recon_threshold: 1e-4
 
 
 # Replacement function configuration

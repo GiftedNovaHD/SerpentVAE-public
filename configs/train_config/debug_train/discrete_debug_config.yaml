@@ -59,7 +59,7 @@ boundary_operator:
   ChainCRP:
     use_odds_ratio: false
     compression_strength: 1.0
-    recon_threshold: 1e-2 # Only below this threshold will we try to increase the subsequence length
+    recon_threshold: 1e-4 # Only below this threshold will we try to increase the subsequence length
 
 # Replacement function configuration
 replacement_function: "use_last"
