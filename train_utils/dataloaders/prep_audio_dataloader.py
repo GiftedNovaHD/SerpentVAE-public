@@ -202,18 +202,6 @@ def collate_audio(batch, _max_seq_len: int, _batch_size: int, _dtype: torch.dtyp
       batch_features[sample_idx] = audio_values.unsqueeze(-1)
       
       successful_samples += 1
-      # Process the tensor - flatten to 1D if needed (it should be a 1D tensor of discrete codes)
-      if audio_values.dim() > 1:
-        # It's a multidimensional tensor - take the first index from each dimension
-        # until we get to a 1D tensor
-        while audio_values.dim() > 1:
-          audio_values = audio_values[0]
-      
-      # Get the sequence length (truncate if longer than max_seq_len)
-      seq_len = min(audio_values.shape[0], _max_seq_len)
-      
-      # Copy the values to the batch tensor
-      batch_features[sample_idx, :seq_len] = audio_values[:seq_len]
         
     except Exception as e:
       print(f"WARNING: Error processing sample {sample_idx}: {str(e)}")
