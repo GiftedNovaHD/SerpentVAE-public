@@ -1,5 +1,6 @@
 import torch 
 import os 
+from io import BytesIO
 
 from torch import Tensor
 from datasets import load_dataset
@@ -144,11 +145,17 @@ def collate_audio(batch, _max_seq_len: int, _batch_size: int, _dtype: torch.dtyp
         else:
           audio_values = audio_data
       elif hasattr(sample, 'pt_file') and sample.pt_file is not None:
-        # If the sample has a pt_file attribute
-        audio_values = torch.load(sample.pt_file)[-1]
+        # If the sample has a pt_file attribute, load it using BytesIO
+        if isinstance(sample.pt_file, bytes):
+          # If pt_file is already bytes, use BytesIO directly
+          audio_values = torch.load(BytesIO(sample.pt_file))[-1]
+        else:
+          # If pt_file is a path or other format, try to load it as is
+          audio_values = torch.load(sample.pt_file)[-1]
       else:
         # Assume the sample itself is the tensor we need
         audio_values = sample
+
       # If we get here, we're assuming the sample itself is the tensor we need
       if not isinstance(audio_values, Tensor) and audio_values == sample:
         print(f"Warning: Assuming sample is the tensor we need. Type: {type(audio_values)}")
