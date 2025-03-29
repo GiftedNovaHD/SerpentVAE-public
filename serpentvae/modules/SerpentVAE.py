@@ -137,22 +137,22 @@ class SerpentVAE(nn.Module):
     # Initialise factory kwargs (device and dtype) for simpler initialisation
     factory_kwargs = {"device": self.device, "dtype": self.dtype}
 
-    if self.enable_confidence_module == True:
+    if self.enable_confidence_module is True:
       assert self.confidence_module_config is not None, "confidence_module_config must be provided if enable_confidence_module is True"
 
-    if self.enable_qnet == True:
+    if self.enable_qnet is True:
       assert self.qnet_config is not None, "qnet_config must be provided if enable_qnet is True"
     
     # Defining model components
     # Embeddings should only be initialised if input is discrete
-    if self.discrete_input == True: # Discrete inputs
-      if self.share_input_embeddings == True:
+    if self.discrete_input is True: # Discrete inputs
+      if self.share_input_embeddings is True:
         self.embeddings = nn.Embedding(vocab_size, hidden_dim, device = self.device, dtype = self.dtype)
       else:
         self.encoder_embeddings = nn.Embedding(vocab_size, hidden_dim, device = self.device, dtype = self.dtype)
         self.decoder_embeddings = nn.Embedding(vocab_size, hidden_dim, device = self.device, dtype = self.dtype)
 
-      if self.tie_embeddings == True:
+      if self.tie_embeddings is True:
         if self.share_input_embeddings:
           self.decoder_head = TiedLinear(self.embeddings, transpose_weights = False)
         else:
@@ -163,14 +163,14 @@ class SerpentVAE(nn.Module):
     else:
       # For continuous inputs, add a linear projection if input_dim != hidden_dim
       if self.input_dim != hidden_dim:
-        if self.share_input_embeddings == True:
+        if self.share_input_embeddings is True:
           self.input_projection = nn.Linear(input_dim, hidden_dim, **factory_kwargs)
         else:
           self.encoder_input_projection = nn.Linear(input_dim, hidden_dim, **factory_kwargs)
           self.decoder_input_projection = nn.Linear(input_dim, hidden_dim, **factory_kwargs)
 
-        if self.tie_embeddings == True:
-          if self.share_input_embeddings == True:
+        if self.tie_embeddings is True:
+          if self.share_input_embeddings is True:
             self.output_projection = TiedLinear(self.input_projection, transpose_weights = True)
           else:
             self.output_projection = TiedLinear(self.decoder_input_projection, transpose_weights = True)
@@ -682,7 +682,7 @@ class SerpentVAE(nn.Module):
 
 
     # Compute the maximized MI regularizer term
-    if self.enable_qnet == True:
+    if self.enable_qnet is True:
       vmi_loss_term = self.maximize_vmi_regularizer(z = z,
                                                     decoder_output = decoder_output,
                                                     segmentation_indices = segmentation_indices,
@@ -1171,7 +1171,7 @@ class SerpentVAE(nn.Module):
                                                                               decoder_output = decoder_output
                                                                              )
     
-    if self.discrete_input == True:
+    if self.discrete_input is True:
       recon_loss_bits = (reconstruction_error * torch.log2(torch.exp(torch.tensor([1], device = self.device, dtype = self.dtype))))
       bits_per_byte = (recon_loss_bits/(torch.log2(torch.tensor([self.vocab_size], device = self.device, dtype = self.dtype))/3))
 
@@ -1186,7 +1186,7 @@ class SerpentVAE(nn.Module):
                                                                       )
     
     # Calculate the confidence error
-    if self.enable_confidence_module == True:
+    if self.enable_confidence_module is True:
       confidence_error = self.confidence_loss(confidence_estimates = confidence_estimates,
                                               segmentation_indices = segmentation_indices,
                                               correct_inputs = correct_inputs,
@@ -1221,15 +1221,15 @@ class SerpentVAE(nn.Module):
               }
     
     # Add perplexity and bits per byte to metrics if discrete input
-    if self.discrete_input == True:
+    if self.discrete_input is True:
       metrics[prefix + "perplexity"] = torch.exp(reconstruction_error).item()
       metrics[prefix + "bits_per_byte"] = bits_per_byte.item()
     
     # Add optional metrics
-    if self.enable_confidence_module == True:
+    if self.enable_confidence_module is True:
       metrics[prefix + "confidence_loss"] = confidence_error.item()
     
-    if self.enable_qnet == True:
+    if self.enable_qnet is True:
       metrics[prefix + "vmi_loss"] = vmi_loss.item()
     
     return metrics
