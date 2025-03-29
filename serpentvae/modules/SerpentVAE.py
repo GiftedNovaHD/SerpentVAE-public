@@ -364,7 +364,8 @@ class SerpentVAE(nn.Module):
 
     if self.discrete_input == True: # Discrete inputs
       # NOTE:
-      # Make EOS tokens and _pad_ tokens end of subsequences
+      # NOTE: BOS, EOS and PAD tokens are configurable
+      # Make EOS tokens and _pad_ tokens both subsequence ends
       padding_mask = torch.isin(inputs, torch.tensor([self.eos_token_id, self.pad_token_id], device = self.device))
     
     else: # Continuous inputs
@@ -931,9 +932,7 @@ class SerpentVAE(nn.Module):
 
     NOTE:
     For discrete inputs:
-    BOS token_id: 0
-    EOS token_id: 1
-    _pad_ token_id: 2
+    BOS, EOS and PAD tokens are configurable
 
     For continuous inputs:
     We assume that padding vectors are all 0s
