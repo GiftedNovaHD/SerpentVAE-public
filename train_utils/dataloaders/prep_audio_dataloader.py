@@ -131,51 +131,87 @@ def collate_audio(batch, _max_seq_len: int, _batch_size: int, _dtype: torch.dtyp
   """
   batch_features = torch.zeros((_batch_size, _max_seq_len), dtype=_dtype)
   
+  print(f"DEBUG: Processing batch with {len(batch)} samples")
+  
+  # First, check if any samples were actually loaded
+  if len(batch) == 0:
+    print("WARNING: Empty batch received, returning zero tensor")
+    return batch_features
+  
+  # Print debug info about the first sample
+  first_sample = batch[0]
+  print(f"DEBUG: First sample type: {type(first_sample)}")
+  if isinstance(first_sample, dict):
+    print(f"DEBUG: First sample keys: {list(first_sample.keys())}")
+    if 'pt' in first_sample:
+      print(f"DEBUG: 'pt' field type: {type(first_sample['pt'])}")
+      print(f"DEBUG: 'pt' field size: {len(first_sample['pt']) if hasattr(first_sample['pt'], '__len__') else 'unknown'}")
+  
+  successful_samples = 0
   for sample_idx, sample in enumerate(batch):
     try:
-      # Get the pt file data from the sample
-      if not isinstance(sample, dict) or "pt" not in sample:
-        print(f"Error: Sample {sample_idx} does not have \"pt\" field")
+      # Skip invalid samples
+      if not isinstance(sample, dict) or 'pt' not in sample:
+        print(f"ERROR: Sample {sample_idx} does not have 'pt' field, skipping")
         continue
-        
-      # Create a BytesIO buffer and write the data to it
-      buffer = BytesIO()
-      buffer.write(sample["pt"])
-      buffer.seek(0)  # Reset the buffer position to the beginning
       
-      # Load the pt file using the buffer
+      # Get the pt data
+      pt_data = sample['pt']
+      if pt_data is None:
+        print(f"ERROR: Sample {sample_idx} has None in 'pt' field, skipping")
+        continue
+      
+      # Create fresh BytesIO buffer for each sample
+      buffer = BytesIO()
+      buffer.write(pt_data)
+      buffer.seek(0)
+      
+      # Use exact same loading approach as in load_audio_dataset_experiments.py
       try:
-        audio_values = torch.load(buffer, weights_only=True)
+        audio_values = torch.load(buffer)
+        print(f"DEBUG: Successfully loaded tensor for sample {sample_idx}")
       except Exception as e:
-        print(f"Error loading pt file for sample {sample_idx}: {str(e)}")
+        print(f"ERROR: Failed loading pt file for sample {sample_idx}: {str(e)}")
         continue
       finally:
-        buffer.close()  # Ensure the buffer is closed
+        buffer.close()
       
-      # Ensure we have a tensor
+      # Check if we got a valid tensor
       if not isinstance(audio_values, Tensor):
-        print(f"Error: Loaded data is not a tensor. Type: {type(audio_values)}")
+        print(f"ERROR: Loaded data is not a tensor. Type: {type(audio_values)}")
         continue
-        
-      # Extract the values and ensure it's a 2D tensor
+      
+      # Print tensor information for the first few samples
+      if sample_idx < 2:
+        print(f"DEBUG: Sample {sample_idx} tensor shape: {audio_values.shape}, dtype: {audio_values.dtype}")
+      
+      # Process the tensor
       if audio_values.dim() == 1:
         audio_values = audio_values.unsqueeze(0)
       elif audio_values.dim() > 2:
         # Take the first batch and channel if there are more dimensions
         audio_values = audio_values[0, 0]
       
-      # Get the sequence length of the current sample
-      seq_len = torch.min(torch.tensor([audio_values.shape[1] if audio_values.dim() > 1 else audio_values.shape[0], _max_seq_len]))
+      # Get the sequence length
+      seq_len = min(audio_values.shape[1] if audio_values.dim() > 1 else audio_values.shape[0], _max_seq_len)
       
       # Copy the values to the batch tensor
       if audio_values.dim() > 1:
         batch_features[sample_idx, :seq_len] = audio_values[0, :seq_len]
       else:
         batch_features[sample_idx, :seq_len] = audio_values[:seq_len]
+      
+      successful_samples += 1
         
     except Exception as e:
-      print(f"Error processing audio sample {sample_idx}: {str(e)}")
-      # Skip broken samples
+      print(f"ERROR: Processing sample {sample_idx} failed: {str(e)}")
+      import traceback
+      traceback.print_exc()
       continue
-    
+  
+  print(f"DEBUG: Processed {successful_samples}/{len(batch)} samples successfully")
+  
+  if successful_samples == 0:
+    print("WARNING: No samples were processed successfully!")
+  
   return batch_features
