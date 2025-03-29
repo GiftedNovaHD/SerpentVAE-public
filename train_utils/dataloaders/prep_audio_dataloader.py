@@ -134,8 +134,8 @@ def collate_audio(batch, _max_seq_len: int, _batch_size: int, _dtype: torch.dtyp
   for sample_idx, sample in enumerate(batch):
     try:
       # Get the pt file data from the sample
-      if not isinstance(sample, dict) or 'pt' not in sample:
-        print(f"Error: Sample {sample_idx} does not have 'pt' field")
+      if not isinstance(sample, dict) or "pt" not in sample:
+        print(f"Error: Sample {sample_idx} does not have \"pt\" field")
         continue
         
       # Load the pt file using BytesIO
