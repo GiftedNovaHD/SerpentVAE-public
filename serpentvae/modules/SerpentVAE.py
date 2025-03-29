@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torch import Tensor
-from typing import Tuple, Callable, List, Dict, Optional, Literal, Literal
+from typing import Tuple, Callable, List, Dict, Optional, Literal, Union
 from torch.nn import functional as F
 #from torch.nested 
 
@@ -44,7 +44,7 @@ class SerpentVAE(nn.Module):
                distribution_config: Dict,
                encoder_config: Dict,
                decoder_config: Dict,
-               boundary_operator_config: Dict,
+               boundary_operator_config: Union[Dict, str],
                recon_loss_name: str,
                recon_loss_reduction: Literal["mean", "sum"] = "mean",
                input_dim: Optional[int] = None,
