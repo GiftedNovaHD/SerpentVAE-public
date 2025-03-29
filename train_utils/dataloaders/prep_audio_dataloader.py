@@ -145,7 +145,7 @@ def collate_audio(batch, _max_seq_len: int, _batch_size: int, _dtype: torch.dtyp
       
       # Load the pt file using the buffer
       try:
-        audio_values = torch.load(buffer)
+        audio_values = torch.load(buffer, weights_only=True)
       except Exception as e:
         print(f"Error loading pt file for sample {sample_idx}: {str(e)}")
         continue
