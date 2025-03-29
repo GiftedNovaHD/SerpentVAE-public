@@ -131,8 +131,6 @@ def collate_audio(batch, _max_seq_len: int, _batch_size: int, _dtype: torch.dtyp
   """
   batch_features = torch.zeros((_batch_size, _max_seq_len, 1), dtype=torch.int64)
   
-  print(f"DEBUG: Processing batch with {len(batch)} samples")
-  
   # First, check if any samples were actually loaded
   if len(batch) == 0:
     print("WARNING: Empty batch received, returning zero tensor")
