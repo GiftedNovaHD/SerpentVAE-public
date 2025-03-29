@@ -186,11 +186,11 @@ def collate_audio(batch, _max_seq_len: int, _batch_size: int, _dtype: torch.dtyp
       
       if seq_len < _max_seq_len: # We need to pad the sequence 
         num_pad_tokens = _max_seq_len - seq_len
-        audio_values = torch.cat(tensors = (torch.tensor([2] * num_pad_tokens, dtype = torch.int64), 
+        audio_values = torch.cat(tensors = (torch.tensor([1] * num_pad_tokens, dtype = torch.int64), 
                                             audio_values
                                            ), 
                                  dim = 0
-                                ) # Pad with PAD tokens
+                                ) # Pad with EOS tokens to match with configuration for text inputs
 
       elif seq_len > _max_seq_len: # We need to truncate the sequence
         audio_values = audio_values[:_max_seq_len]
