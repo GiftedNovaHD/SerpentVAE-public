@@ -27,7 +27,6 @@ def prep_audio_dataset(config: Dict) -> Tuple[ResumableDataLoader, ResumableData
   
   _max_seq_len = config["max_seq_len"]
   _batch_size = config["batch_size"]
-  _dataloader_num_workers = config["dataloader_num_workers"]
 
   # Load the dataset 
   try: 
