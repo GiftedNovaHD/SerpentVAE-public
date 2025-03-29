@@ -23,8 +23,8 @@ seed: 6969
 # For Mamba2 head_dims, hidden_dim/concept_dim * mamba_expand / head_dim must be a multiple of 8
 
 # Global variables
-hidden_dim: 128
-concept_dim: 128
+hidden_dim: 64
+concept_dim: 64
 vocab_size: 4099 # NOTE: Vocab size can be left blank to take in continuous inputs
 input_dim: # NOTE: Input dimension can be left blank for continuous inputs
 
@@ -84,7 +84,7 @@ encoder:
     mamba2_state_dim: 8
     mamba2_conv_length: 4
     mamba2_expand: 2
-    mamba2_head_dim: 16 # (hidden_dim * mamba_expand / mamba_head_dim = 64 = 8 * 8)
+    mamba2_head_dim: 8 # (hidden_dim * mamba_expand / mamba_head_dim = 64 = 8 * 8)
 
   # Channel mixer configuration
   MLP:
@@ -102,7 +102,7 @@ decoder:
     mamba2_state_dim: 8
     mamba2_conv_length: 4
     mamba2_expand: 2
-    mamba2_head_dim: 16 # (hidden_dim * mamba_expand / mamba_head_dim = 64 = 8 * 8)
+    mamba2_head_dim: 8 # (hidden_dim * mamba_expand / mamba_head_dim = 64 = 8 * 8)
 
   # Channel mixer configuration
   MLP:
@@ -111,7 +111,7 @@ decoder:
 # Confidence Module configuration
 enable_confidence_module: true # This module is used for Stochastic Varitional Inference (not implemented yet)
 confidence_module:
-  mlp_inner_dim: 768
+  mlp_inner_dim: 384
 
 # Q-Net configuration
 enable_qnet: true # We advise Q-Net to be enabled to reduce the chance of posterior collapse
@@ -124,7 +124,7 @@ qnet:
   Mamba2:
     mamba2_conv_length: 4
     mamba2_expand: 1
-    mamba2_head_dim: 16 # (concept_dim * mamba_expand / qnet_mamba_head_dim = 48 = 8 * 6)
+    mamba2_head_dim: 8 # (concept_dim * mamba_expand / qnet_mamba_head_dim = 48 = 8 * 6)
     mamba2_state_dim: 8
 
   # Channel mixer configuration
