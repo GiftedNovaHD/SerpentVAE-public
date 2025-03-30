@@ -10,7 +10,7 @@ training_path: "video-debug-train-ckpt"
 learning_rate: 1e-4
 min_learning_rate: 1e-8
 weight_decay: 1e-2
-max_seq_len: 256
+max_seq_len: 128
 batch_size: 2
 dataloader_num_workers: 1
 parallelism_strategy: "ddp"
