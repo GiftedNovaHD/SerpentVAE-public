@@ -1,6 +1,6 @@
 FROM nvidia/cuda:12.4.0-runtime-ubuntu22.04
 
-ENV DEBIAN_FRONTEND = noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y \
   python3 \
@@ -23,8 +23,8 @@ RUN ln -sf /usr/bin/python3 /usr/bin/python && \
 COPY requirements.txt . 
 
 RUN pip3 install --no-cache-dir --upgrade pip && \ 
-  pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124 && \
+  pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124 --default-timeout=1000 && \
   pip3 install --no-cache-dir -r requirements.txt
 
-ENV NVIDIA_VISIBLE_DEVICES all 
-ENV NVIDIA_DRIVER_CAPABILITIES compute,utility
+ENV NVIDIA_VISIBLE_DEVICES=all 
+ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility
