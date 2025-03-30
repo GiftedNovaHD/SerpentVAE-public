@@ -68,30 +68,30 @@ class SerpentVAE(nn.Module):
     SerpentVAE: A modular VAE that can handle both discrete and continuous inputs
     
     Args:
-      - hidden_dim (int): The hidden dimension size used throughout the model
-      - concept_dim (int): The dimension of the latent space (concepts)
-      - distribution_config (Dict): Configuration for the latent distribution
-      - encoder_config (Dict): Configuration for the encoder
-      - decoder_config (Dict): Configuration for the decoder
-      - boundary_operator_config (Union[Dict, str]): Configuration for the boundary operator
-      - recon_loss_name (str): Name of the reconstruction loss to use
-      - recon_loss_reduction (Literal["mean", "sum"]): Reduction method for the reconstruction loss
-      - vocab_size (Optional[int]): Size of vocabulary for discrete inputs, None for continuous inputs
-      - input_dim (Optional[int]): Dimension of continuous inputs, None for discrete inputs
-      - use_odds_ratio (bool): Whether to use odds ratio for segmentation
-      - compression_strength (float): Compression strength for ChainCRP
-      - alpha (float): Weight for the VMI loss term
-      - beta (float): Weight for the KL divergence term
-      - ema_decay_factor (float): Decay factor for the exponential moving average
-      - enable_confidence_module (bool): Whether to enable the confidence module
-      - confidence_module_config (Optional[Dict]): Configuration for the confidence module
-      - enable_qnet (bool): Whether to enable the Q-network
-      - qnet_config (Optional[Dict]): Configuration for the Q-network
-      - share_input_embeddings (bool): Whether to share embeddings between encoder and decoder (for discrete inputs)
-      - tie_embeddings (bool): Whether to tie the embeddings with the output layer (for discrete inputs)
-      - residual_in_fp32 (bool): Whether to compute residual connections in FP32
-      - device (torch.device): Device to use for computation
-      - dtype (torch.dtype): Data type to use for computation
+      - `hidden_dim` (`int`): The hidden dimension size used throughout the model
+      - `concept_dim` (`int`): The dimension of the latent space (concepts)
+      - `distribution_config` (`Dict`): Configuration for the latent distribution
+      - `encoder_config` (`Dict`): Configuration for the encoder
+      - `decoder_config` (`Dict`): Configuration for the decoder
+      - `boundary_operator_config` (`Union[Dict, str]`): Configuration for the boundary operator
+      - `recon_loss_name` (`str`): Name of the reconstruction loss to use
+      - `recon_loss_reduction` (`Literal["mean", "sum"]`): Reduction method for the reconstruction loss
+      - `vocab_size` (`Optional[int]`): Size of vocabulary for discrete inputs, None for continuous inputs
+      - `input_dim` (`Optional[int]`): Dimension of continuous inputs, None for discrete inputs
+      - `use_odds_ratio` (`bool`): Whether to use odds ratio for segmentation
+      - `compression_strength` (`float`): Compression strength for ChainCRP
+      - `alpha` (`float`): Weight for the VMI loss term
+      - `beta` (`float`): Weight for the KL divergence term
+      - `ema_decay_factor` (`float`): Decay factor for the exponential moving average
+      - `enable_confidence_module` (`bool`): Whether to enable the confidence module
+      - `confidence_module_config` (`Optional[Dict]`): Configuration for the confidence module
+      - `enable_qnet` (`bool`): Whether to enable the Q-network
+      - `qnet_config` (`Optional[Dict]`): Configuration for the Q-network
+      - `share_input_embeddings` (`bool`): Whether to share embeddings between encoder and decoder (for discrete inputs)
+      - `tie_embeddings` (`bool`): Whether to tie the embeddings with the output layer (for discrete inputs)
+      - `residual_in_fp32` (`bool`): Whether to compute residual connections in FP32
+      - `device` (`torch.device`): Device to use for computation
+      - `dtype` (`torch.dtype`): Data type to use for computation
     """
      
     super(SerpentVAE, self).__init__()
