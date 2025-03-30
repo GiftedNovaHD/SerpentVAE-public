@@ -8,7 +8,7 @@ def ensure_checkpoint_dir(checkpoint_dir: str) -> None:
   Ensure the checkpoint directory exists, creating it if necessary.
   
   Args:
-      checkpoint_dir: Path to the checkpoint directory
+    - `checkpoint_dir` (`str`): Path to the checkpoint directory
   """
   if not os.path.exists(checkpoint_dir):
     print(f"Creating checkpoint directory: {checkpoint_dir}")
@@ -19,11 +19,11 @@ def find_latest_checkpoint(checkpoint_dir: str, default_name: str = "last.ckpt")
   Find the latest checkpoint in the given directory.
   
   Args:
-      checkpoint_dir: Path to the checkpoint directory
-      default_name: Name of the default checkpoint file to look for first
+    - `checkpoint_dir` (`str`): Path to the checkpoint directory
+    - `default_name` (`str`): Name of the default checkpoint file to look for first
       
   Returns:
-      Path to the latest checkpoint, or None if no checkpoint exists
+    - `Path` to the latest checkpoint, or `None` if no checkpoint exists
   """
   # Ensure the checkpoint directory exists
   ensure_checkpoint_dir(checkpoint_dir)

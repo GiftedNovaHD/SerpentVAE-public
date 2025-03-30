@@ -253,18 +253,18 @@ def prep_video_dataset(config: Dict) -> Tuple[ResumableDataLoader, ResumableData
   Takes in the configuration and returns dataloaders for the training, testing and validation datasets.
   
   Args: 
-    config (dict): Configuration dictionary for the given experiment 
-      - "dataset_path" (str): The path to the dataset
-      - "dataset_name" (str): The name of the dataset
-      - "desired_category" (str): The category to filter by
-      - "batch_size" (int): Batch size for dataloaders
-      - "dataloader_num_workers" (int or None): Number of workers for dataloading
-      - "max_seq_len" (int): Maximum sequence length for video frames
+    `config` (`dict`): Configuration dictionary for the given experiment 
+      - `dataset_path` (`str`): The path to the dataset
+      - `dataset_name` (`str`): The name of the dataset
+      - `desired_category` (`str`): The category to filter by
+      - `batch_size` (`int`): Batch size for dataloaders
+      - `dataloader_num_workers` (`int` or `None`): Number of workers for dataloading
+      - `max_seq_len` (`int`): Maximum sequence length for video frames
 
   Returns: 
-    train_dataloader (DataLoader): The training dataloader
-    test_dataloader (DataLoader): The testing dataloader
-    val_dataloader (DataLoader): The validation dataloader
+    - `train_dataloader` (`ResumableDataLoader`): The training dataloader
+    - `test_dataloader` (`ResumableDataLoader`): The testing dataloader
+    - `val_dataloader` (`ResumableDataLoader`): The validation dataloader
   """
   # Set the max_seq_len from config immediately at the beginning
   _max_seq_len = config["max_seq_len"]

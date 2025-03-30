@@ -13,17 +13,17 @@ def prep_audio_dataset(config: Dict) -> Tuple[ResumableDataLoader, ResumableData
   Prepares the audio dataset for training
 
   Args: 
-    config (dict): Configuration dictionary for the audio dataset
-      - "dataset_path" (str): The path to the dataset
-      - "dataset_name" (str): The name of the dataset
-      - "batch_size" (int): The batch size for the dataloader
-      - "dataloader_num_workers" (int): The number of workers for the dataloader
-      - "max_seq_len" (int): The maximum sequence length for the audio samples
+    `config` (`dict`): Configuration dictionary for the audio dataset
+      - `dataset_path` (`str`): The path to the dataset
+      - `dataset_name` (`str`): The name of the dataset
+      - `batch_size` (`int`): The batch size for the dataloader
+      - `dataloader_num_workers` (`int`): The number of workers for the dataloader
+      - `max_seq_len` (`int`): The maximum sequence length for the audio samples
 
   Returns: 
-    train_dataloader (ResumableDataLoader): The training dataloader
-    test_dataloader (ResumableDataLoader): The testing dataloader
-    val_dataloader (ResumableDataLoader): The validation dataloader
+    - `train_dataloader` (`ResumableDataLoader`): The training dataloader
+    - `test_dataloader` (`ResumableDataLoader`): The testing dataloader
+    - `val_dataloader` (`ResumableDataLoader`): The validation dataloader
   """
   
   _max_seq_len = config["max_seq_len"]
@@ -50,6 +50,7 @@ def prep_audio_dataset(config: Dict) -> Tuple[ResumableDataLoader, ResumableData
                                )
     
     print("Successfully loaded predefined dataset splits.")
+    
   except Exception as e: 
     print(f"Error loading predefined splits: {e}")
     print("Falling back to 80-10-10 custom split...")
@@ -124,10 +125,10 @@ def collate_audio(batch, _max_seq_len: int, _batch_size: int, _dtype: torch.dtyp
   Collate function for audio data.
 
   Args:
-    batch: A batch of audio samples, where each sample contains tokenized audio data
+    - `batch` (`list`): A batch of audio samples, where each sample contains tokenized audio data
       
   Returns:
-    Tensor: Processed batch of audio samples with shape [batch_size, max_seq_len]
+    - `batch_features` (`Tensor`): (`batch_size`, `max_seq_len`) Processed batch of audio samples
   """
   batch_features = torch.zeros((_batch_size, _max_seq_len, 1), dtype=torch.int64)
   

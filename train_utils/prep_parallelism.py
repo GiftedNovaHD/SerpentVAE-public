@@ -28,14 +28,14 @@ def prep_parallelism(config: Dict):
   Prepare the parallelism strategy for model training.
 
   Args:
-    config (Dict): Configuration dictionary.
+    - `config` (`Dict`): Configuration dictionary.
     
     Valid options:
       - "DDP": Distributed Data Parallel
       - "FSDP": Fully Sharded Data Parallel
   
   Returns:
-    strategy: The parallelism strategy
+    `strategy`: The parallelism strategy
   """
   parallelism_config = config["parallelism_strategy"]
 
