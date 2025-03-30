@@ -27,15 +27,27 @@ class ResumableProgressBar(TQDMProgressBar):
 
 def convert_inf(x: Optional[Union[int, float]]) -> Optional[Union[int, float]]:
   """
-  The tqdm doesn't support inf/nan values.
-  
+  TQDM package doesn't support inf/nan values.
   We have to convert it to None.
+
+  Args:
+    - `x` (`Optional[Union[int, float]]`): Value to convert
+
+  Returns:
+    - `Optional[Union[int, float]]`: Converted value
   """
   if x is None or math.isinf(x) or math.isnan(x):
     return None
   return x
   
 def _update_n(bar: _tqdm, value: int) -> None:
+  """
+  Update the progress bar.
+
+  Args:
+    - `bar` (`_tqdm`): Progress bar
+    - `value` (`int`): Value to update the progress bar to
+  """
   if not bar.disable:
     bar.n = value
     bar.refresh()

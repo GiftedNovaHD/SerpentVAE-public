@@ -188,6 +188,8 @@ class Decoder(nn.Module):
       concept_tokens: the sequence of concept tokens for the concept mixer Training: (batch, sequence_length, concept_dim) Inference: (batch, 1, concept_dim)
       inference_params: the inference params for the Sequence Mixer (optional)
 
+    Returns:
+      - `Tensor`: `(batch, sequence_length, hidden_dim)`
     """
     # Setting up initial residual
     residual = None

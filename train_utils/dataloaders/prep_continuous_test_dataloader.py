@@ -3,7 +3,7 @@ import psutil
 import torch
 
 from typing import Dict, Tuple
-from torch.utils.data import DataLoader, TensorDataset
+from torch.utils.data import TensorDataset
 
 from train_utils.resumable_lightning_utils.resumable_lightning_dataloader import ResumableDataLoader
 
@@ -13,12 +13,12 @@ def prep_continuous_test_dataset(config: Dict) -> Tuple[ResumableDataLoader, Res
 
   Args:
     config (dict): The configuration dictionary for the given experiment
-      - "dataset_path" (str): The path to the dataset
-      - "dataset_name" (str): The name of the dataset
+      - `dataset_path` (`str`): The path to the dataset
+      - `dataset_name` (`str`): The name of the dataset
   Returns:
-    train_dataloader (DataLoader): The training dataloader
-    test_dataloader (DataLoader): The testing dataloader
-    val_dataloader (DataLoader): The validation dataloader
+    `train_dataloader` (`ResumableDataLoader`): The training dataloader
+    `test_dataloader` (`ResumableDataLoader`): The testing dataloader
+    `val_dataloader` (`ResumableDataLoader`): The validation dataloader
   """
   num_train_samples = 10000
   num_test_samples = 100
@@ -85,7 +85,7 @@ def count_workers() -> int:
       vCPUs = psutil.cpu_count(logical=True) 
     
     return vCPUs
-  except Exception as e: 
+  except Exception:
     return 1 
   
 if __name__ == "__main__":

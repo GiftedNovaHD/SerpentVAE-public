@@ -43,6 +43,9 @@ class ResumableDataLoader(DataLoader):
   def state_dict(self) -> Dict[str, Any]:
     """
     Return the current state of the dataloader for resumption.
+
+    Returns:
+      - `Dict[str, Any]`: The state dictionary
     """
     state = {
       "current_batch_idx": self._current_batch_idx
@@ -62,7 +65,12 @@ class ResumableDataLoader(DataLoader):
     return state
   
   def load_state_dict(self, state_dict: Dict[str, Any]) -> None:
-    """Restore the dataloader state from a previously saved state_dict."""
+    """
+    Restore the dataloader state from a previously saved state_dict.
+
+    Args:
+      - `state_dict` (`Dict[str, Any]`): The state dictionary to restore from
+    """
     self._current_batch_idx = state_dict.get("current_batch_idx", 0)
     
     # Restore distributed sampler state if available

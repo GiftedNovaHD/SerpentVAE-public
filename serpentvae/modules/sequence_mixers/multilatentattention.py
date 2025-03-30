@@ -6,12 +6,12 @@ class MultiLatentAttention(nn.Module):
   Multi-Latent Attention from Deepseek-V2/3
 
   Args:
-    hidden_dim (int): The hidden dimension of the model
-    num_heads (int): The number of heads
-    q_lora_rank (int): Rank for low-rank query projection
-    kv_lora_rank (int): Rank for low-rank key/value projection
-    qk_head_dim (int): Head dimension for query/key projection
-    v_head_dim (int): Head dimension for value projection
+    - `hidden_dim` (`int`): The hidden dimension of the model
+    - `num_heads` (`int`): The number of heads
+    - `q_lora_rank` (`int`): Rank for low-rank query projection
+    - `kv_lora_rank` (`int`): Rank for low-rank key/value projection
+    - `qk_head_dim` (`int`): Head dimension for query/key projection
+    - `v_head_dim` (`int`): Head dimension for value projection
   """
   def __init__(self,
                hidden_dim: int,

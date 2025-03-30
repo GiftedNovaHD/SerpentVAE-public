@@ -37,7 +37,7 @@ class ConfidenceModule(nn.Module):
       - `concept_tokens` (`Tensor`): `(batch_size, seq_len, concept_dim)`
 
     Returns:
-      - `Tensor`: (batch_size, seq_len, 1)
+      - `Tensor`: `(batch_size, seq_len, 1)`
     """
     
     # Compute the confidence score

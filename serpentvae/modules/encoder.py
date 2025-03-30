@@ -161,6 +161,8 @@ class Encoder(nn.Module):
       `hidden_states`: the sequence to the decoder layer (required) Training: `(batch, sequence_length, hidden_dim)` Inference: `(batch, 1, hidden_dim)`
       `inference_params`: the inference params for the Sequence Mixer (optional)
 
+    Returns:
+      - `hidden_states` (`Tensor`): (`batch`, `sequence_length`, `hidden_dim`)
     """
     # Setting up initial residual
     residual = None

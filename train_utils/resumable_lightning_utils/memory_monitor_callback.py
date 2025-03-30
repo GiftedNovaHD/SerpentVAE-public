@@ -29,25 +29,30 @@ class MemoryMonitorCallback(Callback):
     self.docker_mode = docker_mode
         
   def _get_memory_usage_percent(self) -> float:
-    """Get memory usage percentage respecting Docker environment if enabled."""
+    """
+    Get memory usage percentage respecting Docker environment if enabled.
+
+    Returns:
+      - `float`: The memory usage percentage
+    """
     if not self.docker_mode:
       # Standard system memory check
       return psutil.virtual_memory().percent
         
     # Docker container memory check
     try:
-        # In Docker, container memory limits are exposed in cgroup
-        with open('/sys/fs/cgroup/memory/memory.limit_in_bytes', 'r') as f:
-          memory_limit = int(f.read().strip())
+      # In Docker, container memory limits are exposed in cgroup
+      with open('/sys/fs/cgroup/memory/memory.limit_in_bytes', 'r') as f:
+        memory_limit = int(f.read().strip())
+            
+      with open('/sys/fs/cgroup/memory/memory.usage_in_bytes', 'r') as f:
+        memory_usage = int(f.read().strip())
+            
+      # Handle unlimited memory case (very large value)
+      if memory_limit > 10**18:  # If limit is set to maximum (~unlimited)
+        return psutil.virtual_memory().percent
               
-        with open('/sys/fs/cgroup/memory/memory.usage_in_bytes', 'r') as f:
-          memory_usage = int(f.read().strip())
-              
-        # Handle unlimited memory case (very large value)
-        if memory_limit > 10**18:  # If limit is set to maximum (~unlimited)
-          return psutil.virtual_memory().percent
-                
-        return (memory_usage / memory_limit) * 100
+      return (memory_usage / memory_limit) * 100
             
     except FileNotFoundError:
       # Fall back to regular memory check if cgroup files not found
@@ -76,7 +81,16 @@ class MemoryMonitorCallback(Callback):
                            batch: Dict, 
                            batch_idx: int
                           ) -> None:
-    """Check memory usage at the start of each training batch."""
+    """
+    Check memory usage at the start of each training batch.
+
+    Args:
+      - `trainer` (`Trainer`): The trainer object
+      - `pl_module` (`LightningModule`): The LightningModule instance
+      - `batch` (`Dict`): The batch dictionary
+      - `batch_idx` (`int`): The index of the batch
+       
+    """
     if batch_idx % self.check_interval == 0:
         memory_percent = self._get_memory_usage_percent()
         print(f"Memory usage: {memory_percent:.2f}%")

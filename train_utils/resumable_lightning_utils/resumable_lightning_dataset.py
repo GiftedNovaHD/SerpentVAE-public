@@ -47,6 +47,9 @@ class ResumableDataset(Dataset):
   def state_dict(self) -> Dict[str, Any]:
     """
     Return the current state of the dataset for resumption.
+
+    Returns:
+      - `Dict[str, Any]`: The state dictionary
     """
     return {
       "current_index": self._current_index
@@ -55,5 +58,8 @@ class ResumableDataset(Dataset):
   def load_state_dict(self, state_dict: Dict[str, Any]) -> None:
     """
     Restore the dataset state from a previously saved state_dict.
+
+    Args:
+      - `state_dict` (`Dict[str, Any]`): The state dictionary to restore from
     """
     self._current_index = state_dict.get("current_index", 0)

@@ -9,5 +9,5 @@ def count_workers() -> int:
       vCPUs = psutil.cpu_count(logical = False)
     
     return vCPUs
-  except Exception as e: 
+  except Exception: 
     return 1
