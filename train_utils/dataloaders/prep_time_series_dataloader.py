@@ -52,7 +52,12 @@ def prep_time_series_dataset(config: Dict) -> Tuple[ResumableDataLoader, Resumab
   
   # For time-series datasets, they normally come as a single sequence that we have to split into training, validation and test sets in a 80:10:10 ratio
   # We also have to split each of these sets into segments of the desired length and frequency
-  full_dataset = load_dataset(path = config["dataset_path"], name = config["dataset_name"], split = "train", multivariate = True)
+  full_dataset = load_dataset(path = config["dataset_path"],
+                              name = config["dataset_name"],
+                              split = "train",
+                              multivariate = True,
+                              trust_remote_code = True)
+  
   full_dataset = full_dataset[0]["target"]
 
   full_dataset_tensor = torch.tensor(full_dataset)
