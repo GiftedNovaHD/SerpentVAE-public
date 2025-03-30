@@ -728,10 +728,7 @@ class SerpentVAE(nn.Module):
 
     segmentation_predictions = torch.mean(segmentation_predictions, dim = -1)
 
-    segmentation_predictions = torch.mean(segmentation_predictions, dim = -1)
-
     # Flatten 3D tensors to 1D so each prediction / target pair corresponds to a single element
-    segmentation_predictions = rearrange(segmentation_predictions, "batch_size seq_len -> (batch_size seq_len)")
     segmentation_predictions = rearrange(segmentation_predictions, "batch_size seq_len -> (batch_size seq_len)")
     end_indices = rearrange(end_indices, "batch_size seq_len 1 -> (batch_size seq_len)")
 
