@@ -23,7 +23,7 @@ from train_utils.checkpoint_utils import find_latest_checkpoint
 
 if __name__ == "__main__":
   parser = argparse.ArgumentParser(description='SerpentVAE Model')
-  parser.add_argument('--config', type = str, default = 'debug_train/continuous_test_no_optional_config', help = 'Choose with experiment configuration to use')
+  parser.add_argument('--config', type = str, default = 'debug_train/continuous_test_no_optional', help = 'Choose with experiment configuration to use')
 
   # This argument is provided automatically when using torch.distributed.launch or torchrun
   # parser.add_argument('--local_rank', type=int, default=0, help='Local rank for distributed training')
