@@ -1,20 +1,20 @@
 import torch
 import torch.nn as nn
 from torch import Tensor
-from typing import Tuple, Callable, List, Dict, Optional, Literal, Union
+from typing import Tuple, List, Dict, Optional, Literal, Union
 from torch.nn import functional as F
 #from torch.nested 
 
 from einops import rearrange
 
 # Import utilities for bitmask
-from serpentvae.utils.convert_bitmask import convert_bitmask
+# from serpentvae.utils.convert_bitmask import convert_bitmask
 
 # Import helper operations
 from serpentvae.ops.segment.replace.segment_utils.bitmask_to_indices import bitmask_to_start_indices, bitmask_to_end_indices
 from serpentvae.ops.sigmoid_focal_loss import sigmoid_focal_loss
-from serpentvae.ops.segment.replace.use_last import use_last_replacement
-from serpentvae.ops.segment.replace.mean import mean_replacement
+# from serpentvae.ops.segment.replace.use_last import use_last_replacement
+# from serpentvae.ops.segment.replace.mean import mean_replacement
 
 # Import modules
 from serpentvae.modules.distributions.distributions import create_distribution
@@ -256,7 +256,6 @@ class SerpentVAE(nn.Module):
     self.encoder_segment_predictor = EncoderSegmentPredictor(hidden_dim = hidden_dim,
                                                              inner_dim = encoder_config["segment_pred_inner_dim"],
                                                              num_segment_predictions = encoder_config["num_segment_predictions"],
-                                                             num_segment_predictions = encoder_config["num_segment_predictions"],
                                                              device = self.device,
                                                              dtype = self.dtype
                                                             )
@@ -264,7 +263,6 @@ class SerpentVAE(nn.Module):
     self.decoder_segment_predictor = DecoderSegmentPredictor(hidden_dim = hidden_dim,
                                                              concept_dim = concept_dim,
                                                              inner_dim = decoder_config["segment_pred_inner_dim"],
-                                                             num_segment_predictions = decoder_config["num_segment_predictions"],
                                                              num_segment_predictions = decoder_config["num_segment_predictions"],
                                                              device = self.device,
                                                              dtype = self.dtype
@@ -393,8 +391,6 @@ class SerpentVAE(nn.Module):
               encoder_segmentation_predictions: Tensor,
               padding_mask: Tensor,
               current_epoch: int
-              padding_mask: Tensor,
-              current_epoch: int
              ) -> Tuple[Tensor, Tensor]:
     """
     Decides how to segment a sequence of input tokens based on the concept tokens
@@ -418,12 +414,9 @@ class SerpentVAE(nn.Module):
       - `segment_indices` (`Tensor`): (`batch_size`, `seq_len`, `1`)
     """
     batch_size, seq_len, num_segment_predictions = encoder_segmentation_predictions.shape
-    batch_size, seq_len, num_segment_predictions = encoder_segmentation_predictions.shape
     
     # Obtain bitmask
     segmentation_indices = self.boundary_operator(encoder_segmentation_predictions = encoder_segmentation_predictions,
-                                                  prev_batch_recon_loss = self.prev_batch_recon_loss,
-                                                  current_epoch = current_epoch
                                                   prev_batch_recon_loss = self.prev_batch_recon_loss,
                                                   current_epoch = current_epoch
                                                  )
@@ -785,7 +778,7 @@ class SerpentVAE(nn.Module):
       - `loss` (`Tensor`): Scalar confidence module loss
     """
     batch_size = confidence_estimates.size(0)
-    seq_len = confidence_estimates.size(1)
+    # seq_len = confidence_estimates.size(1)
 
     start_indices = bitmask_to_start_indices(segmentation_indices) # List of tensors of shape (num_subseqs,) 
     end_indices = bitmask_to_end_indices(segmentation_indices, inclusive = True) # List of tensors of shape (num_subseqs,)
@@ -827,7 +820,6 @@ class SerpentVAE(nn.Module):
 
     return avg_confidence_loss
   
-  def forward(self, inputs: Tensor, current_epoch: int):
   def forward(self, inputs: Tensor, current_epoch: int):
     """
     Forward process for SerpentVAE
@@ -889,8 +881,6 @@ class SerpentVAE(nn.Module):
 
     segmented_concept_tokens, segmentation_indices = self.segment(concept_tokens = sampled_latents,
                                                                   encoder_segmentation_predictions = encoder_predicted_segments,
-                                                                  padding_mask = padding_mask,
-                                                                  current_epoch = current_epoch
                                                                   padding_mask = padding_mask,
                                                                   current_epoch = current_epoch
                                                                  ) # (batch_size, seq_len, concept_dim) -> (batch_size, seq_len, concept_dim)
@@ -1252,7 +1242,6 @@ class SerpentVAE(nn.Module):
     
     return metrics
 
-  def train_step(self, correct_inputs: Tensor, current_epoch: int):
   def train_step(self, correct_inputs: Tensor, current_epoch: int):
     """
     Calculates the overall loss at each training step of SerpentVAE
