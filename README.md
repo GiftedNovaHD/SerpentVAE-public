@@ -20,7 +20,22 @@ During training, we randomly sample continuous segments and train the model to r
 ### Quantisation Scheme
 - Scale-VAE
 
-# Usage 
+# Usage
+
+## Using Docker
+
+1. Download and install Docker [here](https://docs.docker.com/get-started/get-docker/).
+2. Clone the repository and navigate into the cloned directory.
+3. Build the Docker image with
+```bash
+docker build -t serpentvae .
+```
+5. Run the Docker container with
+```bash
+docker run --gpus all --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 -it serpentvae
+```
+
+## Python Only
 1. Clone the repository and navigate into the cloned directory. 
 2. Run 
 ```bash

@@ -36,6 +36,10 @@ class ContinuousTestLightningSerpentVAE(BaseLightningSerpentVAE):
                                          current_epoch = self.current_epoch,
                                          is_test=False
                                         )
+    metrics = self.serpent_vae.eval_step(correct_inputs = correct_inputs, 
+                                         current_epoch = self.current_epoch,
+                                         is_test=False
+                                        )
 
     self.log_dict(metrics, sync_dist = True)
 

@@ -13,6 +13,7 @@ import torch.nn.functional as F
 from torch import Tensor
 from torch import nn
 from torch.distributions import ContinuousBernoulli, Normal
+from torch.distributions import ContinuousBernoulli, Normal
 
 # Custom int8 definition since this is used way too much
 int8 = torch.int8

@@ -21,6 +21,7 @@ class EncoderSegmentPredictor(nn.Module):
                hidden_dim: int,
                inner_dim: int,
                num_segment_predictions: int,
+               num_segment_predictions: int,
                device: torch.device = None,
                dtype: torch.dtype = None
               ):
@@ -31,6 +32,7 @@ class EncoderSegmentPredictor(nn.Module):
                    inner_dim = inner_dim,
                    **factory_kwargs)
     
+    self.out_project = nn.Linear(hidden_dim, num_segment_predictions, **factory_kwargs)
     self.out_project = nn.Linear(hidden_dim, num_segment_predictions, **factory_kwargs)
 
   def forward(self, encoder_last_hidden_state: Tensor) -> Tensor:
