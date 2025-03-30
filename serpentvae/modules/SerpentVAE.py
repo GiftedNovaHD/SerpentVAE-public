@@ -1002,6 +1002,7 @@ class SerpentVAE(nn.Module):
 
     # Calculate the standard deviation of the subsequence lengths
     stddev_subseq_length = torch.std(torch.tensor(all_subsequence_lengths, device = self.device, dtype = torch.float32)) # Cast to float32 to avoid overflow instead model dtype
+    stddev_subseq_length = float(stddev_subseq_length.item())
 
     return avg_subseq_length, stddev_subseq_length
       
@@ -1049,7 +1050,7 @@ class SerpentVAE(nn.Module):
     return ema_stddev_subseq_length
   
   def num_active_units(self,
-                       mu: Tensor,
+                       mu: List[Tensor],
                        threshold: float = 1e-2
                        ) -> int:
     """
@@ -1069,7 +1070,7 @@ class SerpentVAE(nn.Module):
     all_mu = torch.tensor([], device=self.device)
 
     for mu_i in mu:
-      all_mu = torch.cat((all_mu, mu_i), dim=0) # (batch_size, num_subseq, concept_dim) ->  (batch_size * num_subseq, concept_dim)
+      all_mu = torch.cat((all_mu, mu_i.clone().detach()), dim=0) # (batch_size, num_subseq, concept_dim) ->  (batch_size * num_subseq, concept_dim)
 
     centered_mu = all_mu - all_mu.mean(dim=0, keepdim=True)
 
@@ -1082,7 +1083,7 @@ class SerpentVAE(nn.Module):
     # Compute the number of active units
     num_active_units = torch.sum(variances > threshold)
 
-    return num_active_units
+    return int(num_active_units.item())
 
   def metrics(self,
               correct_inputs: Tensor,
@@ -1212,7 +1213,7 @@ class SerpentVAE(nn.Module):
       prefix = "validation_"
     
     # Initialize the metrics dictionary
-    metrics = {prefix + "num_active_units": num_active_units.item(),
+    metrics = {prefix + "num_active_units": num_active_units,
                prefix + "full_mi": full_mutual_info.item(),
                prefix + "kl_divergence": kl_divergence.item(),
                prefix + f"recon_error ({self.recon_loss_name})": reconstruction_error.item(),
