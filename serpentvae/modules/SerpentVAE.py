@@ -61,36 +61,37 @@ class SerpentVAE(nn.Module):
                share_input_embeddings: bool = True,
                tie_embeddings: bool = True,
                residual_in_fp32: bool = False,
-               device: torch.device = None,
-               dtype: torch.dtype = None
+               device: Optional[torch.device] = None,
+               dtype: Optional[torch.dtype] = None
                ):
     """
     SerpentVAE: A modular VAE that can handle both discrete and continuous inputs
     
     Args:
-      - `hidden_dim` (`int`): The hidden dimension size used throughout the model
-      - `concept_dim` (`int`): The dimension of the latent space (concepts)
-      - `distribution_config` (`Dict`): Configuration for the latent distribution
-      - `encoder_config` (`Dict`): Configuration for the encoder
-      - `decoder_config` (`Dict`): Configuration for the decoder
-      - `recon_loss_name` (`str`): Name of the reconstruction loss to use
-      - `recon_loss_reduction` (`Literal["mean", "sum"]`): Reduction method for the reconstruction loss
-      - `vocab_size` (`Optional[int]`): Size of vocabulary for discrete inputs, None for continuous inputs
-      - `input_dim` (`Optional[int]`): Dimension of continuous inputs, None for discrete inputs
-      - `use_odds_ratio` (`bool`): Whether to use odds ratio for segmentation
-      - `compression_strength` (`float`): Compression strength for ChainCRP
-      - `alpha` (`float`): Weight for the VMI loss term
-      - `beta` (`float`): Weight for the KL divergence term
-      - `ema_decay_factor` (`float`): Decay factor for the exponential moving average
-      - `enable_confidence_module` (`bool`): Whether to enable the confidence module
-      - `confidence_module_config` (`Optional[Dict]`): Configuration for the confidence module
-      - `enable_qnet` (`bool`): Whether to enable the Q-network
-      - `qnet_config` (`Optional[Dict]`): Configuration for the Q-network
-      - `share_input_embeddings` (`bool`): Whether to share embeddings between encoder and decoder (for discrete inputs)
-      - `tie_embeddings` (`bool`): Whether to tie the embeddings with the output layer (for discrete inputs)
-      - `residual_in_fp32` (`bool`): Whether to compute residual connections in FP32
-      - `device` (`torch.device`): Device to use for computation
-      - `dtype` (`torch.dtype`): Data type to use for computation
+      - hidden_dim (int): The hidden dimension size used throughout the model
+      - concept_dim (int): The dimension of the latent space (concepts)
+      - distribution_config (Dict): Configuration for the latent distribution
+      - encoder_config (Dict): Configuration for the encoder
+      - decoder_config (Dict): Configuration for the decoder
+      - boundary_operator_config (Union[Dict, str]): Configuration for the boundary operator
+      - recon_loss_name (str): Name of the reconstruction loss to use
+      - recon_loss_reduction (Literal["mean", "sum"]): Reduction method for the reconstruction loss
+      - vocab_size (Optional[int]): Size of vocabulary for discrete inputs, None for continuous inputs
+      - input_dim (Optional[int]): Dimension of continuous inputs, None for discrete inputs
+      - use_odds_ratio (bool): Whether to use odds ratio for segmentation
+      - compression_strength (float): Compression strength for ChainCRP
+      - alpha (float): Weight for the VMI loss term
+      - beta (float): Weight for the KL divergence term
+      - ema_decay_factor (float): Decay factor for the exponential moving average
+      - enable_confidence_module (bool): Whether to enable the confidence module
+      - confidence_module_config (Optional[Dict]): Configuration for the confidence module
+      - enable_qnet (bool): Whether to enable the Q-network
+      - qnet_config (Optional[Dict]): Configuration for the Q-network
+      - share_input_embeddings (bool): Whether to share embeddings between encoder and decoder (for discrete inputs)
+      - tie_embeddings (bool): Whether to tie the embeddings with the output layer (for discrete inputs)
+      - residual_in_fp32 (bool): Whether to compute residual connections in FP32
+      - device (torch.device): Device to use for computation
+      - dtype (torch.dtype): Data type to use for computation
     """
      
     super(SerpentVAE, self).__init__()
@@ -1003,11 +1004,9 @@ class SerpentVAE(nn.Module):
 
     # Calculate the standard deviation of the subsequence lengths
     stddev_subseq_length = torch.std(torch.tensor(all_subsequence_lengths, device = self.device, dtype = torch.float32)) # Cast to float32 to avoid overflow instead model dtype
+    stddev_subseq_length = float(stddev_subseq_length.item())
 
     return avg_subseq_length, stddev_subseq_length
-      
-      
-
   
   def ema_avg_subseq_length(self,
                             curr_avg_subseq_length: float,
@@ -1050,7 +1049,7 @@ class SerpentVAE(nn.Module):
     return ema_stddev_subseq_length
   
   def num_active_units(self,
-                       mu: Tensor,
+                       mu: List[Tensor],
                        threshold: float = 1e-2
                        ) -> int:
     """
@@ -1070,7 +1069,7 @@ class SerpentVAE(nn.Module):
     all_mu = torch.tensor([], device=self.device)
 
     for mu_i in mu:
-      all_mu = torch.cat((all_mu, mu_i), dim=0) # (batch_size, num_subseq, concept_dim) ->  (batch_size * num_subseq, concept_dim)
+      all_mu = torch.cat((all_mu, mu_i.clone().detach()), dim=0) # (batch_size, num_subseq, concept_dim) ->  (batch_size * num_subseq, concept_dim)
 
     centered_mu = all_mu - all_mu.mean(dim=0, keepdim=True)
 
@@ -1083,7 +1082,7 @@ class SerpentVAE(nn.Module):
     # Compute the number of active units
     num_active_units = torch.sum(variances > threshold)
 
-    return num_active_units
+    return int(num_active_units.item())
 
   def metrics(self,
               correct_inputs: Tensor,
@@ -1213,7 +1212,7 @@ class SerpentVAE(nn.Module):
       prefix = "validation_"
     
     # Initialize the metrics dictionary
-    metrics = {prefix + "num_active_units": num_active_units.item(),
+    metrics = {prefix + "num_active_units": num_active_units,
                prefix + "full_mi": full_mutual_info.item(),
                prefix + "kl_divergence": kl_divergence.item(),
                prefix + f"recon_error ({self.recon_loss_name})": reconstruction_error.item(),
