@@ -1365,7 +1365,7 @@ class SerpentVAE(nn.Module):
       print("Confidence module is disabled")
 
     if self.enable_qnet is True:
-      print("VMI loss: {vmi_loss_term.item()}")
+      print(f"VMI loss: {vmi_loss_term.item()}")
     else:
       print("VMI is disabled")
 
