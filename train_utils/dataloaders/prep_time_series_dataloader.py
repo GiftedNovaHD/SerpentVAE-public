@@ -42,9 +42,9 @@ def prep_time_series_dataset(config: Dict) -> Tuple[ResumableDataLoader, Resumab
       - `max_seq_len` (`int`): Maximum sequence length for video frames
 
   Returns: 
-    `train_dataloader` (`ResumableDataLoader`): The training dataloader
-    `test_dataloader` (`ResumableDataLoader`): The testing dataloader
-    `val_dataloader` (`ResumableDataLoader`): The validation dataloader
+    - `train_dataloader` (`ResumableDataLoader`): The training dataloader
+    - `test_dataloader` (`ResumableDataLoader`): The testing dataloader
+    - `val_dataloader` (`ResumableDataLoader`): The validation dataloader
   """
   # Set the max_seq_len from config immediately at the beginning
   _max_seq_len = config["max_seq_len"]

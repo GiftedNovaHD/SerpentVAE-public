@@ -15,13 +15,13 @@ def mean_replacement(concept_tokens: Tensor,
   NOTE: segment_indices is a bitmask where 1 represents the end of a subsequence
 
   Args:
-    concept_tokens (Tensor): (batch_size, seq_len, concept_dim)
-    segment_indices (Tensor): (batch_size, seq_len, 1)
-    device (torch.device): Device to use for computation
-    dtype (torch.dtype): Data type to use for computation
+    - `concept_tokens` (`Tensor`): (`batch_size`, `seq_len`, `concept_dim`)
+    - `segment_indices` (`Tensor`): (`batch_size`, `seq_len`, `1`)
+    - `device` (`torch.device`): Device to use for computation
+    - `dtype` (`torch.dtype`): Data type to use for computation
   
   Returns:
-    replaced_concept_tokens (Tensor): (batch_size, seq_len, concept_dim)
+    - `replaced_concept_tokens` (`Tensor`): (`batch_size`, `seq_len`, `concept_dim`)
   """
   def mean(subseq: Tensor) -> Tensor:
     subseq_len = subseq.size(0)

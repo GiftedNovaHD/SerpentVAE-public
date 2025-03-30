@@ -15,8 +15,14 @@ class ContinuousTestLightningSerpentVAE(BaseLightningSerpentVAE):
     return super().configure_model()
 
   def training_step(self, batch: Tensor, batch_idx: int):
-    correct_inputs = batch[0]
+    """
+    Training step for the SerpentVAE model; applied to continuous data.
 
+    Args:
+      - `batch` (`Tensor`): The batch of data
+      - `batch_idx` (`int`): The index of the batch
+    """
+    correct_inputs = batch[0]
     total_loss, vae_loss, confidence_loss, encoder_segment_pred_loss, decoder_segment_pred_loss = self.serpent_vae.train_step(correct_inputs = correct_inputs,
                                                                                                                               current_epoch = self.current_epoch
                                                                                                                              )

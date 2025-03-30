@@ -68,30 +68,30 @@ class SerpentVAE(nn.Module):
     SerpentVAE: A modular VAE that can handle both discrete and continuous inputs
     
     Args:
-      - hidden_dim (int): The hidden dimension size used throughout the model
-      - concept_dim (int): The dimension of the latent space (concepts)
-      - distribution_config (Dict): Configuration for the latent distribution
-      - encoder_config (Dict): Configuration for the encoder
-      - decoder_config (Dict): Configuration for the decoder
-      - boundary_operator_config (Union[Dict, str]): Configuration for the boundary operator
-      - recon_loss_name (str): Name of the reconstruction loss to use
-      - recon_loss_reduction (Literal["mean", "sum"]): Reduction method for the reconstruction loss
-      - vocab_size (Optional[int]): Size of vocabulary for discrete inputs, None for continuous inputs
-      - input_dim (Optional[int]): Dimension of continuous inputs, None for discrete inputs
-      - use_odds_ratio (bool): Whether to use odds ratio for segmentation
-      - compression_strength (float): Compression strength for ChainCRP
-      - alpha (float): Weight for the VMI loss term
-      - beta (float): Weight for the KL divergence term
-      - ema_decay_factor (float): Decay factor for the exponential moving average
-      - enable_confidence_module (bool): Whether to enable the confidence module
-      - confidence_module_config (Optional[Dict]): Configuration for the confidence module
-      - enable_qnet (bool): Whether to enable the Q-network
-      - qnet_config (Optional[Dict]): Configuration for the Q-network
-      - share_input_embeddings (bool): Whether to share embeddings between encoder and decoder (for discrete inputs)
-      - tie_embeddings (bool): Whether to tie the embeddings with the output layer (for discrete inputs)
-      - residual_in_fp32 (bool): Whether to compute residual connections in FP32
-      - device (torch.device): Device to use for computation
-      - dtype (torch.dtype): Data type to use for computation
+      - `hidden_dim` (`int`): The hidden dimension size used throughout the model
+      - `concept_dim` (`int`): The dimension of the latent space (concepts)
+      - `distribution_config` (`Dict`): Configuration for the latent distribution
+      - `encoder_config` (`Dict`): Configuration for the encoder
+      - `decoder_config` (`Dict`): Configuration for the decoder
+      - `boundary_operator_config` (`Union[Dict, str]`): Configuration for the boundary operator
+      - `recon_loss_name` (`str`): Name of the reconstruction loss to use
+      - `recon_loss_reduction` (`Literal["mean", "sum"]`): Reduction method for the reconstruction loss
+      - `vocab_size` (`Optional[int]`): Size of vocabulary for discrete inputs, None for continuous inputs
+      - `input_dim` (`Optional[int]`): Dimension of continuous inputs, None for discrete inputs
+      - `use_odds_ratio` (`bool`): Whether to use odds ratio for segmentation
+      - `compression_strength` (`float`): Compression strength for ChainCRP
+      - `alpha` (`float`): Weight for the VMI loss term
+      - `beta` (`float`): Weight for the KL divergence term
+      - `ema_decay_factor` (`float`): Decay factor for the exponential moving average
+      - `enable_confidence_module` (`bool`): Whether to enable the confidence module
+      - `confidence_module_config` (`Optional[Dict]`): Configuration for the confidence module
+      - `enable_qnet` (`bool`): Whether to enable the Q-network
+      - `qnet_config` (`Optional[Dict]`): Configuration for the Q-network
+      - `share_input_embeddings` (`bool`): Whether to share embeddings between encoder and decoder (for discrete inputs)
+      - `tie_embeddings` (`bool`): Whether to tie the embeddings with the output layer (for discrete inputs)
+      - `residual_in_fp32` (`bool`): Whether to compute residual connections in FP32
+      - `device` (`torch.device`): Device to use for computation
+      - `dtype` (`torch.dtype`): Data type to use for computation
     """
      
     super(SerpentVAE, self).__init__()
@@ -314,14 +314,14 @@ class SerpentVAE(nn.Module):
     Produce hidden states for each token
 
     Args:
-      - hidden_states (Tensor): (batch_size, seq_len, hidden_dim)
-      - inference_params (dict): Dictionary of inference parameters
-        - At training, `infernce_params` is None
+      - `hidden_states` (`Tensor`): (`batch_size`, `seq_len`, `hidden_dim`)
+      - `inference_params` (`dict`): Dictionary of inference parameters
+        - At training, `infernce_params` is `None`
         - At inference, `inference_params` is a dictionary of inference parameters
       - **kwargs: Additional keyword arguments
 
     Returns:
-      - hidden_states (Tensor): (batch_size, seq_len, hidden_dim)
+      - `hidden_states` (`Tensor`): (`batch_size`, `seq_len`, `hidden_dim`)
     """
     
     hidden_states = self.encoder(hidden_states, inference_params=inference_params, **kwargs)
@@ -499,12 +499,12 @@ class SerpentVAE(nn.Module):
     Decodes the latent state into a sequence of concept tokens, 
     
     Args: 
-      - hidden_states (Tensor): (batch_size, seq_len, hidden_dim)
-      - concept_tokens (Tensor): (batch_size, seq_len, concept_dim)
-      - inference_params (dict): Dictionary of inference parameters
+      - `hidden_states` (`Tensor`): (`batch_size`, `seq_len`, `hidden_dim`)
+      - `concept_tokens` (`Tensor`): (`batch_size`, `seq_len`, `concept_dim`)
+      - `inference_params` (`dict`): Dictionary of inference parameters
     
     Returns: 
-      - decoded_hidden_tokens (Tensor): (batch_size, seq_len, hidden_dim)
+      - `decoded_hidden_tokens` (`Tensor`): (`batch_size`, `seq_len`, `hidden_dim`)
     """
     
     # Decode hidden states based on concept tokens
@@ -532,13 +532,13 @@ class SerpentVAE(nn.Module):
     Here, we can compute the KL-divergence without using Monte-Carlo sampling
 
     Args:
-      - mu (List[Tensor]): (batch_size, num_subseq, concept_dim)
-      - logvar (List[Tensor]): (batch_size, num_subseq, concept_dim)
+      - `mu` (`List[Tensor]`): (`batch_size`, `num_subseq`, `concept_dim`)
+      - `logvar` (`List[Tensor]`): (`batch_size`, `num_subseq`, `concept_dim`)
 
     NOTE: For mu, logvar and z batch_size dimension is a list while num_subseq and concept_dim are tensors
 
     Return: 
-      - mi_per_batch (Scalar): (1,)
+      - `mi_per_batch` (`Scalar`): (`1,`)
     """    
     all_kl = torch.tensor([], device=self.device)
     
@@ -592,7 +592,7 @@ class SerpentVAE(nn.Module):
     NOTE: Avg over batch_size and num_subseq; batch_size is a list, num_subseq is a tensor
     
     Returns: 
-      - `vmi_loss` (Scalar)
+      - `vmi_loss` (Scalar): Variational Mutual Information loss after maximization
     """
     # Get Q's predictions from the decoder output
     mu_q, logvar_q = self.qnet(decoder_output = decoder_output,
@@ -719,7 +719,7 @@ class SerpentVAE(nn.Module):
       - `segmentation_indices` (`Tensor`): (`batch_size`, `seq_len`, `1`)
 
     Returns:
-      `segmentation_prediction_loss` (Scalar): (`1,`)
+      - `segmentation_prediction_loss` (Scalar): Segmentation prediction loss
     """
     batch_size, seq_len, _ = segmentation_indices.size()
 
@@ -924,20 +924,20 @@ class SerpentVAE(nn.Module):
 
     We need to do some special handling to remove the EOS tokens at the front used for padding.
 
-    Args:
-      correct_inputs (Tensor): This is the correct inputs from the tokenizer (batch_size, seq_len, 1/input_dim)
-      segmentation_indices (Tensor):  This is a bitmask where 1 represents the end of a subsequence (batch_size, seq_len, 1)
-
-    Returns:
-      avg_subseq_length (float): Average subsequence length
-      stddev_subseq_length (float): Standard deviation of subsequence lengths
-
     NOTE:
     For discrete inputs:
     BOS, EOS and PAD tokens are configurable
 
     For continuous inputs:
     We assume that padding vectors are all 0s
+    
+    Args:
+      - `correct_inputs` (`Tensor`): This is the correct inputs from the tokenizer (batch_size, seq_len, 1/input_dim)
+      - `segmentation_indices` (`Tensor`):  This is a bitmask where 1 represents the end of a subsequence (batch_size, seq_len, 1)
+
+    Returns:
+      - `avg_subseq_length` (`float`): Average subsequence length
+      - `stddev_subseq_length` (`float`): Standard deviation of subsequence lengths    
     """
     # DEBUG:
     # print(f"correct_inputs: {correct_inputs}")
@@ -1036,11 +1036,11 @@ class SerpentVAE(nn.Module):
     Calculate an expoonential moving average of the standard deviation of the subsequence length
 
     Args: 
-      curr_stddev_subseq_length (float): Standard deviation of the subsequence length at the current time step
-      epsilon (float): Smoothing factor
+      - `curr_stddev_subseq_length` (`float`): Standard deviation of the subsequence length at the current time step
+      - `epsilon` (`float`): Smoothing factor
     
     Returns:
-      ema_stddev_subseq_length (float): Exponential moving average of the standard deviation of the subsequence length
+      - `ema_stddev_subseq_length` (`float`): Exponential moving average of the standard deviation of the subsequence length
     """
 
     ema_stddev_subseq_length = (1 - epsilon) * curr_stddev_subseq_length + epsilon * self.ema_stddev_subseq_length_var
@@ -1059,11 +1059,11 @@ class SerpentVAE(nn.Module):
     A_u = Cov_x(E_u~q(u|x)[u])
 
     Args:
-      mu (List[Tensor]): (batch_size, num_subseq, concept_dim) Mean of the approximate posterior distribution 
-      threshold (float): Threshold for considering a unit active
+      - `mu` (`List[Tensor]`): (`batch_size`, `num_subseq`, `concept_dim`) Mean of the approximate posterior distribution 
+      - `threshold` (`float`): Threshold for considering a unit active
 
     Returns:
-      num_active_units: Number of active units
+      - `num_active_units` (`int`): Number of active units
     """
     # Center the means
     all_mu = torch.tensor([], device=self.device)
@@ -1375,6 +1375,17 @@ class SerpentVAE(nn.Module):
     return total_loss, loss_objective, confidence_loss, encoder_segment_prediction_loss, decoder_segment_prediction_loss
   
   def eval_step(self, correct_inputs: Tensor, current_epoch: int, is_test: bool = True):
+    """
+    Calculates the metrics at each evaluation step of SerpentVAE
+
+    Args:
+      - `correct_inputs` (`Tensor`): (batch_size, seq_len, 1/input_dim)
+      - `current_epoch` (`int`): Current epoch number
+      - `is_test` (`bool`): Specifies if prefix for metrics dictionary should be "test" or "validation"
+
+    Returns:
+      - `metrics` (`dict`): Dictionary of metrics
+    """
     with torch.no_grad():
       predicted_logits, mu, logvar, sampled_latents, segmentation_indices, encoder_predicted_segments, decoder_predicted_segments, predicted_confidence = self.forward(correct_inputs, current_epoch)
 
@@ -1404,5 +1415,13 @@ class SerpentVAE(nn.Module):
     raise NotImplementedError
   
   def allocate_inference_cache(self,batch_size, max_seqlen, dtype=None, **kwargs):
+    """
+    Allocates the inference cache for the encoder and decoder; similar to how it is done in Mamba.
+
+    Args:
+      - `batch_size` (`int`): Batch size
+      - `max_seqlen` (`int`): Maximum sequence length
+      - `dtype` (`torch.dtype`): Data type
+    """
     self.encoder.allocate_inference_cache(batch_size, max_seqlen, dtype=dtype, **kwargs)
     self.decoder.allocate_inference_cache(batch_size, max_seqlen, dtype=dtype, **kwargs)

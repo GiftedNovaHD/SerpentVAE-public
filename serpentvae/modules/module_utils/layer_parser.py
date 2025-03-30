@@ -1,11 +1,21 @@
 from typing import Dict, List
 
 def get_aliases(module_config: Dict) -> Dict:
-  """Returns a dict containing a mapping of `alias:model`"""
+  """
+  Returns a dict containing a mapping of `alias:model`
+
+  Args:
+    - `module_config` (`Dict`): A dictionary containing the module configuration
+  
+  Returns:
+    - `aliases` (`Dict`): A dictionary containing the aliases
+  """
   aliases = {}
   for model, properties in module_config.items():
-    if type(properties) != dict: continue
-    if "alias" not in properties.keys(): continue
+    if not isinstance(properties, dict): 
+      continue
+    if "alias" not in properties.keys(): 
+      continue
     
     aliases[properties["alias"]] = model
 
@@ -21,38 +31,38 @@ def validate_brackets(layer_config: str) -> bool:
     - Supports (), [], and {} bracket types
     
     Args:
-        layer_config (str): A string containing the compressed layer configuration
+      - `layer_config` (`str`): A string containing the compressed layer configuration
         
     Returns:
-        bool: True if brackets are correctly balanced, False otherwise
+      - `bool`: True if brackets are correctly balanced, False otherwise
     """
     # Dictionary mapping opening brackets to their closing counterparts
     brackets_map = {
-        '(': ')',
-        '[': ']',
-        '{': '}'
+      '(': ')',
+      '[': ']',
+      '{': '}'
     }
     
     # Stack to keep track of opening brackets
     stack = []
     
     for char in layer_config:
-        # If it's an opening bracket, push it onto the stack
-        if char in brackets_map:
-            stack.append(char)
-        
-        # If it's a closing bracket
-        elif char in brackets_map.values():
-            # If stack is empty, there's no matching opening bracket
-            if not stack:
-                return False
-            
-            # Get the last opening bracket
-            last_opening = stack.pop()
-            
-            # Check if the current closing bracket matches the expected one
-            if brackets_map[last_opening] != char:
-                return False
+      # If it's an opening bracket, push it onto the stack
+      if char in brackets_map:
+        stack.append(char)
+      
+      # If it's a closing bracket
+      elif char in brackets_map.values():
+        # If stack is empty, there's no matching opening bracket
+        if not stack:
+          return False
+          
+        # Get the last opening bracket
+        last_opening = stack.pop()
+          
+        # Check if the current closing bracket matches the expected one
+        if brackets_map[last_opening] != char:
+          return False
     
     # After processing all characters, stack should be empty
     # If not empty, there are unmatched opening brackets
@@ -66,17 +76,23 @@ def layer_parser(layer_config: str, aliases: Dict) -> List[str]:
   "Attn, 2(M2, 2(M1, SWA))" -> ["Attn", "M2", "M1", "SWA", "M1", "SWA", "M2", "M1", "SWA", "M1", "SWA", "Attn"]
   
   Args:
-    layer_config (str): The input string containing the layer configuration
-      
+    - `layer_config` (`str`): The input string containing the layer configuration
+    - `aliases` (`Dict`): A dictionary containing the aliases
   Returns:
-    list: The expanded list of operations
+    - `list`: The expanded list of operations
   """
   # Remove any whitespace
   layer_config = layer_config.replace(" ", "")
   assert validate_brackets(layer_config), "Brackets are not balanced"
   
   def parse_expression(expr, idx=0):
-    """Parse an expression starting from index idx"""
+    """
+    Parse an expression starting from index idx
+
+    Args:
+      - `expr` (`str`): The expression to parse
+      - `idx` (`int`): The index to start parsing from
+    """
     result = []
     current_token = ""
     

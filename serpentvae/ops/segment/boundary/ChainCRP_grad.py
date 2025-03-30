@@ -67,12 +67,12 @@ class ChainCRP(nn.Module):
       How it works: 
 
     Args: 
-      encoder_segmentation_predictions (Tensor): (batch_size, seq_len, num_segment_predictions) 
-      prev_batch_recon_loss (Tensor): (1, )
-      current_epoch (int): Current epoch number
+      - `encoder_segmentation_predictions` (`Tensor`): (`batch_size`, `seq_len`, `num_segment_predictions`) 
+      - `prev_batch_recon_loss` (`Tensor`): (`1`, )
+      - `current_epoch` (`int`): Current epoch number
 
     Returns: 
-      segmentation_decisions (Tensor): (batch_size, seq_len, 1)
+      - `segmentation_decisions` (`Tensor`): (`batch_size`, `seq_len`, `1`)
     """
     batch_size, seq_len, num_segment_predictions = encoder_segmentation_predictions.shape
     

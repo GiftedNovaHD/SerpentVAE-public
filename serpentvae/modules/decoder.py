@@ -54,8 +54,8 @@ class DecoderLayer(nn.Module):
               **mixer_kwargs
               ):
     """
-      Taken from https://github.com/state-spaces/mamba/blob/main/mamba_ssm/modules/block.py
-      Pass the input through the decoder layer.
+    Taken from https://github.com/state-spaces/mamba/blob/main/mamba_ssm/modules/block.py
+    Pass the input through the decoder layer.
 
     Args:
       - `hidden_states`: the sequence to the decoder layer (required) Training: `(batch, sequence_length, hidden_dim)` Inference: `(batch, 1, hidden_dim)`
@@ -115,7 +115,9 @@ class DecoderLayer(nn.Module):
 
 class Decoder(nn.Module):
   """
-    Adapted from: https://github.com/state-spaces/mamba/blob/main/mamba_ssm/models/mixer_seq_simple.py
+  Adapted from: https://github.com/state-spaces/mamba/blob/main/mamba_ssm/models/mixer_seq_simple.py
+
+
   """
   def __init__(self,
                hidden_dim: int,
@@ -183,10 +185,12 @@ class Decoder(nn.Module):
               **mixer_kwargs
               ):
     """
+    Forward pass wrapper for SerpentVAE's decoder module. 
+
     Args:
-      hidden_states: the sequence to the decoder layer (required) Training: (batch, sequence_length, hidden_dim) Inference: (batch, 1, hidden_dim)
-      concept_tokens: the sequence of concept tokens for the concept mixer Training: (batch, sequence_length, concept_dim) Inference: (batch, 1, concept_dim)
-      inference_params: the inference params for the Sequence Mixer (optional)
+      - `hidden_states` (`Tensor`): the sequence to the decoder layer (required) Training: (`batch`, `sequence_length`, `hidden_dim`) Inference: (`batch`, `1`, `hidden_dim`)
+      - `concept_tokens` (`Tensor`): the sequence of concept tokens for the concept mixer Training: (`batch`, `sequence_length`, `concept_dim`) Inference: (`batch`, `1`, `concept_dim`)
+      - `inference_params` (`dict`): the inference params for the Sequence Mixer (optional)
 
     Returns:
       - `Tensor`: `(batch, sequence_length, hidden_dim)`

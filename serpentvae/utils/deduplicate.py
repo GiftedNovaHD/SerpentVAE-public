@@ -8,10 +8,10 @@ def deduplicate(tensor: Tensor
   Deduplicates a tensor along the seq_len dimension
 
   Args:
-    tensor (Tensor): (batch_size, seq_len, concept_dim) The input tensor
+    - `tensor` (`Tensor`): (`batch_size`, `seq_len`, `concept_dim`) The input tensor
 
   Returns:
-    dedup_tensor (List[Tensor]): The deduplicated tensor
+    - `dedup_tensor` (`List[Tensor]`): The deduplicated tensor
   """
   batch_size = tensor.shape[0]
   

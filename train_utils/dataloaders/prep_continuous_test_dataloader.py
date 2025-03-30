@@ -16,9 +16,9 @@ def prep_continuous_test_dataset(config: Dict) -> Tuple[ResumableDataLoader, Res
       - `dataset_path` (`str`): The path to the dataset
       - `dataset_name` (`str`): The name of the dataset
   Returns:
-    `train_dataloader` (`ResumableDataLoader`): The training dataloader
-    `test_dataloader` (`ResumableDataLoader`): The testing dataloader
-    `val_dataloader` (`ResumableDataLoader`): The validation dataloader
+    - `train_dataloader` (`ResumableDataLoader`): The training dataloader
+    - `test_dataloader` (`ResumableDataLoader`): The testing dataloader
+    - `val_dataloader` (`ResumableDataLoader`): The validation dataloader
   """
   num_train_samples = 10000
   num_test_samples = 100

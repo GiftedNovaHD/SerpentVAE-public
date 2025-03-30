@@ -7,10 +7,10 @@ def prep_model(config: Dict) -> SerpentVAE:
   Prepares and returns a (SerpentVAE) model based on config parameters. 
 
   Args: 
-    config (dict): The (SerpentVAE) model's hyperparameters 
+    - `config` (`dict`): The (SerpentVAE) model's hyperparameters 
 
-  Returns 
-    model (SerpentVAE): The (SerpentVAE) neural network Module
+  Returns:
+    - `model` (`SerpentVAE`): The (SerpentVAE) neural network Module
   """
 
   model = SerpentVAE(hidden_dim = config["hidden_dim"],

@@ -16,6 +16,16 @@ class TextLightningSerpentVAE(BaseLightningSerpentVAE):
     return super().configure_model()
 
   def training_step(self, batch: Tensor, batch_idx: int):
+    """
+    Training step for the SerpentVAE model; applied to text data.
+
+    Args:
+      - `batch` (`Tensor`): The batch of data
+      - `batch_idx` (`int`): The index of the batch
+    
+    Returns:
+      - `total_loss` (`Tensor`): The total loss
+    """
     correct_input_ids = batch["input_ids"].unsqueeze(-1)
 
     total_loss, vae_loss, confidence_loss, encoder_segment_pred_loss, decoder_segment_pred_loss = self.serpent_vae.train_step(correct_inputs = correct_input_ids,

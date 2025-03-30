@@ -15,6 +15,16 @@ class AudioLightningSerpentVAE(BaseLightningSerpentVAE):
     return super().configure_model()
 
   def training_step(self, batch: Tensor, batch_idx: int):
+    """
+    Training step for the SerpentVAE model; applied to audio data.
+
+    Args:
+      - `batch` (`Tensor`): The batch of data
+      - `batch_idx` (`int`): The index of the batch
+
+    Returns:
+      - `total_loss` (`Tensor`): The total loss
+    """
     correct_inputs = batch
 
     #print(f"Training correct inputs shape: {correct_inputs.shape}")
@@ -26,6 +36,13 @@ class AudioLightningSerpentVAE(BaseLightningSerpentVAE):
     return total_loss
     
   def validation_step(self, batch: Tensor, batch_idx: int):
+    """
+    Validation step for the SerpentVAE model; applied to audio data.
+
+    Args:
+      - `batch` (`Tensor`): The batch of data
+      - `batch_idx` (`int`): The index of the batch
+    """
     correct_inputs = batch
 
     #print(f"Validation correct inputs shape: {correct_inputs.shape}")

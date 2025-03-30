@@ -17,14 +17,14 @@ def sigmoid_focal_loss(
   Should be used when there is a large class imbalance.
 
   Args: 
-    inputs (Tensor): Predictions for each example 
-    targets (Tensor): Stores the binary classification label for each element in inputs
-    alpha (float): Weighing factor in the range (0, 1) to balance positive v.s. negative examples or -1 to ignore. RetinaNet paper defaults to 0.25
-    gamma (float): Exponent of the modulating factor to the cross entropy (CE) loss
-    reduction (str): 'mean', 'sum' or 'none' Apply a reduction to the output
+    - `inputs` (`Tensor`): Predictions for each example 
+    - `targets` (`Tensor`): Stores the binary classification label for each element in inputs
+    - `alpha` (`float`): Weighing factor in the range (0, 1) to balance positive v.s. negative examples or -1 to ignore. RetinaNet paper defaults to 0.25
+    - `gamma` (`float`): Exponent of the modulating factor to the cross entropy (CE) loss
+    - `reduction` (`str`): 'mean', 'sum' or 'none': Apply a reduction to the output
 
   Returns: 
-    Loss tensor with a reduction method applied
+    - `loss` (`Tensor`): Loss tensor with a reduction method applied
   """
   estimated_probability = torch.sigmoid(inputs) 
   cross_entropy_loss = F.binary_cross_entropy_with_logits(inputs, targets, reduction="none")

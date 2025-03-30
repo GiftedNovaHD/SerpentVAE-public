@@ -9,12 +9,12 @@ def count_whitelisted_tokens(tensor: Tensor, blacklist: Union[int, List[int]], d
   Count the number of tokens in the tensor that are not in the blacklist
   
   Args:
-    tensor (Tensor): (batch_size, seq_len, 1)
-    blacklist (List[int] or int): List of tokens or token to blacklist
-    device (torch.device): Device to use
+    - `tensor` (`Tensor`): (batch_size, seq_len, 1)
+    - `blacklist` (`List[int]` or `int`): List of tokens or token to blacklist
+    - `device` (`torch.device`): Device to use
 
   Returns:
-      num_whitelisted_tokens (int): Number of tokens in the tensor that are not in the blacklist
+    - `num_whitelisted_tokens` (`int`): Number of tokens in the tensor that are not in the blacklist
   """
   # Convert blacklist to a list if it is an integer
   if isinstance(blacklist, int):
@@ -38,12 +38,12 @@ def filter_index(tensor: Tensor, blacklist: Union[int, List[int]], device: torch
   Get the first index of the token that is not in the blacklist
 
   Args:
-    tensor (Tensor): (batch_size, seq_len, 1)
-    blacklist (List[int] or int): List of tokens or token to blacklist
-    device (torch.device): Device to use
+    - `tensor` (`Tensor`): (batch_size, seq_len, 1)
+    - `blacklist` (`List[int]` or `int`): List of tokens or token to blacklist
+    - `device` (`torch.device`): Device to use
   
   Returns:
-    filered_indices (List[Tensor]): List of indices of the first tokens that are not in the blacklist
+    - `filtered_indices` (`List[Tensor]`): List of indices of the first tokens that are not in the blacklist
   """
   # Convert blacklist to a list if it is an integer
   if isinstance(blacklist, int):
@@ -83,11 +83,11 @@ def count_content_tokens(tensor: Tensor, device: torch.device) -> int:
   Count the number of content tokens in the tensor
 
   Args:
-    tensor (Tensor): (batch_size, seq_len, input_dim)
-    device (torch.device): Device to use
+    - `tensor` (`Tensor`): (batch_size, seq_len, input_dim)
+    - `device` (`torch.device`): Device to use
 
   Returns:
-    num_content_tokens (int): Number of content tokens in the tensor
+    - `num_content_tokens` (`int`): Number of content tokens in the tensor
 
   NOTE:
   We assume that padding vectors are all 0
@@ -109,11 +109,11 @@ def filter_padding_vectors(tensor: Tensor, device: torch.device) -> Tensor:
   Filter out the padding vectors in the tensor
 
   Args:
-    tensor (Tensor): (batch_size, seq_len, input_dim)
-    device (torch.device): Device to use
+    - `tensor` (`Tensor`): (batch_size, seq_len, input_dim)
+    - `device` (`torch.device`): Device to use
 
   Returns:
-    filtered_indices (Tensor): List of indices of the first tokens that are not padding vectors
+    - `filtered_indices` (`Tensor`): List of indices of the first tokens that are not padding vectors
   """
   # Filter out the padding tokens
   working_tensor = tensor.clone()

@@ -45,19 +45,18 @@ class ScaledNormal(nn.Module):
     
     return mu, logvar
   
-  def scale_mu(
-    self,
-    mu: Tensor,
-    infer: bool = False
-    ) -> Tensor:
+  def scale_mu(self,
+               mu: Tensor,
+               infer: bool = False
+               ) -> Tensor:
     """
     Computes the scale factor f and scales mu accordingly
 
     Args:
-      mu (Tensor): (batch_size, seq_len, latent_dim)
-      infer (bool): Flag for inference
+      - `mu` (`Tensor`): (`batch_size`, `seq_len`, `latent_dim`)
+      - `infer` (`bool`): Flag for inference
     Returns:
-      scaled_mu (Tensor): (batch_size, seq_len, dim)
+      - `scaled_mu` (`Tensor`): (`batch_size`, `seq_len`, `dim`)
     """
 
     if infer is True:
@@ -82,11 +81,11 @@ class ScaledNormal(nn.Module):
     Samples from a normal distribution where the means have been scaled
 
     Args:
-      mu (Tensor): (batch_size, seq_len, latent_dim)
-      logvar (Tensor): (batch_size, seq_len, latent_dim)
-      infer (bool): Flag for inference
+      - `mu` (`Tensor`): (`batch_size`, `seq_len`, `latent_dim`)
+      - `logvar` (`Tensor`): (`batch_size`, `seq_len`, `latent_dim`)
+      - `infer` (`bool`): Flag for inference
     Returns:
-      Tensor: (batch_size, seq_len, latent_dim)
+      - `Tensor` (`batch_size`, `seq_len`, `latent_dim`)
     """
     # Scale mu
     scaled_mu = self.scale_mu(mu, infer = infer)
@@ -103,12 +102,12 @@ class ScaledNormal(nn.Module):
     2. Sample from the latent distribution
 
     Args:
-      hidden_states (Tensor): (batch_size, seq_len, hidden_dim)
+      - `hidden_states` (`Tensor`): (`batch_size`, `seq_len`, `hidden_dim`)
 
     Returns:
-      sampled_latents (Tensor): (batch_size, seq_len, latent_dim)
-      mu (Tensor): (batch_size, seq_len, latent_dim)
-      logvar (Tensor): (batch_size, seq_len, latent_dim)
+      - `sampled_latents` (`Tensor`): (`batch_size`, `seq_len`, `latent_dim`)
+      - `mu` (`Tensor`): (`batch_size`, `seq_len`, `latent_dim`)
+      - `logvar` (`Tensor`): (`batch_size`, `seq_len`, `latent_dim`)
     """
     mu, logvar = self.encode_dist_params(hidden_states)
 
@@ -132,12 +131,12 @@ class ScaledNormal(nn.Module):
     log p(z | mu, logvar) = -0.5 ((z - mu)^{2}/exp(logvar) + logvar + log(2pi))
     
     Args:
-      latent_samples (Tensor): (batch_size, seq_len, latent_dim)
-      q_dist_mu (Tensor): (batch_size, seq_len, latent_dim)
-      q_dist_logvar (Tensor): (batch_size, seq_len, latent_dim)
+      - `latent_samples` (`Tensor`): (`batch_size`, `seq_len`, `latent_dim`)
+      - `q_dist_mu` (`Tensor`): (`batch_size`, `seq_len`, `latent_dim`)
+      - `q_dist_logvar` (`Tensor`): (`batch_size`, `seq_len`, `latent_dim`)
 
     Returns:
-      log_likelihood (Tensor): (batch_size, seq_len)
+      - `log_likelihood` (`Tensor`): (`batch_size`, `seq_len`)
     """
     log_likelihood_elementwise = -0.5 * ( 
       (latent_samples - q_dist_mu) ** 2 / torch.exp(q_dist_logvar)
@@ -160,11 +159,11 @@ class ScaledNormal(nn.Module):
     and the prior p(z) ~ N(0, I)
 
     Args: 
-      mu (batch, seq_len, hidden_dim): Mean of the approximate posterior distribution 
-      logvar (batch, seq_len, hidden_dim): Log variance of the approximate posterior distribution
+      - `mu` (`Tensor`): (`batch`, `seq_len`, `hidden_dim`): Mean of the approximate posterior distribution 
+      - `logvar` (`Tensor`): (`batch`, `seq_len`, `hidden_dim`): Log variance of the approximate posterior distribution
     
     Returns: 
-      kl (float): KL divergence between q(z|x) and p(z)
+      - `kl` (`float`): KL divergence between q(z|x) and p(z)
     """
     # Compute variance (batch, sequence_len, hidden_dim) 
     sigma_squared = torch.exp(logvar) 

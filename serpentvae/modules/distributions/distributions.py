@@ -10,15 +10,15 @@ def create_distribution(dist_name: str, dist_kwargs: Dict, hidden_dim: int, late
   Creates a distribution module based on the name and kwargs"
   
   Args:
-    dist_name (str): The name of the distribution
-    dist_kwargs (Dict): The kwargs for the distribution
-    hidden_dim (int): The hidden dimension of the model
-    latent_dim (int): The latent dimension of the model
-    device (torch.device): The device to use
-    dtype (torch.dtype): The dtype to use
+    - `dist_name` (`str`): The name of the distribution
+    - `dist_kwargs` (`Dict`): The kwargs for the distribution
+    - `hidden_dim` (`int`): The hidden dimension of the model
+    - `latent_dim` (`int`): The latent dimension of the model
+    - `device` (`torch.device`): The device to use
+    - `dtype` (`torch.dtype`): The dtype to use
   
   Returns:
-    dist (nn.Module): The distribution module
+    - `dist` (`nn.Module`): The distribution module
   """
   # Check possible distributions
   dist_lst = ["ScaledNormal"]

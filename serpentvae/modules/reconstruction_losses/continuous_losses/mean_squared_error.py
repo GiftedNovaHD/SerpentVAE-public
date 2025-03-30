@@ -10,12 +10,12 @@ def MeanSquaredErrorLoss(predictions: Tensor,
                         ) -> Tensor:
   """
   Args: 
-    predictions (Tensor): Decoder outputs `(batch_size, seq_len, input_dim)`
-    targets (Tensor): Original continuous inputs `(batch_size, seq_len, input_dim)`
-    reduction (str): Reduction operation to apply to the loss
+    - `predictions` (`Tensor`): Decoder outputs `(batch_size, seq_len, input_dim)`
+    - `targets` (`Tensor`): Original continuous inputs `(batch_size, seq_len, input_dim)`
+    - `reduction` (`str`): Reduction operation to apply to the loss
 
   Returns:
-    mse_loss (Tensor): Mean Squared Error Loss between predictions and targets with specified reduction applied
+    - `mse_loss` (`Tensor`): Mean Squared Error Loss between predictions and targets with specified reduction applied
   """ 
   
   loss = F.mse_loss(

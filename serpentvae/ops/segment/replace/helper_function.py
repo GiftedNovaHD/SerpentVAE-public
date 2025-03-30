@@ -19,13 +19,13 @@ def helper_function(concept_tokens: Tensor,
   NOTE: modifying_function takes in a subsequence and returns the modified subsequence with both having shape (subseq_len, concept_dim)
 
   Args:
-    concept_tokens (Tensor): (batch_size, seq_len, concept_dim)
-    segment_indices (Tensor): (batch_size, seq_len, 1)
-    modifying_function (Callable): Function that takes in a tensor and returns a tensor
-    deevice (torch.device): Device to use for computation
+    - `concept_tokens` (`Tensor`): (`batch_size`, `seq_len`, `concept_dim`)
+    - `segment_indices` (`Tensor`): (`batch_size`, `seq_len`, `1`)
+    - `modifying_function` (`Callable`): Function that takes in a tensor and returns a tensor
+    - `device` (`torch.device`): Device to use for computation
   
   Returns:
-    replaced_concept_tokens (Tensor): (batch_size, seq_len, concept_dim)
+    - `replaced_concept_tokens` (`Tensor`): (`batch_size`, `seq_len`, `concept_dim`)
   """
   batch_size = concept_tokens.size(0)
   seq_len = concept_tokens.size(1)

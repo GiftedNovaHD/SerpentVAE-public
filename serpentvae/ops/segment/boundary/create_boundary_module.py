@@ -16,13 +16,13 @@ def create_boundary_module(boundary_operator_name: str,
   Creates a boundary operator based on the name and kwargs
 
   Args:
-    boundary_operator_name (str): The name of the boundary operator
-    boundary_operator_kwargs (Dict): The kwargs for the boundary operator
-    device (torch.device): The device to use
-    dtype (torch.dtype): The dtype to use
+    - `boundary_operator_name` (`str`): The name of the boundary operator
+    - `boundary_operator_kwargs` (`Dict`): The kwargs for the boundary operator
+    - `device` (`torch.device`): The device to use
+    - `dtype` (`torch.dtype`): The dtype to use
 
   Returns:
-    boundary_operator (nn.Module): The boundary operator
+    - `boundary_operator` (`nn.Module`): The boundary operator
   """
   # Check possible boundary operators
   boundary_operator_lst = ["ChainCRP", "DynVAE", "SeqVAE"]

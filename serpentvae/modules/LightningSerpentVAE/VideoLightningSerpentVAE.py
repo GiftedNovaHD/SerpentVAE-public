@@ -17,6 +17,16 @@ class VideoLightningSerpentVAE(BaseLightningSerpentVAE):
     return super().configure_model()
 
   def training_step(self, batch: Tensor, batch_idx: int):
+    """
+    Training step for the SerpentVAE model; applied to video data.
+
+    Args:
+      - `batch` (`Tensor`): The batch of data
+      - `batch_idx` (`int`): The index of the batch
+
+    Returns:
+      - `total_loss` (`Tensor`): The total loss
+    """
     # Check if batch is valid (non-empty)
     if batch is None or batch.size(0) == 0 or torch.all(batch == 0):
       # Skip this batch with a small dummy loss to avoid training issues

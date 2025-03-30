@@ -6,10 +6,10 @@ def convert_bitmask(end_bitmask: Tensor):
   Convert a bitmask that signifies the end of each subsequence into a bitmask that signifies the start of each subsequence
 
   Args:
-    end_bitmask (Tensor): (batch_size, seq_len, 1)
+    - `end_bitmask` (`Tensor`): (`batch_size`, `seq_len`, `1`)
   
   Returns:
-    start_bitmask (Tensor): (batch_size, seq_len, 1)
+    - `start_bitmask` (`Tensor`): (`batch_size`, `seq_len`, `1`)
   """
   batch_size, seq_len, _ = end_bitmask.size()
 

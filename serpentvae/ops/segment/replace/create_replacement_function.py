@@ -15,10 +15,10 @@ def create_replacement_function(replacement_function_name: str,
   Creates a replacement function based on the name
 
   Args:
-    replacement_function_name (str): The name of the replacement function
+    - `replacement_function_name` (`str`): The name of the replacement function
   
   Returns:
-    replacement_function (Callable[[Tensor, Tensor], Tensor]): The replacement function
+    - `replacement_function` (`Callable[[Tensor, Tensor], Tensor]`): The replacement function
   """
   replacement_function_dict = {"mean": mean_replacement,
                                "use_last": use_last_replacement}

@@ -18,6 +18,16 @@ class TimeSeriesLightningSerpentVAE(BaseLightningSerpentVAE):
     return super().configure_model()
 
   def training_step(self, batch: Tensor, batch_idx: int):
+    """
+    Training step for the SerpentVAE model; applied to time-series data.
+
+    Args:
+      - `batch` (`Tensor`): The batch of data
+      - `batch_idx` (`int`): The index of the batch
+
+    Returns:
+      - `total_loss` (`Tensor`): The total loss
+    """
     correct_inputs = batch # Shape is (batch_size, seq_len, num_features)
 
     #stats_batch = rearrange(correct_inputs, "batch_size seq_len num_features -> (batch_size seq_len) num_features")

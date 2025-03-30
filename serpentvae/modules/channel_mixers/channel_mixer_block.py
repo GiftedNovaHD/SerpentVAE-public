@@ -11,13 +11,13 @@ def create_channel_mixer_block(channel_mixer_name: str, channel_mixer_kwargs: Di
   Creates a channel mixer block based on the name and kwargs
 
   Args:
-    channel_mixer_name (str): The name of the channel mixer
-    channel_mixer_kwargs (Dict): The kwargs for the channel mixer
-    hidden_dim (int): The hidden dimension of the model
-    device (torch.device): The device to use
-    dtype (torch.dtype): The dtype to use
+    - `channel_mixer_name` (`str`): The name of the channel mixer
+    - `channel_mixer_kwargs` (`Dict`): The kwargs for the channel mixer
+    - `hidden_dim` (`int`): The hidden dimension of the model
+    - `device` (`torch.device`): The device to use
+    - `dtype` (`torch.dtype`): The dtype to use
   Returns:
-    channel_mixer (nn.Module): The channel mixer block
+    - `channel_mixer` (`nn.Module`): The channel mixer block
   """
   # Check possible channel mixers
   mixer_lst = ["MLP"]

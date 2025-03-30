@@ -20,9 +20,11 @@ class MLP(nn.Module):
 
   def forward(self, x: Tensor) -> Tensor:
     """
-      Args:
-        x: Input of shape (batch_size, hidden_dim)
+    Args:
+      - `x` (`Tensor`): Input of shape (`batch_size`, `hidden_dim`)
     
+    Returns:
+      - `x_out` (`Tensor`): Output of shape (`batch_size`, `hidden_dim`)
     """
     x_up = self.up_proj(x)
     x_up = self.act(x_up)
