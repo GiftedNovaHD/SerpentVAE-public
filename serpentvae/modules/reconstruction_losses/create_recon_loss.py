@@ -1,5 +1,4 @@
 import torch 
-import torch.nn as nn
 
 from torch import Tensor 
 from torch.nn import functional as F
@@ -50,18 +49,18 @@ def create_recon_loss(loss_name: str,
   if (loss_name not in continuous_loss_dict.keys()) and (loss_name not in discrete_loss_dict.keys()):
     raise ValueError(f"{loss_name} is not a valid loss function.")
   
-  if discrete == True and (loss_name in continuous_loss_dict.keys()):
+  if discrete is True and (loss_name in continuous_loss_dict.keys()):
     raise ValueError(f"{loss_name} is for continuous inputs but the current input is discrete")
   
-  elif discrete == False and (loss_name in discrete_loss_dict.keys()):
+  elif discrete is False and (loss_name in discrete_loss_dict.keys()):
     raise ValueError(f"{loss_name} is for discrete inputs but the current input is continuous")
   
   # Discrete losses
-  if discrete == True:
+  if discrete is True:
     return partial(discrete_loss_dict[loss_name], reduction = reduction)
     
   # Continuous losses
-  elif discrete == False:
+  elif discrete is False:
     return partial(continuous_loss_dict[loss_name], reduction = reduction)
   
 

@@ -17,9 +17,9 @@ def CrossEntropyLoss(predictions: Tensor,
     ce_loss (Tensor): Cross Entropy Loss between predictions and targets with specified reduction
   """
   ce_loss = F.cross_entropy(
-    input=predictions.view(-1, predictions.size(-1)), # (batch_size, seq_len, vocab_size) -> (batch_size * seq_len, vocab_size)
-    target=targets.view(-1).long(), # (batch_size, seq_len, 1) -> (batch_size * seq_len,)
-    reduction=reduction
+    input = predictions.view(-1, predictions.size(-1)), # (batch_size, seq_len, vocab_size) -> (batch_size * seq_len, vocab_size)
+    target = targets.view(-1).long(), # (batch_size, seq_len, 1) -> (batch_size * seq_len,)
+    reduction = reduction
   )
 
   return ce_loss

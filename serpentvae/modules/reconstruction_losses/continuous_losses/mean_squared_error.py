@@ -19,9 +19,9 @@ def MeanSquaredErrorLoss(predictions: Tensor,
   """ 
   
   loss = F.mse_loss(
-    input=predictions, 
-    target=targets,
-    reduction=reduction
+    input = predictions, 
+    target = targets,
+    reduction = reduction
   )
   
   return loss

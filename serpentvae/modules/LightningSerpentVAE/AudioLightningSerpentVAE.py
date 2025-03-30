@@ -1,5 +1,4 @@
 from torch import Tensor
-import torch
 from typing import Dict
 
 from serpentvae.modules.LightningSerpentVAE.BaseLightningSerpentVAE import BaseLightningSerpentVAE

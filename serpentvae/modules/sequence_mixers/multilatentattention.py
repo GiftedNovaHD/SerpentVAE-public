@@ -34,7 +34,6 @@ class MultiLatentAttention(nn.Module):
     self.q_compress = nn.Linear(hidden_dim, q_lora_rank, bias=False) # Compress the input
     self.q_up_project = nn.Linear(q_lora_rank, num_heads * hidden_dim, bias=False) # Up-project to produce multi-head queries
 
-
     # Low-rank key and value projection
     self.kv_compress = nn.Linear(hidden_dim, kv_lora_rank, bias=False)
 
