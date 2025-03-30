@@ -22,7 +22,7 @@ class ConceptMixer(nn.Module):
     factory_kwargs = {"device": device, "dtype": dtype}
     super().__init__()
 
-    if concept_dim <= hidden_dim:
+    if concept_dim < hidden_dim:
       warnings.warn("Concept dimension should generally be greater than or equal to hidden dimension", stacklevel = 1)
 
     self.hidden_dim = hidden_dim
