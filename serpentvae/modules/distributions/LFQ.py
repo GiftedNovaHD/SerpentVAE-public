@@ -1,6 +1,8 @@
 import torch
+import torch.nn as nn
+
+from torch import Tensor
 from vector_quantize_pytorch import LFQ
-from torch import nn
 
 class LFQDistribution(nn.Module):
   """
@@ -39,4 +41,18 @@ class LFQDistribution(nn.Module):
                         )
     
     self.encoder_layer = nn.Linear(hidden_dim, latent_dim, device = device, dtype = dtype)
+  
+  def forward(self, hidden_states: Tensor):
+    """
+    1. Project the hidden states to the latent dimension
+    2. Quantize the latent states
+    3. Convert the quantized latent states to codes
+    4. Project the codes back to the original dimension
+    """
+    # Project the hidden states to the latent dimension
+    latent_states = self.encoder_layer(hidden_states)
+
+    # Perform LFQ 
+    raise NotImplementedError("LFQ is not implemented yet")
+
     

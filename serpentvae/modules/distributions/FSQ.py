@@ -46,9 +46,17 @@ class FSQDistribution(nn.Module):
     self.encoder_layer = nn.Linear(hidden_dim, latent_dim, device = device, dtype = dtype)
 
 
-  def forward(self, z: Tensor):
-    z_hat, indices = self.finite_scalar_quantizer(z)
-    return z_hat, indices
+  def forward(self, hidden_states: Tensor):
+    """
+    1. Project the hidden states to the latent dimension
+    2. Quantize the latent states
+    3. Convert the quantized latent states to codes
+    4. Project the codes back to the original dimension
+    """
+    # Project the hidden states to the latent dimension
+    latent_states = self.encoder_layer(hidden_states)
+    raise NotImplementedError("FSQ is not implemented yet")
+    
 
 # class FSQ(Module):
 #   def __init__(self,
