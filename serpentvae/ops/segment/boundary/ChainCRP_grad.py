@@ -59,7 +59,6 @@ class ChainCRP(nn.Module):
       How it works: 
         - When NeuralPredictor is confident that a boundary should occur, (p_{n} * theta) becomes large relative to the denominator, so 
         overall probability approaches 1. The converse is trivial when NeuralPredictor is confident that a boundary should not occur.
-      
     
     ELSE: 
       3. P(b_{i} = 1) = p_{i} * [ theta / (i + theta) ]
