@@ -102,7 +102,7 @@ class FSQ(Module):
     Converts a `code` to an index in the codebook.
 
     Args: 
-      - `zhat` (`Tensor`): Input tensor to convert to indices
+      - `z_hat` (`Tensor`): Input tensor to convert to indices
     
     Returns: 
       - `indices` (`Tensor`): Indices in the codebook
@@ -211,7 +211,7 @@ if __name__ == '__main__':
   quantizer = FSQ(levels)
 
   x = torch.randn(1, 4, 16, 16)  # 4 since there are 4 levels
-  xhat, indices = quantizer(x)
+  x_hat, indices = quantizer(x)
 
-  print(xhat.shape)  # (1, 1024, 4) - (batch, seq, dim)
+  print(x_hat.shape)  # (1, 1024, 4) - (batch, seq, dim)
   # print(indices.shape) # (1, 1024)    - (batch, seq)
