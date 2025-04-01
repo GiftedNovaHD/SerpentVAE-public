@@ -1,9 +1,13 @@
 import torch
 from torch import nn, Tensor
-from typing import List
+from typing import List, TypedDict, Tuple, Union
 
 torch.pi = torch.acos(torch.zeros(1)).item() * 2
 torch.pi = torch.tensor(torch.pi)
+
+class ScaledNormalDistParams(TypedDict):
+  mu: Union[Tensor, List[Tensor]]
+  logvar: Union[Tensor, List[Tensor]]
 
 class ScaledNormal(nn.Module):
   def __init__(
@@ -29,7 +33,7 @@ class ScaledNormal(nn.Module):
 
   def encode_dist_params(self,
                          hidden_states: Tensor
-                        ) -> Tensor:
+                        ) -> ScaledNormalDistParams:
     """
     This function computes the mean and log variance of the latent distribution given the encoder hidden states
 
@@ -44,12 +48,11 @@ class ScaledNormal(nn.Module):
     mu = self.encode_mu(hidden_states) # (batch, seq_len, latent_dim)
     logvar = self.encode_logvar(hidden_states) # (batch, seq_len, latent_dim)
     
-    return mu, logvar
+    return ScaledNormalDistParams(mu = mu, logvar = logvar)
   
   def scale_mu(self,
-               mu: Tensor,
-               infer: bool = False
-               ) -> Tensor:
+               mu: Tensor
+              ) -> Tensor:
     """
     Computes the scale factor f and scales mu accordingly
 
@@ -60,9 +63,9 @@ class ScaledNormal(nn.Module):
       - `scaled_mu` (`Tensor`): (`batch_size`, `seq_len`, `dim`)
     """
 
-    if infer is True:
+    if not self.training: # In inference mode, we do not scale mu
       f_vec = torch.ones_like(mu) # (batch_size, seq_len, latent_dim)
-    else:
+    else: # In training mode, we scale mu based on the standard deviation of the latent variables
       # Compute std across batch and sequence length for each latent dimension  
       std_mu = torch.std(mu, dim=(0,1), unbiased=False) # (latent_dim,)
 
@@ -74,9 +77,7 @@ class ScaledNormal(nn.Module):
     return scaled_mu # (batch_size, seq_len, latent_dim)
 
   def sample(self,
-             mu: Tensor,
-             logvar: Tensor,
-             infer: bool = False
+             dist_params: ScaledNormalDistParams
             ) -> Tensor:
     """
     Samples from a normal distribution where the means have been scaled
@@ -89,15 +90,15 @@ class ScaledNormal(nn.Module):
       - `Tensor` (`batch_size`, `seq_len`, `latent_dim`)
     """
     # Scale mu
-    scaled_mu = self.scale_mu(mu, infer = infer)
+    scaled_mu = self.scale_mu(dist_params["mu"])
 
     # Reparameterize using the ALREADY SCALED mu
-    stddev = torch.exp(0.5 * logvar)
-    eps = torch.randn_like(mu)
+    stddev = torch.exp(0.5 * dist_params["logvar"])
+    eps = torch.randn_like(dist_params["mu"])
 
     return scaled_mu + eps * stddev
 
-  def forward(self, hidden_states: Tensor) -> Tensor:
+  def forward(self, hidden_states: Tensor) -> Tuple[Tensor, ScaledNormalDistParams]:
     """
     1. Computes the mean and log variance of the latent distribution given the encoder hidden states
     2. Sample from the latent distribution
@@ -110,14 +111,14 @@ class ScaledNormal(nn.Module):
       - `mu` (`Tensor`): (`batch_size`, `seq_len`, `latent_dim`)
       - `logvar` (`Tensor`): (`batch_size`, `seq_len`, `latent_dim`)
     """
-    mu, logvar = self.encode_dist_params(hidden_states)
+    dist_params = self.encode_dist_params(hidden_states)
 
     # Allow toggling between training and inference to be done using model.eval() and model.train()
     infer = not self.training
 
-    sampled_latents = self.sample(mu, logvar, infer = infer)
+    sampled_latents = self.sample(dist_params = dist_params)
 
-    return sampled_latents, mu, logvar
+    return sampled_latents, dist_params
     
   def log_likelihood(self,
                      latent_samples: Tensor,
@@ -152,8 +153,7 @@ class ScaledNormal(nn.Module):
     return log_likelihood  # (batch_size, seq_len)
 
   def kl_divergence(self,
-                    mu: Tensor,
-                    logvar: Tensor
+                    dist_params: ScaledNormalDistParams
                    ) -> float:
     """
     Computes the Kullback-Leibler Divergence between q(z|x) ~ N(mu, diag(sigma^{2})) 
@@ -166,7 +166,10 @@ class ScaledNormal(nn.Module):
     Returns: 
       - `kl` (`float`): KL divergence between q(z|x) and p(z)
     """
-    # Compute variance (batch, sequence_len, hidden_dim) 
+    # Extract mu and logvar from dist_params
+    mu, logvar = dist_params["mu"], dist_params["logvar"]
+
+    # Compute variance (batch, sequence_len, hidden_dim)
     sigma_squared = torch.exp(logvar) 
 
     # Compute KL divergence per dimension
@@ -181,7 +184,7 @@ class ScaledNormal(nn.Module):
     return kl
   
   def percent_utilisation(self,
-                          mu: List[Tensor],
+                          dist_params: ScaledNormalDistParams,
                           threshold: float = 1e-2
                          ) -> float:
     """
@@ -199,9 +202,12 @@ class ScaledNormal(nn.Module):
     """
     # Center the means
     all_mu = torch.tensor([], device=self.device)
+   
+    # Extract mu from dist_params
+    mu = dist_params["mu"]
 
-    for mu_i in mu:
-      all_mu = torch.cat((all_mu, mu_i.clone().detach()), dim=0) # (batch_size, num_subseq, concept_dim) ->  (batch_size * num_subseq, concept_dim)
+    # Concatenate all the means
+    all_mu = torch.cat((all_mu, mu.clone().detach()), dim=0) # (batch_size, num_subseq, concept_dim) ->  (batch_size * num_subseq, concept_dim)
 
     centered_mu = all_mu - all_mu.mean(dim=0, keepdim=True)
 
