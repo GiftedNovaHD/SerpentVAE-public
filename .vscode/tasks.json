@@ -28,7 +28,7 @@
                 "debug_train/discrete_test_no_optional"
             ],
             "presentation": {
-                "reveal": "silent",
+                "reveal": "always",
                 "panel": "new",
                 "revealProblems": "onProblem",
                 "close": true

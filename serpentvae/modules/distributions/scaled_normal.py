@@ -1,5 +1,6 @@
 import torch
 from torch import nn, Tensor
+from typing import List
 
 torch.pi = torch.acos(torch.zeros(1)).item() * 2
 torch.pi = torch.tensor(torch.pi)
@@ -178,3 +179,42 @@ class ScaledNormal(nn.Module):
     kl = kl.mean()  # scalar value
 
     return kl
+  
+  def percent_utilisation(self,
+                          mu: List[Tensor],
+                          threshold: float = 1e-2
+                         ) -> float:
+    """
+    Calculate the percentage of active units in latent variables
+    We basically calculate the covariance between the latent variables and see if they are above a threshold 
+
+    A_u = Cov_x(E_u~q(u|x)[u])
+
+    Args:
+      - `mu` (`List[Tensor]`): (`batch_size`, `num_subseq`, `concept_dim`) Mean of the approximate posterior distribution 
+      - `threshold` (`float`): Threshold for considering a unit active
+
+    Returns:
+      - `percent_utilisation` (`float`): Percentage of active units
+    """
+    # Center the means
+    all_mu = torch.tensor([], device=self.device)
+
+    for mu_i in mu:
+      all_mu = torch.cat((all_mu, mu_i.clone().detach()), dim=0) # (batch_size, num_subseq, concept_dim) ->  (batch_size * num_subseq, concept_dim)
+
+    centered_mu = all_mu - all_mu.mean(dim=0, keepdim=True)
+
+    # Compute covariance matrix
+    cov = torch.matmul(centered_mu.T, centered_mu) / (all_mu.size(0) - 1)
+
+    # Compute the variance of each latent variable
+    variances = torch.diag(cov)
+
+    # Compute the number of active units
+    num_active_units = torch.sum(variances > threshold)
+
+    # Calculate the percentage of active units
+    percent_utilisation = num_active_units / self.latent_dim
+
+    return float(percent_utilisation.item())

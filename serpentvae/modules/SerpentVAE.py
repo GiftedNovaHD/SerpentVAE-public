@@ -1053,41 +1053,22 @@ class SerpentVAE(nn.Module):
 
     return ema_stddev_subseq_length
   
-  def num_active_units(self,
-                       mu: List[Tensor],
-                       threshold: float = 1e-2
-                       ) -> int:
+  def percent_utilisation(self,
+                          mu: List[Tensor],
+                          threshold: float = 1e-2
+                         ) -> float:
     """
-    Calculate number of active units in latent variables
-    We basically calculate the covariance between the latent variables and see if they are above a threshold 
-
-    A_u = Cov_x(E_u~q(u|x)[u])
+    Calculate the percentage of active units in latent variables
 
     Args:
       - `mu` (`List[Tensor]`): (`batch_size`, `num_subseq`, `concept_dim`) Mean of the approximate posterior distribution 
       - `threshold` (`float`): Threshold for considering a unit active
 
     Returns:
-      - `num_active_units` (`int`): Number of active units
+      - `percent_utilisation` (`float`): Percentage of active units
     """
-    # Center the means
-    all_mu = torch.tensor([], device=self.device)
 
-    for mu_i in mu:
-      all_mu = torch.cat((all_mu, mu_i.clone().detach()), dim=0) # (batch_size, num_subseq, concept_dim) ->  (batch_size * num_subseq, concept_dim)
-
-    centered_mu = all_mu - all_mu.mean(dim=0, keepdim=True)
-
-    # Compute covariance matrix
-    cov = torch.matmul(centered_mu.T, centered_mu) / (all_mu.size(0) - 1)
-
-    # Compute the variance of each latent variable
-    variances = torch.diag(cov)
-
-    # Compute the number of active units
-    num_active_units = torch.sum(variances > threshold)
-
-    return int(num_active_units.item())
+    return self.distribution.percent_utilisation(mu = mu, threshold = threshold)
 
   def metrics(self,
               correct_inputs: Tensor,
@@ -1168,7 +1149,7 @@ class SerpentVAE(nn.Module):
       dedup_logvar.append(seq_dedup_logvar)
 
     # Calculate the number of active units
-    num_active_units = self.num_active_units(mu = dedup_mu, threshold = threshold)
+    percent_utilisation = self.percent_utilisation(mu = dedup_mu, threshold = threshold)
 
     # Calculate VMI, KL-Divergence and Reconstruction Error
     total_loss, kl_divergence, reconstruction_error, vmi_loss = self.vae_loss(targets = correct_inputs,
@@ -1217,7 +1198,7 @@ class SerpentVAE(nn.Module):
       prefix = "validation_"
     
     # Initialize the metrics dictionary
-    metrics = {prefix + "num_active_units": num_active_units,
+    metrics = {prefix + "percent_utilisation": percent_utilisation,
                prefix + "full_mi": full_mutual_info.item(),
                prefix + "kl_divergence": kl_divergence.item(),
                prefix + f"recon_error ({self.recon_loss_name})": reconstruction_error.item(),
