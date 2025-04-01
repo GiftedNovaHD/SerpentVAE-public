@@ -14,6 +14,7 @@ def deduplicate_dist_params(dist_params: Dict, segmentation_indices: Tensor) -> 
 
   Returns:
     - `deduplicated_dist_params` (`Dict`): Deduplicated distribution parameters with dimensions (`batch_size`, `num_subseq`, `concept_dim`)
+       - The type of the value of each key is List[Tensor]
   """
   # Extract start and end indices
   start_indices = bitmask_to_start_indices(segmentation_indices)
