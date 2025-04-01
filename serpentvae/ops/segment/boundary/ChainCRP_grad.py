@@ -117,10 +117,15 @@ class ChainCRP(nn.Module):
       effective_probs = p_n_squeezed_sub * 2
       effective_probs = torch.clamp(effective_probs, min = 1e-8, max = 1 - 1e-8)
 
-    # Sample from a Continuous Bernoulli distribution to enforce differentiability. 
-    # NOTE: Not Gumbel-Softmax / Sigmoid trick
-    relaxed_samples = ContinuousBernoulli(probs = effective_probs).rsample()
-    hard_samples = (relaxed_samples >= 0.6).to(int8) # (batch_size, seq_len - 1, num_segment_predictions)
+    if not self.training:
+      # In validation mode, use hard segmentation with threshold 0.6
+      hard_samples = (effective_probs >= 0.6).to(int8) # (batch_size, seq_len - 1, num_segment_predictions)
+    else:
+      # In training mode, sample from ContinuousBernoulli for differentiability. 
+      # NOTE: Not Gumbel-Softmax / Sigmoid trick
+      relaxed_samples = ContinuousBernoulli(probs = effective_probs).rsample()
+      hard_samples = (relaxed_samples >= 0.6).to(int8) # (batch_size, seq_len - 1, num_segment_predictions)
+    
     hard_samples = torch.all(hard_samples, dim = -1) # (batch_size, seq_len - 1, num_segment_predictions) -> (batch_size, seq_len - 1)
     
     segmentation[:, :-1] = hard_samples # (batch_size, seq_len)
