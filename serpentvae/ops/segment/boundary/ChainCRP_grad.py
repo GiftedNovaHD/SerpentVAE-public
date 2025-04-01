@@ -8,18 +8,16 @@ To enforce contiguity, we adopt the following convention:
 """
 
 import torch
-import torch.nn.functional as F
 
 from torch import Tensor
 from torch import nn
-from torch.distributions import ContinuousBernoulli, Normal
-from torch.distributions import ContinuousBernoulli, Normal
+from torch.distributions import ContinuousBernoulli
 
 # Custom int8 definition since this is used way too much
 int8 = torch.int8
 
 # Import module utils for ensuring EOS padding tokens at the front are handled correctly
-from serpentvae.modules.module_utils.subseq_len_utils import count_whitelisted_tokens, filter_index
+# from serpentvae.modules.module_utils.subseq_len_utils import count_whitelisted_tokens, filter_index
 
 class ChainCRP(nn.Module): 
   def __init__(self, 
