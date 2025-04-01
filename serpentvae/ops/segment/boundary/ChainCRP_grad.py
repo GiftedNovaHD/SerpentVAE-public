@@ -113,10 +113,8 @@ class ChainCRP(nn.Module):
         effective_probs = p_n_squeezed_sub * crp_factor # (batch_size, seq_len - 1, num_segment_predictions)
     
     else: # Reconstruction loss is too high, so we want to decrease the subsequence length.
-      recon_error_difference = torch.abs(prev_batch_recon_loss - self.recon_threshold)
-
       # We want to shorten subsequences lengths by increasing the probability of a boundary between tokens.
-      effective_probs = p_n_squeezed_sub * (1 + recon_error_difference * 2)
+      effective_probs = p_n_squeezed_sub * 2
       effective_probs = torch.clamp(effective_probs, min = 1e-8, max = 1 - 1e-8)
 
     # Sample from a Continuous Bernoulli distribution to enforce differentiability. 
