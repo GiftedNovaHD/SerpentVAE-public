@@ -709,8 +709,10 @@ class SerpentVAE(nn.Module):
     Calculates the loss for the segmentation prediction module
 
     Here, we use a binary focal loss with 2 classes 
-      0 for staying on the current concept token(s) 
-      1 for changing to the next concept token
+
+      - `0` for staying on the current concept token(s) 
+      - `1` for changing to the next concept token
+
     Note that we assume that the higher level model decides when to stop generating concept tokens
     So we just keep decoding as long as we have not run out of concept tokens
     
@@ -763,8 +765,9 @@ class SerpentVAE(nn.Module):
     Calculate the loss for the confidence module using Mean Squared Error (MSE)
 
     NOTE: `seq_len` and `sub_seq_len` are not the same,
-    `segmentation_indices` is a bitmask where 1 represents the end of a subsequence
-    `confidence_estimates` has to be modified to so that only the estimates for which we have ground truth remain.
+    - `segmentation_indices` is a bitmask where 1 represents the end of a subsequence
+    - `confidence_estimates` has to be modified to so that only the estimates for which we have ground truth remain.
+    
     This is done using segmentation indices which are returned by the segment method.
 
     Args:
