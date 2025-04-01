@@ -55,8 +55,16 @@ class FSQDistribution(nn.Module):
     """
     # Project the hidden states to the latent dimension
     latent_states = self.encoder_layer(hidden_states)
-    raise NotImplementedError("FSQ is not implemented yet")
-    
+
+    # FSQ 
+    quantized_latent_states, indices, entropy_auxilary_loss = self.finite_scalar_quantizer(latent_states)
+    # Convert the quantized latent states to codes
+    codes = self.finite_scalar_quantizer.indices_to_codes(indices)
+
+    # Project the codes back to the original dimension
+    reconstructed_hidden_states = self.decoder_layer(codes)
+
+    return reconstructed_hidden_states, indices, entropy_auxilary_loss
 
 # class FSQ(Module):
 #   def __init__(self,
