@@ -3,6 +3,12 @@ from vector_quantize_pytorch import LFQ
 from torch import nn
 
 class LFQDistribution(nn.Module):
+  """
+  This class implements the LFQ distribution originally proposed in: 
+  [Language Model Beats Diffusion -- Tokenizer is Key to Visual Generation](https://arxiv.org/abs/2310.05737) (ICLR 2024)
+
+  LFQ basically reduces the size of the codebook's latent dimension to 0, such that the entire embedding lookup becomes redundant. 
+  """
   def __init__(self, 
                hidden_dim: int,
                latent_dim: int,
