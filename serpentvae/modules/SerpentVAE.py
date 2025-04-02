@@ -294,7 +294,7 @@ class SerpentVAE(nn.Module):
       self.qnet = QNet(latent_dim = self.concept_dim,
                        qnet_config = self.qnet_config,
                        vocab_size = self.vocab_size,
-                       hidden_dim = None,
+                       input_dim = None,
                        residual_in_fp32 = self.residual_in_fp32,
                        device = self.device,
                        dtype = self.dtype
@@ -305,7 +305,7 @@ class SerpentVAE(nn.Module):
       self.qnet = QNet(latent_dim = self.concept_dim,
                        qnet_config = self.qnet_config,
                        vocab_size = None,
-                       hidden_dim = self.input_dim,
+                       input_dim = self.input_dim,
                        residual_in_fp32 = self.residual_in_fp32,
                        device = self.device,
                        dtype = self.dtype
