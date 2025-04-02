@@ -27,6 +27,8 @@ class ScaledNormal(nn.Module):
     self.device = device
     self.dtype = dtype
 
+    self.regularization_loss_name = "KL-Divergence"
+
     # Linear layers to transform encoder hidden states to mean and log variance of latent normal distribution
     self.encode_mu = nn.Linear(hidden_dim, latent_dim, device=self.device, dtype=self.dtype)
     self.encode_logvar = nn.Linear(hidden_dim, latent_dim, device=self.device, dtype=self.dtype)
@@ -152,9 +154,9 @@ class ScaledNormal(nn.Module):
     
     return log_likelihood  # (batch_size, seq_len)
 
-  def kl_divergence(self,
-                    dedup_dist_params: ScaledNormalDistParams
-                   ) -> float:
+  def regularization_loss(self,
+                          dedup_dist_params: ScaledNormalDistParams
+                         ) -> float:
     """
     Computes the Kullback-Leibler Divergence between q(z|x) ~ N(mu, diag(sigma^{2})) 
     and the prior p(z) ~ N(0, I)

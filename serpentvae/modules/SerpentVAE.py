@@ -563,7 +563,7 @@ class SerpentVAE(nn.Module):
     mu_q, logvar_q = self.qnet(decoder_output = decoder_output,
                                targets = targets,
                                segmentation_indices = segmentation_indices
-                              ) # (batch_size, num_subseq, concept_dim)
+                              ) # (batch_size, num_subseq, concept_dim) Type: List[Tensor]
 
     # TODO: Refactor to use distributions log-likelihood method
 
@@ -619,7 +619,7 @@ class SerpentVAE(nn.Module):
 
     Returns: 
       - `loss` (`Tensor`): Scalar VAE loss
-      - `kl_divergence` (`Tensor`): Scalar KL divergence
+      - `regularization_loss` (`Tensor`): Scalar regularization loss
       - `reconstruction_loss` (`Tensor`): Scalar reconstruction loss
       - `vmi_loss` (`Tensor`): Scalar Variational Mutual Information loss
     """
@@ -637,7 +637,7 @@ class SerpentVAE(nn.Module):
     KL(q(z | x, context) || p(z | context)) 
 
     """
-    kl_loss = self.distribution.kl_divergence(dedup_dist_params = dedup_dist_params)
+    regularization_loss = self.distribution.regularization_loss(dedup_dist_params = dedup_dist_params)
 
     # Compute the maximized MI regularizer term
     if self.enable_qnet is True:
@@ -649,9 +649,9 @@ class SerpentVAE(nn.Module):
     else:
       vmi_loss_term = torch.tensor(0.0, device=self.device)
 
-    loss_objective = reconstruction_loss + alpha * vmi_loss_term + beta * kl_loss 
+    loss_objective = reconstruction_loss + alpha * vmi_loss_term + beta * regularization_loss 
     
-    return loss_objective, kl_loss, reconstruction_loss, vmi_loss_term
+    return loss_objective, regularization_loss, reconstruction_loss, vmi_loss_term
   
   def segment_prediction_loss(self,
                               segmentation_predictions: Tensor,
@@ -1074,13 +1074,13 @@ class SerpentVAE(nn.Module):
     # Calculate the number of active units
     percent_utilisation = self.percent_utilisation(dedup_dist_params = dedup_dist_params, threshold = threshold)
 
-    # Calculate VMI, KL-Divergence and Reconstruction Error
-    total_loss, kl_divergence, reconstruction_error, vmi_loss = self.vae_loss(targets = correct_inputs,
-                                                                              dedup_dist_params = dedup_dist_params,  
-                                                                              dedup_z = dedup_z,
-                                                                              segmentation_indices = segmentation_indices,
-                                                                              decoder_output = decoder_output
-                                                                             )
+    # Calculate VMI, Regularization Loss and Reconstruction Error
+    total_loss, regularization_loss, reconstruction_error, vmi_loss = self.vae_loss(targets = correct_inputs,
+                                                                                      dedup_dist_params = dedup_dist_params,  
+                                                                                      dedup_z = dedup_z,
+                                                                                      segmentation_indices = segmentation_indices,
+                                                                                      decoder_output = decoder_output
+                                                                                     )
     
     if self.discrete_input is True:
       recon_loss_bits = (reconstruction_error * torch.log2(torch.exp(torch.tensor([1], device = self.device, dtype = self.dtype))))
@@ -1120,7 +1120,7 @@ class SerpentVAE(nn.Module):
     # Initialize the metrics dictionary
     metrics = {prefix + "percent_utilisation": percent_utilisation,
                prefix + "full_mi": full_mutual_info.item(),
-               prefix + "kl_divergence": kl_divergence.item(),
+               prefix + f"{self.distribution.regularization_loss_name.lower()}": regularization_loss.item(),
                prefix + f"recon_error ({self.recon_loss_name})": reconstruction_error.item(),
                prefix + "avg_subsequence_len": avg_subseq_length,
                prefix + "stddev_subsequence_len": stddev_subseq_length,
@@ -1180,34 +1180,35 @@ class SerpentVAE(nn.Module):
                                                )
 
     # Calculate the VAE loss
-    loss_objective, kl_loss, reconstruction_loss, vmi_loss_term = self.vae_loss(targets = correct_inputs,
-                                                                                dedup_dist_params = dedup_dist_params,
-                                                                                dedup_z = dedup_z,
-                                                                                segmentation_indices = segmentation_indices,
-                                                                                decoder_output = predicted_logits,
-                                                                                alpha = self.alpha,
-                                                                                beta = self.beta
-                                                                               )
+    total_vae_loss, regularization_loss, recon_error, vmi_loss = self.vae_loss(targets = correct_inputs,
+                                                                               dedup_dist_params = dedup_dist_params,
+                                                                               dedup_z = dedup_z,
+                                                                               segmentation_indices = segmentation_indices,
+                                                                               decoder_output = predicted_logits,
+                                                                               alpha = self.alpha,
+                                                                               beta = self.beta
+                                                                              )
 
     # Update previous batch reconstruction loss
-    self.prev_batch_recon_loss = reconstruction_loss
+    self.prev_batch_recon_loss = recon_error
    
-    print(f"Reconstruction loss ({self.recon_loss_name}): {reconstruction_loss.item()}")
+    print(f"Reconstruction loss ({self.recon_loss_name}): {recon_error.item()}")
 
     if self.discrete_input is True:
-      print(f"Perplexity: {torch.exp(reconstruction_loss).item()}")
+      print(f"Perplexity: {torch.exp(recon_error).item()}")
 
-      recon_loss_bits = (reconstruction_loss * torch.log2(torch.exp(torch.tensor([1], device = self.device, dtype = self.dtype))))
+      recon_loss_bits = (recon_error * torch.log2(torch.exp(torch.tensor([1], device = self.device, dtype = self.dtype))))
       bits_per_byte = (recon_loss_bits/(torch.log2(torch.tensor([self.vocab_size], device = self.device, dtype = self.dtype))/3))
 
       print(f"Bits per byte: {bits_per_byte.item()}")
-
-    print(f"KL loss: {kl_loss.item()}")
+    
+    # Print out the regularization loss for the posterior distribution
+    print(f"{self.distribution.regularization_loss_name}: {regularization_loss.item()}")
 
     # Calculate the average subsequence length
     avg_subseq_length, stddev_subseq_length = self.subseq_length_stats(correct_inputs = correct_inputs,
-                                                                    segmentation_indices = segmentation_indices
-                                                                   )
+                                                                       segmentation_indices = segmentation_indices
+                                                                      )
 
     print(f"Average subsequence length: {avg_subseq_length}")
     print(f"Standard deviation of subsequence length: {stddev_subseq_length}")
@@ -1254,14 +1255,14 @@ class SerpentVAE(nn.Module):
       print("Confidence module is disabled")
 
     if self.enable_qnet is True:
-      print(f"VMI loss: {vmi_loss_term.item()}")
+      print(f"VMI loss: {vmi_loss.item()}")
     else:
       print("VMI is disabled")
 
     # Calculate total loss
-    total_loss = loss_objective + confidence_loss + encoder_segment_prediction_loss + decoder_segment_prediction_loss
+    total_loss = total_vae_loss + confidence_loss + encoder_segment_prediction_loss + decoder_segment_prediction_loss
 
-    return total_loss, loss_objective, confidence_loss, encoder_segment_prediction_loss, decoder_segment_prediction_loss
+    return total_loss, total_vae_loss, confidence_loss, encoder_segment_prediction_loss, decoder_segment_prediction_loss
   
   def eval_step(self, correct_inputs: Tensor, current_epoch: int, is_test: bool = True):
     """
