@@ -196,7 +196,7 @@ class ScaledNormal(nn.Module):
       kl = kl.mean() # (1, )
 
       all_kl = torch.cat((all_kl, kl.unsqueeze(0)), dim=0)
-    
+
     kl = all_kl.mean()
 
     return kl

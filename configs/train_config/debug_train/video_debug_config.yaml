@@ -114,15 +114,15 @@ confidence_module:
 enable_qnet: false # We advise Q-Net to be enabled to reduce the chance of posterior collapse
 qnet:
   # Non-sequence mixer settings
-  seq_mixer_layer_config: "Mamba2"
-  channel_mixer_layer_config: "MLP"
+  seq_mixer_layer_config: "2 (Mamba2)"
+  channel_mixer_layer_config: "2 (MLP)"
   
   # Sequence mixer configuration
   Mamba2:
     mamba2_conv_length: 4
     mamba2_expand: 1
     mamba2_head_dim: 32 # (concept_dim * mamba_expand / qnet_mamba_head_dim = 48 = 8 * 6)
-    mamba2_state_dim: 8
+    mamba2_state_dim: 16
 
   # Channel mixer configuration
   MLP:
