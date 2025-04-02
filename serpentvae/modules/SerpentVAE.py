@@ -32,6 +32,9 @@ from serpentvae.ops.segment.replace.create_replacement_function import create_re
 # Import operations for deduplicating distribution parameters
 from serpentvae.modules.distributions.dist_param_utils import deduplicate_dist_params
 
+# Import operations for deduplicating latents
+from serpentvae.utils.deduplicate_latents import deduplicate_latents
+
 # Import modules for creating reconstruction errors 
 from serpentvae.modules.reconstruction_losses.create_recon_loss import create_recon_loss
 
@@ -577,7 +580,7 @@ class SerpentVAE(nn.Module):
     return mi_per_batch # Scalar
 
   def maximize_vmi_regularizer(self,
-                               z: List[Tensor],
+                               dedup_z: List[Tensor],
                                decoder_output: Tensor, 
                                segmentation_indices: Tensor,
                                targets: Tensor
@@ -608,7 +611,7 @@ class SerpentVAE(nn.Module):
 
     all_log_probs = torch.tensor([], device=self.device)
 
-    for mu_q_i, logvar_q_i, z_i in zip(mu_q, logvar_q, z):
+    for mu_q_i, logvar_q_i, z_i in zip(mu_q, logvar_q, dedup_z):
       
       # Computes the log-likelihood of z under Q's distribution
       sequence_log_prob = self.distribution.log_likelihood(latent_samples = z_i.unsqueeze(0),
@@ -629,7 +632,7 @@ class SerpentVAE(nn.Module):
   def vae_loss(self, 
                targets: Tensor, 
                dedup_dist_params: Dict,
-               z: List[Tensor],
+               dedup_z: List[Tensor],
                segmentation_indices: Tensor,
                decoder_output: Tensor,
                alpha=1.0,
@@ -676,11 +679,11 @@ class SerpentVAE(nn.Module):
     KL(q(z | x, context) || p(z | context)) 
 
     """
-    kl_loss = self.distribution.kl_divergence(dist_params = dedup_dist_params)
+    kl_loss = self.distribution.kl_divergence(dedup_dist_params = dedup_dist_params)
 
     # Compute the maximized MI regularizer term
     if self.enable_qnet is True:
-      vmi_loss_term = self.maximize_vmi_regularizer(z = z,
+      vmi_loss_term = self.maximize_vmi_regularizer(dedup_z = dedup_z,
                                                     decoder_output = decoder_output,
                                                     segmentation_indices = segmentation_indices,
                                                     targets = targets
@@ -1100,30 +1103,10 @@ class SerpentVAE(nn.Module):
       - `metrics` (`dict`): Dictionary of metrics
 
     """
-    # Deduplicate z, mu and logvar
-    # NOTE: The batch_size dimension of all these are lists
-    dedup_z = [] # (batch_size, num_subseq, concept_dim)
-
-    # Remove unnecessary elements in mu and logvar
-    start_indices = bitmask_to_start_indices(segmentation_indices)
-    # NOTE: Inclusive is set to True as we are directly indexing for the end index
-    end_indices = bitmask_to_end_indices(segmentation_indices, inclusive = True)
-
-    # NOTE: We assume that the replacement operation used is use_last for simpler math
-    batch_size = len(start_indices)
-
-    for i in range(batch_size):
-      seq_dedup_z = torch.tensor([], device = self.device)
-
-      seq_start_indices = start_indices[i]
-      seq_end_indices = end_indices[i]
-
-      seq_z = z[i]
-
-      for start, end in zip(seq_start_indices, seq_end_indices):
-        seq_dedup_z = torch.cat((seq_dedup_z, seq_z[end].unsqueeze(0)), dim = 0)
-
-      dedup_z.append(seq_dedup_z)
+    # Deduplicate sampled latents and distribution parameters
+    dedup_z = deduplicate_latents(latents = z,
+                                  segmentation_indices = segmentation_indices
+                                 )
     
     dedup_dist_params = deduplicate_dist_params(dist_params = dist_params,  
                                                 segmentation_indices = segmentation_indices
@@ -1135,7 +1118,7 @@ class SerpentVAE(nn.Module):
     # Calculate VMI, KL-Divergence and Reconstruction Error
     total_loss, kl_divergence, reconstruction_error, vmi_loss = self.vae_loss(targets = correct_inputs,
                                                                               dedup_dist_params = dedup_dist_params,  
-                                                                              z = dedup_z,
+                                                                              dedup_z = dedup_z,
                                                                               segmentation_indices = segmentation_indices,
                                                                               decoder_output = decoder_output
                                                                              )
@@ -1228,27 +1211,19 @@ class SerpentVAE(nn.Module):
 
     predicted_logits, dist_params, sampled_latents, segmentation_indices, encoder_predicted_segments, decoder_predicted_segments, predicted_confidence = self.forward(correct_inputs, current_epoch)
 
-    # Change mu, logvar, sampled_latents based on segmentation_indices
-    end_indices = bitmask_to_end_indices(segmentation_indices, inclusive = True)
-    # end_indices (batch_size, num_subseq)
-
-    # Format sampled_latents, mu and logvar
-    formatted_sampled_latents = []
-
-    # Iterate over batch elements
-    for batch_idx, seq_end_indices in enumerate(end_indices):
-      seq_sampled_latents = torch.tensor([], device = self.device) # (num_subseq, concept_dim)
-      
-      for end_index in seq_end_indices:
-        # NOTE: To correctly index batch elements, we use the batch_idx batch element and the end_index in the sequence dimension
-        seq_sampled_latents = torch.cat((seq_sampled_latents, sampled_latents[batch_idx, end_index].unsqueeze(0)), dim = 0)
-
-      formatted_sampled_latents.append(seq_sampled_latents)
+    # Deduplicate sampled latents and distribution parameters
+    dedup_z = deduplicate_latents(latents = sampled_latents,
+                                  segmentation_indices = segmentation_indices
+                                 )
+    
+    dedup_dist_params = deduplicate_dist_params(dist_params = dist_params,
+                                                segmentation_indices = segmentation_indices
+                                               )
 
     # Calculate the VAE loss
     loss_objective, kl_loss, reconstruction_loss, vmi_loss_term = self.vae_loss(targets = correct_inputs,
-                                                                                dist_params = dist_params,
-                                                                                z = formatted_sampled_latents,
+                                                                                dedup_dist_params = dedup_dist_params,
+                                                                                dedup_z = dedup_z,
                                                                                 segmentation_indices = segmentation_indices,
                                                                                 decoder_output = predicted_logits,
                                                                                 alpha = self.alpha,
