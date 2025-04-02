@@ -172,7 +172,7 @@ class ScaledNormal(nn.Module):
     kl_per_dim = sigma_squared + mu.pow(2) - 1.0 - logvar # (batch, seq_len, hidden_dim)
     
     # Mean over latent dimension
-    kl = 0.5 * torch.mean(kl_per_dim, dim=-1) # (batch, seq_len)
+    kl = 0.5 * torch.mean(kl_per_dim, dim = -1) # (batch, seq_len)
     
     # Average over both the batch and sequence length dimensions to obtain a scalar
     kl = kl.mean()  # scalar value
