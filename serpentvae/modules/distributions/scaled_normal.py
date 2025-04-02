@@ -153,14 +153,14 @@ class ScaledNormal(nn.Module):
     return log_likelihood  # (batch_size, seq_len)
 
   def kl_divergence(self,
-                    dist_params: ScaledNormalDistParams
+                    dedup_dist_params: ScaledNormalDistParams
                    ) -> float:
     """
     Computes the Kullback-Leibler Divergence between q(z|x) ~ N(mu, diag(sigma^{2})) 
     and the prior p(z) ~ N(0, I)
 
     Args: 
-      - `dist_params` (`Dict`): Distribution parameters with dimensions (`batch_size`, `num_subseq`, `concept_dim`)
+      - `dedup_dist_params` (`Dict`): Deduplicated distribution parameters with dimensions (`batch_size`, `num_subseq`, `concept_dim`)
          - `mu` (`List[Tensor]`): (`batch_size`, `num_subseq`, `concept_dim`) Mean of the approximate posterior distribution 
          - `logvar` (`List[Tensor]`): (`batch_size`, `num_subseq`, `concept_dim`) Logvariance of the approximate posterior distribution
     
@@ -168,7 +168,7 @@ class ScaledNormal(nn.Module):
       - `kl` (`float`): KL divergence between q(z|x) and p(z)
     """
     # Extract mu and logvar from dist_params
-    mu, logvar = dist_params["mu"], dist_params["logvar"] # (batch_size, num_subseq, concept_dim) both are lists of tensors
+    mu, logvar = dedup_dist_params["mu"], dedup_dist_params["logvar"] # (batch_size, num_subseq, concept_dim) both are lists of tensors
 
     batch_size = len(mu)
 

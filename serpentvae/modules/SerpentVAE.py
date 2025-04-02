@@ -628,7 +628,7 @@ class SerpentVAE(nn.Module):
 
   def vae_loss(self, 
                targets: Tensor, 
-               dist_params: Dict,
+               dedup_dist_params: Dict,
                z: List[Tensor],
                segmentation_indices: Tensor,
                decoder_output: Tensor,
@@ -647,8 +647,8 @@ class SerpentVAE(nn.Module):
 
     Args: 
       - `input_ids` (Tensor): Ground-truth targets (`batch_size`, `seq_len`, `1/hidden_dim`) if discrete or continuous inputs
-      - `dist_params` (`Dict`): Distribution parameters with dimensions (`batch_size`, `seq_len`, `concept_dim`)
-         - NOTE: We perform the deduplication of dist_params here
+      - `dedup_dist_params` (`Dict`): Distribution parameters with dimensions (`batch_size`, `num_subseq`, `concept_dim`)
+         - NOTE: Each value in the dict is a list of tensors (List[Tensor])
       - `z` (`List[Tensor]`): (`batch_size`, `num_subseq`, `concept_dim`)
       - `segmentation_indices` (`Tensor`): (`batch_size`, `seq_len`, `1`)
       - `decoder_output` (`Tensor`): (`batch_size`, `seq_len`, `hidden_dim / vocab_size`)
@@ -676,12 +676,6 @@ class SerpentVAE(nn.Module):
     KL(q(z | x, context) || p(z | context)) 
 
     """
-    
-    # Deduplicate dist_params
-    dedup_dist_params = deduplicate_dist_params(dist_params = dist_params,
-                                                segmentation_indices = segmentation_indices
-                                               )
-    
     kl_loss = self.distribution.kl_divergence(dist_params = dedup_dist_params)
 
     # Compute the maximized MI regularizer term
@@ -1109,8 +1103,6 @@ class SerpentVAE(nn.Module):
     # Deduplicate z, mu and logvar
     # NOTE: The batch_size dimension of all these are lists
     dedup_z = [] # (batch_size, num_subseq, concept_dim)
-    dedup_mu = [] # (batch_size, num_subseq, concept_dim)
-    dedup_logvar = [] # (batch_size, num_subseq, concept_dim)
 
     # Remove unnecessary elements in mu and logvar
     start_indices = bitmask_to_start_indices(segmentation_indices)
@@ -1142,7 +1134,7 @@ class SerpentVAE(nn.Module):
 
     # Calculate VMI, KL-Divergence and Reconstruction Error
     total_loss, kl_divergence, reconstruction_error, vmi_loss = self.vae_loss(targets = correct_inputs,
-                                                                              dist_params = dist_params,  
+                                                                              dedup_dist_params = dedup_dist_params,  
                                                                               z = dedup_z,
                                                                               segmentation_indices = segmentation_indices,
                                                                               decoder_output = decoder_output
