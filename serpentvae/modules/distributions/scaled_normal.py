@@ -123,9 +123,9 @@ class ScaledNormal(nn.Module):
     return sampled_latents, dist_params
     
   def log_likelihood(self,
-                     latent_samples: Tensor,
-                     q_dist_mu: Tensor,
-                     q_dist_logvar:Tensor
+                     latent_samples: List[Tensor],
+                     q_dist_mu: List[Tensor],
+                     q_dist_logvar: List[Tensor]
                     ) -> Tensor:
     """
     Computes the log likelihood of a sample for a multivariate normal distribution with diagonal covariance
@@ -135,24 +135,32 @@ class ScaledNormal(nn.Module):
     log p(z | mu, logvar) = -0.5 ((z - mu)^{2}/exp(logvar) + logvar + log(2pi))
     
     Args:
-      - `latent_samples` (`Tensor`): (`batch_size`, `seq_len`, `latent_dim`)
-      - `q_dist_mu` (`Tensor`): (`batch_size`, `seq_len`, `latent_dim`)
-      - `q_dist_logvar` (`Tensor`): (`batch_size`, `seq_len`, `latent_dim`)
+      - `latent_samples` (`List[Tensor]`): (`batch_size`, `num_subseq`, `latent_dim`)
+      - `q_dist_mu` (`List[Tensor]`): (`batch_size`, `num_subseq`, `latent_dim`)
+      - `q_dist_logvar` (`List[Tensor]`): (`batch_size`, `num_subseq`, `latent_dim`)
 
     Returns:
-      - `log_likelihood` (`Tensor`): (`batch_size`, `seq_len`)
+      - `log_likelihood` (`Tensor`): (1, )
     """
-    log_likelihood_elementwise = -0.5 * ( 
-      (latent_samples - q_dist_mu) ** 2 / torch.exp(q_dist_logvar)
-      + q_dist_logvar
-      + torch.log(2 * torch.pi)
-    )
-    # Take the mean over the last dimension instead of summing over to normalize the scale of the loss so that we get more stable gradients and ensure
-    # that each latent variable contributes equally on average. 
-    # NOTE: Might try both honestly if time permits
-    log_likelihood = torch.mean(log_likelihood_elementwise, dim=-1)
+    log_likelihood_elementwise = torch.tensor([], device=self.device, dtype=self.dtype)
+
+    for latent_sample_i, q_mu_i, q_logvar_i in zip(latent_samples, q_dist_mu, q_dist_logvar):
+      log_likelihood_elementwise_i = -0.5 * (
+                                        (latent_sample_i - q_mu_i) ** 2 / torch.exp(q_logvar_i)
+                                        + q_logvar_i
+                                        + torch.log(2 * torch.pi)
+                                       ) # (num_subseq, latent_dim)
+      
+      # Take the mean over the last dimension instead of summing over to normalize the scale of the loss so that we get more stable gradients and ensure
+      # that each latent variable contributes equally on average. 
+      log_likelihood_seq = log_likelihood_elementwise_i.mean() # (1,)
+      
+      log_likelihood_elementwise = torch.cat((log_likelihood_elementwise, log_likelihood_seq.unsqueeze(0)), dim=0)
     
-    return log_likelihood  # (batch_size, seq_len)
+    # Take the mean over the batch dimension
+    log_likelihood = torch.mean(log_likelihood_elementwise, dim=-1) # (batch_size, ) -> (1, )
+
+    return log_likelihood # (1, )
 
   def regularization_loss(self,
                           dedup_dist_params: ScaledNormalDistParams

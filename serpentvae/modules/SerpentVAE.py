@@ -565,25 +565,12 @@ class SerpentVAE(nn.Module):
                                segmentation_indices = segmentation_indices
                               ) # (batch_size, num_subseq, concept_dim) Type: List[Tensor]
 
-    # TODO: Refactor to use distributions log-likelihood method
+    log_likelihood = self.distribution.log_likelihood(latent_samples = dedup_z,
+                                                      q_dist_mu = mu_q,
+                                                      q_dist_logvar = logvar_q
+                                                     )
 
-    all_log_probs = torch.tensor([], device=self.device)
-
-    for mu_q_i, logvar_q_i, z_i in zip(mu_q, logvar_q, dedup_z):
-      
-      # Computes the log-likelihood of z under Q's distribution
-      sequence_log_prob = self.distribution.log_likelihood(latent_samples = z_i.unsqueeze(0),
-                                                           q_dist_mu = mu_q_i.unsqueeze(0),
-                                                           q_dist_logvar = logvar_q_i.unsqueeze(0)
-                                                          )  # (1, num_subseq, )
-
-      sequence_log_prob = sequence_log_prob.squeeze(0) # (1, num_subseq, ) -> (num_subseq,)
-      sequence_log_prob = sequence_log_prob.mean(dim=0) # (num_subseq, ) -> (1,)
-      all_log_probs = torch.cat((all_log_probs, sequence_log_prob), dim=0) # (batch_size, )
-
-    # Average over the batch
-    batch_log_probs = all_log_probs.mean() # (batch_size, ) -> Scalar
-    vmi_loss = - batch_log_probs # Scalar 
+    vmi_loss = - log_likelihood # Scalar 
     
     return vmi_loss # Scalar
 
