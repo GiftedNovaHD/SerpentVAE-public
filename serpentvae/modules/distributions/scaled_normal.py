@@ -1,6 +1,6 @@
 import torch
 from torch import nn, Tensor
-from typing import List, TypedDict, Tuple, Union
+from typing import List, TypedDict, Tuple, Union, Dict
 
 torch.pi = torch.acos(torch.zeros(1)).item() * 2
 torch.pi = torch.tensor(torch.pi)
@@ -115,17 +115,13 @@ class ScaledNormal(nn.Module):
     """
     dist_params = self.encode_dist_params(hidden_states)
 
-    # Allow toggling between training and inference to be done using model.eval() and model.train()
-    infer = not self.training
-
     sampled_latents = self.sample(dist_params = dist_params)
 
     return sampled_latents, dist_params
     
   def log_likelihood(self,
                      latent_samples: List[Tensor],
-                     q_dist_mu: List[Tensor],
-                     q_dist_logvar: List[Tensor]
+                     q_dist_params: Dict
                     ) -> Tensor:
     """
     Computes the log likelihood of a sample for a multivariate normal distribution with diagonal covariance
@@ -142,6 +138,9 @@ class ScaledNormal(nn.Module):
     Returns:
       - `log_likelihood` (`Tensor`): (1, )
     """
+    q_dist_mu = q_dist_params["q_mu"]
+    q_dist_logvar = q_dist_params["q_logvar"]
+
     log_likelihood_elementwise = torch.tensor([], device=self.device, dtype=self.dtype)
 
     for latent_sample_i, q_mu_i, q_logvar_i in zip(latent_samples, q_dist_mu, q_dist_logvar):

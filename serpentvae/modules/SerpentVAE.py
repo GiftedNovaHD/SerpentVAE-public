@@ -564,10 +564,11 @@ class SerpentVAE(nn.Module):
                                targets = targets,
                                segmentation_indices = segmentation_indices
                               ) # (batch_size, num_subseq, concept_dim) Type: List[Tensor]
+    
+    q_dist_params = {"q_mu": mu_q, "q_logvar": logvar_q}
 
     log_likelihood = self.distribution.log_likelihood(latent_samples = dedup_z,
-                                                      q_dist_mu = mu_q,
-                                                      q_dist_logvar = logvar_q
+                                                      q_dist_params = q_dist_params
                                                      )
 
     vmi_loss = - log_likelihood # Scalar 
