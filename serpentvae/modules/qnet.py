@@ -16,43 +16,52 @@ class QNet(nn.Module):
                device: torch.device = None, 
                dtype: torch.dtype = None, 
                vocab_size: Optional[int] = None,
-               hidden_dim: Optional[int] = None
+               input_dim: Optional[int] = None
               ):
     """
     Args: 
       - `latent_dim` (int): Dimension of the latent code z.
-      - `num_layers` (int): Number of layers for the Mamba encoder 
-      - `conv_length` (int): Convolution length used in Mamba encoder
-      - `mamba_expand` (int): Expansion factor for the Mamba module
+      - `qnet_config` (Dict): Configuration for the Q-Net.
+      - `residual_in_fp32` (bool): Whether to use residual in fp32.
+      - `device` (torch.device): Device to run the model on.
+      - `dtype` (torch.dtype): Data type to run the model on.
+      - `vocab_size` (Optional[int]): Vocabulary size for the discrete tokens. Only used for discrete inputs.
+      - `input_dim` (Optional[int]): Input dimension for the continuous tokens. Only used for continuous inputs.
     """
     factory_kwargs = {"device": device, "dtype": dtype}    
     super(QNet, self).__init__() 
+
+    # Q-Net configuration
+    self.hidden_dim = qnet_config["qnet_hidden_dim"]
+    self.qnet_config = qnet_config
+
+    # Hardware configuration
     self.device = device
     self.dtype = dtype
 
     # Make sure that only vocab_size or hidden_dim is enabled at a single time
-    assert (vocab_size is not None) ^ (hidden_dim is not None), "Either vocab_size or hidden_dim must be provided, but not both at the same time"
+    assert (vocab_size is not None) ^ (input_dim is not None), "Either vocab_size or input_dim must be provided, but not both at the same time"
     
     if vocab_size is not None:
       self.discrete = True
-    elif hidden_dim is not None:
+    elif input_dim is not None:
       self.discrete = False
     else:
-      raise ValueError("Either vocab_size or hidden_dim must be provided, but not both at the same time")
+      raise ValueError("Either vocab_size or input_dim must be provided, but not both at the same time")
     
     # Optional: if vocab_size is provided, we introduce an embedding layer
     if self.discrete is True:
-      self.embedding = nn.Embedding(vocab_size, latent_dim, device = self.device, dtype = dtype)
+      self.embedding = nn.Embedding(vocab_size, self.hidden_dim, device = self.device, dtype = dtype)
       # Tie the embedding layer with the decoder
       self.decoder_proj = TiedLinear(self.embedding, transpose_weights = True)
     
     # Else: if hidden_dim is provided (instead of vocab_dim), we project the hidden_dim to the latent_dim 
     elif self.discrete is False: # We are not using discrete tokens - Set hidden_dim if using semi-sparse vectors eg from Poisson-VAE or dense vectors
-      self.input_proj = nn.Linear(hidden_dim, latent_dim, device = self.device, dtype = dtype)
+      self.input_proj = nn.Linear(input_dim, self.hidden_dim, device = self.device, dtype = dtype)
 
     self.seq_mixer = Encoder(
-      hidden_dim = latent_dim,
-      encoder_config = qnet_config,
+      hidden_dim = self.hidden_dim,
+      encoder_config = self.qnet_config,
       residual_in_fp32 = residual_in_fp32,
       device = self.device,
       dtype = self.dtype
@@ -60,8 +69,8 @@ class QNet(nn.Module):
 
     # TODO: Refactor to generalize to other distributions
     # For now, implement the head with two linear layers. One for mu and one for logvar
-    self.mu_head = nn.Linear(latent_dim, latent_dim, device = self.device, dtype = dtype) 
-    self.logvar_head = nn.Linear(latent_dim, latent_dim, device = self.device, dtype = dtype) 
+    self.mu_head = nn.Linear(self.hidden_dim, latent_dim, device = self.device, dtype = dtype) 
+    self.logvar_head = nn.Linear(self.hidden_dim, latent_dim, device = self.device, dtype = dtype) 
     
   def forward(self, 
               decoder_output: Tensor, 

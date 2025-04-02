@@ -1,5 +1,5 @@
 import torch
-from typing import Dict
+from typing import Dict, TypedDict
 from torch import nn as nn
 
 # Import distributions

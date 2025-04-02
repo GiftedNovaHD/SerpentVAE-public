@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torch import Tensor
-from typing import Tuple, List, Dict, Optional, Literal, Union
+from typing import Tuple, List, Dict, Optional, Literal, Union, TypedDict
 from torch.nn import functional as F
 #from torch.nested 
 
@@ -28,6 +28,12 @@ from serpentvae.modules.segment_predictor import EncoderSegmentPredictor, Decode
 # Import operations for segmenting
 from serpentvae.ops.segment.boundary.create_boundary_module import create_boundary_module
 from serpentvae.ops.segment.replace.create_replacement_function import create_replacement_function
+
+# Import operations for deduplicating distribution parameters
+from serpentvae.modules.distributions.dist_param_utils import deduplicate_dist_params
+
+# Import operations for deduplicating latents
+from serpentvae.utils.deduplicate_latents import deduplicate_latents
 
 # Import modules for creating reconstruction errors 
 from serpentvae.modules.reconstruction_losses.create_recon_loss import create_recon_loss
@@ -288,7 +294,7 @@ class SerpentVAE(nn.Module):
       self.qnet = QNet(latent_dim = self.concept_dim,
                        qnet_config = self.qnet_config,
                        vocab_size = self.vocab_size,
-                       hidden_dim = None,
+                       input_dim = None,
                        residual_in_fp32 = self.residual_in_fp32,
                        device = self.device,
                        dtype = self.dtype
@@ -299,7 +305,7 @@ class SerpentVAE(nn.Module):
       self.qnet = QNet(latent_dim = self.concept_dim,
                        qnet_config = self.qnet_config,
                        vocab_size = None,
-                       hidden_dim = self.input_dim,
+                       input_dim = self.input_dim,
                        residual_in_fp32 = self.residual_in_fp32,
                        device = self.device,
                        dtype = self.dtype
@@ -330,7 +336,7 @@ class SerpentVAE(nn.Module):
   
   def sample(self,
              hidden_states: Tensor,
-            ) -> Tuple[Tensor, Tensor, Tensor]:
+            ) -> Tuple[Tensor, Dict]:
     """
     Samples the latent state and returns distribution parameters
     
@@ -339,12 +345,11 @@ class SerpentVAE(nn.Module):
     
     Returns:
       - `sampled_latents` (`Tensor`): (`batch_size`, `seq_len`, `concept_dim`)
-      - `mu` (`Tensor`): (`batch_size`, `seq_len`, `concept_dim`)
-      - `logvar` (`Tensor`): (`batch_size`, `seq_len`, `concept_dim`)
+      - `dist_params` (`Dict`): Distribution parameters
     """
-    sampled_latents, mu, logvar = self.distribution(hidden_states)
+    sampled_latents, dist_params = self.distribution(hidden_states)
     
-    return sampled_latents, mu, logvar
+    return sampled_latents, dist_params
 
   def generate_padding_mask(self,
                             inputs: Tensor
@@ -516,64 +521,24 @@ class SerpentVAE(nn.Module):
     return hidden_states
 
   def statistical_mi(self, 
-                     mu: List[Tensor], 
-                     logvar: List[Tensor]
-                     ) -> Tensor:
+                     dedup_dist_params: Dict
+                    ) -> Tensor:
     """
     Compute the statistical conditional mutual information between the encoder and decoder
 
-    The computation is conditioned on the context (obtained from mu and logvar) with the aggregated posterior given by: 
-    P(Z | context). Note that P(Z | context) follows a Gaussian distribution. 
-
-    We first compute KL-divergence for each subsequence between KL(Q(Z | X, context) || P(Z | X, context))
-    then average over the batch dimension. 
-
-    NOTE: z is not needed because mu and logvar correspond to the parameters of Q(Z | X, context). 
-    Here, we can compute the KL-divergence without using Monte-Carlo sampling
-
     Args:
-      - `mu` (`List[Tensor]`): (`batch_size`, `num_subseq`, `concept_dim`)
-      - `logvar` (`List[Tensor]`): (`batch_size`, `num_subseq`, `concept_dim`)
+      - `dedup_dist_params` (`Dict`): Distribution parameters with dimensions (`batch_size`, `num_subseq`, `concept_dim`)
+         - Each value should be a list of tensors (List[Tensor])
 
-    NOTE: For mu, logvar and z batch_size dimension is a list while num_subseq and concept_dim are tensors
+    Returns: 
+      - `mi_per_batch` (`Tensor`): (`1,`)
+    """
+    mi_per_batch = self.distribution.statistical_mi(dedup_dist_params = dedup_dist_params)
 
-    Return: 
-      - `mi_per_batch` (`Scalar`): (`1,`)
-    """    
-    all_kl = torch.tensor([], device=self.device)
-    
-    for mu_i, logvar_i in zip(mu, logvar): 
-      var_i = torch.exp(logvar_i) # (num_subseq, concept_dim)
-
-      # Averaged across the num_subseq, i.e. subsequence dimension, not within subsequences
-      aggregated_mu = mu_i.mean(dim=0) # (concept_dim,)
-      
-      # Compute the aggregated second moment, then subtract the squared mean to obtain the aggregated variance
-      aggregated_second_moment = (mu_i ** 2 + var_i).mean(dim=0) # (concept_dim,) 
-      aggregated_variance = aggregated_second_moment - aggregated_mu ** 2 # (concept_dim,) 
-
-      # Clamp to avoid numerical instability issues
-      aggregated_variance = torch.clamp(aggregated_variance, min=1e-8) # (concept_dim,)
-      
-      # Compute KL divergence for each subsequence sample 
-      # Sum over concept_dim and compute per-sample KL
-      kl_divergence = 0.5 * torch.sum(
-        torch.log(aggregated_variance) - logvar_i - 1.0 + (var_i + (mu_i - aggregated_mu) ** 2) / aggregated_variance,
-        dim=1
-      ) # (num_subseq, )
-
-      # Average across the num_subseq, i.e. subsequence dimension
-      average_kl_divergence = kl_divergence.mean(dim=0) # (1,)
-      
-      all_kl = torch.cat((all_kl, average_kl_divergence.unsqueeze(0)), dim=0) # (batch_size, ) 
-      
-    # Stack over batch dimension and average over the batch
-    mi_per_batch = all_kl.mean() # Scalar
-    
-    return mi_per_batch # Scalar
+    return mi_per_batch
 
   def maximize_vmi_regularizer(self,
-                               z: List[Tensor],
+                               dedup_z: List[Tensor],
                                decoder_output: Tensor, 
                                segmentation_indices: Tensor,
                                targets: Tensor
@@ -598,35 +563,22 @@ class SerpentVAE(nn.Module):
     mu_q, logvar_q = self.qnet(decoder_output = decoder_output,
                                targets = targets,
                                segmentation_indices = segmentation_indices
-                              ) # (batch_size, num_subseq, concept_dim)
+                              ) # (batch_size, num_subseq, concept_dim) Type: List[Tensor]
+    
+    q_dist_params = {"q_mu": mu_q, "q_logvar": logvar_q}
 
-    # TODO: Refactor to use distributions log-likelihood method
+    log_likelihood = self.distribution.log_likelihood(latent_samples = dedup_z,
+                                                      q_dist_params = q_dist_params
+                                                     )
 
-    all_log_probs = torch.tensor([], device=self.device)
-
-    for mu_q_i, logvar_q_i, z_i in zip(mu_q, logvar_q, z):
-      
-      # Computes the log-likelihood of z under Q's distribution
-      sequence_log_prob = self.distribution.log_likelihood(latent_samples = z_i.unsqueeze(0),
-                                                           q_dist_mu = mu_q_i.unsqueeze(0),
-                                                           q_dist_logvar = logvar_q_i.unsqueeze(0)
-                                                          )  # (1, num_subseq, )
-
-      sequence_log_prob = sequence_log_prob.squeeze(0) # (1, num_subseq, ) -> (num_subseq,)
-      sequence_log_prob = sequence_log_prob.mean(dim=0) # (num_subseq, ) -> (1,)
-      all_log_probs = torch.cat((all_log_probs, sequence_log_prob), dim=0) # (batch_size, )
-
-    # Average over the batch
-    batch_log_probs = all_log_probs.mean() # (batch_size, ) -> Scalar
-    vmi_loss = - batch_log_probs # Scalar 
+    vmi_loss = - log_likelihood # Scalar 
     
     return vmi_loss # Scalar
 
   def vae_loss(self, 
                targets: Tensor, 
-               mu: List[Tensor], 
-               logvar: List[Tensor],
-               z: List[Tensor],
+               dedup_dist_params: Dict,
+               dedup_z: List[Tensor],
                segmentation_indices: Tensor,
                decoder_output: Tensor,
                alpha=1.0,
@@ -644,8 +596,8 @@ class SerpentVAE(nn.Module):
 
     Args: 
       - `input_ids` (Tensor): Ground-truth targets (`batch_size`, `seq_len`, `1/hidden_dim`) if discrete or continuous inputs
-      - `mu` (`List[Tensor]`): (`batch_size`, `num_subseq`, `concept_dim`)
-      - `logvar` (`List[Tensor]`): (`batch_size`, `num_subseq`, `concept_dim`)
+      - `dedup_dist_params` (`Dict`): Distribution parameters with dimensions (`batch_size`, `num_subseq`, `concept_dim`)
+         - NOTE: Each value in the dict is a list of tensors (List[Tensor])
       - `z` (`List[Tensor]`): (`batch_size`, `num_subseq`, `concept_dim`)
       - `segmentation_indices` (`Tensor`): (`batch_size`, `seq_len`, `1`)
       - `decoder_output` (`Tensor`): (`batch_size`, `seq_len`, `hidden_dim / vocab_size`)
@@ -655,7 +607,7 @@ class SerpentVAE(nn.Module):
 
     Returns: 
       - `loss` (`Tensor`): Scalar VAE loss
-      - `kl_divergence` (`Tensor`): Scalar KL divergence
+      - `regularization_loss` (`Tensor`): Scalar regularization loss
       - `reconstruction_loss` (`Tensor`): Scalar reconstruction loss
       - `vmi_loss` (`Tensor`): Scalar Variational Mutual Information loss
     """
@@ -673,23 +625,11 @@ class SerpentVAE(nn.Module):
     KL(q(z | x, context) || p(z | context)) 
 
     """
-    all_kl = torch.tensor([], device=self.device) 
-
-    for mu_i, logvar_i in zip(mu, logvar): 
-      kl_divergence = self.distribution.kl_divergence(mu=mu_i, logvar=logvar_i)
-      all_kl = torch.cat(tensors=(all_kl,
-                                  torch.tensor(data=[kl_divergence],
-                                               device = self.device)
-                                 ),
-                         dim=0
-                        )
-
-    kl_loss = all_kl.mean() # Scalar
-
+    regularization_loss = self.distribution.regularization_loss(dedup_dist_params = dedup_dist_params)
 
     # Compute the maximized MI regularizer term
     if self.enable_qnet is True:
-      vmi_loss_term = self.maximize_vmi_regularizer(z = z,
+      vmi_loss_term = self.maximize_vmi_regularizer(dedup_z = dedup_z,
                                                     decoder_output = decoder_output,
                                                     segmentation_indices = segmentation_indices,
                                                     targets = targets
@@ -697,9 +637,9 @@ class SerpentVAE(nn.Module):
     else:
       vmi_loss_term = torch.tensor(0.0, device=self.device)
 
-    loss_objective = reconstruction_loss + alpha * vmi_loss_term + beta * kl_loss 
+    loss_objective = reconstruction_loss + alpha * vmi_loss_term + beta * regularization_loss 
     
-    return loss_objective, kl_loss, reconstruction_loss, vmi_loss_term
+    return loss_objective, regularization_loss, reconstruction_loss, vmi_loss_term
   
   def segment_prediction_loss(self,
                               segmentation_predictions: Tensor,
@@ -835,9 +775,8 @@ class SerpentVAE(nn.Module):
 
     Returns:
       - `decoded_logits` (`Tensor`): (`batch_size`, `seq_len`, `vocab_size/input_dim`)
-      - `mu` (`Tensor`): (`batch_size`, `seq_len`, `latent_dim`)
-      - `logvar` (`Tensor`): (`batch_size`, `seq_len`, `latent_dim`)
-      - `sampled_latents` (`Tensor`): (`batch_size`, `seq_len`, `latent_dim`)
+      - `dist_params` (`Dict`): Distribution parameters with dimensions (`batch_size`, `seq_len`, `concept_dim`)
+      - `sampled_latents` (`Tensor`): (`batch_size`, `seq_len`, `concept_dim`)
       - `segmentation_indices` (`Tensor`): (`batch_size`, `seq_len`, `1`)
       - `encoder_predicted_segments` (`Tensor`): (`batch_size`, `seq_len`, `1`)
       - `decoder_predicted_segments` (`Tensor`): (`batch_size`, `seq_len`, `1`)
@@ -865,10 +804,9 @@ class SerpentVAE(nn.Module):
         dec_hidden_states = self.decoder_input_projection(inputs) # (batch_size, seq_len, input_dim) -> (batch_size, seq_len, hidden_dim)
     
     # Encode tokens
-    hidden_states = self.encode(enc_hidden_states) # (batch_size, seq_len, hidden_dim) -> mu: (batch_size, seq_len, hidden_dim), logvar: (batch_size, seq_len, hidden_dim)
-    
+    hidden_states = self.encode(enc_hidden_states) # (batch_size, seq_len, hidden_dim)
     # Sample the concept tokens from the latent 
-    sampled_latents, mu, logvar = self.sample(hidden_states) # mu: (batch_size, seq_len, concept_dim), logvar: (batch_size, seq_len, concept_dim) -> (batch_size, seq_len, concept_dim)
+    sampled_latents, dist_params = self.sample(hidden_states) # Sampled latents: (batch_size, seq_len, concept_dim), dist_params: Dict
     # across seq_len, we have a different mu and logvar
 
     # Predict encoder segmentation
@@ -918,7 +856,7 @@ class SerpentVAE(nn.Module):
     else: # Continuous input
       decoded_outputs = self.output_projection(decoded_hidden_tokens) # (batch_size, seq_len, hidden_dim) -> (batch_size, seq_len, input_dim)
 
-    return decoded_outputs, mu, logvar, sampled_latents, segmentation_indices, encoder_predicted_segments, decoder_predicted_segments, predicted_confidence
+    return decoded_outputs, dist_params, sampled_latents, segmentation_indices, encoder_predicted_segments, decoder_predicted_segments, predicted_confidence
   
   def subseq_length_stats(self,
                           correct_inputs: Tensor,
@@ -1053,47 +991,28 @@ class SerpentVAE(nn.Module):
 
     return ema_stddev_subseq_length
   
-  def num_active_units(self,
-                       mu: List[Tensor],
-                       threshold: float = 1e-2
-                       ) -> int:
+  def percent_utilisation(self,
+                          dedup_dist_params: Dict,
+                          threshold: float = 1e-2
+                         ) -> float:
     """
-    Calculate number of active units in latent variables
-    We basically calculate the covariance between the latent variables and see if they are above a threshold 
-
-    A_u = Cov_x(E_u~q(u|x)[u])
+    Calculate the percentage of active units in latent variables
 
     Args:
-      - `mu` (`List[Tensor]`): (`batch_size`, `num_subseq`, `concept_dim`) Mean of the approximate posterior distribution 
+      - `dedup_dist_params` (`Dict`): Deduplicated distribution parameters
+         - NOTE: Values in the dictionary are lists of tensors (List[Tensor]) with dimensions (`batch_size`, `num_subseq`, `concept_dim`)
       - `threshold` (`float`): Threshold for considering a unit active
 
     Returns:
-      - `num_active_units` (`int`): Number of active units
+      - `percent_utilisation` (`float`): Percentage of active units
     """
-    # Center the means
-    all_mu = torch.tensor([], device=self.device)
 
-    for mu_i in mu:
-      all_mu = torch.cat((all_mu, mu_i.clone().detach()), dim=0) # (batch_size, num_subseq, concept_dim) ->  (batch_size * num_subseq, concept_dim)
-
-    centered_mu = all_mu - all_mu.mean(dim=0, keepdim=True)
-
-    # Compute covariance matrix
-    cov = torch.matmul(centered_mu.T, centered_mu) / (all_mu.size(0) - 1)
-
-    # Compute the variance of each latent variable
-    variances = torch.diag(cov)
-
-    # Compute the number of active units
-    num_active_units = torch.sum(variances > threshold)
-
-    return int(num_active_units.item())
+    return self.distribution.percent_utilisation(dedup_dist_params = dedup_dist_params, threshold = threshold)
 
   def metrics(self,
               correct_inputs: Tensor,
               z: Tensor,
-              mu: Tensor,
-              logvar: Tensor,
+              dist_params: Dict,
               segmentation_indices: Tensor,
               decoder_output: Tensor,
               confidence_estimates: Tensor,
@@ -1118,8 +1037,7 @@ class SerpentVAE(nn.Module):
     Args:
       - `correct_inputs` (`Tensor`): (`batch_size`, `seq_len`, `1/input_dim`)
       - `z` (`Tensor`): (`batch_size`, `seq_len`, `concept_dim`) Encoded latent variable
-      - `mu` (`Tensor`): (`batch_size`, `seq_len`, `hidden_dim`)
-      - `logvar` (`Tensor`): (`batch_size`, `seq_len`, `hidden_dim`)
+      - `dist_params` (`Dict`): Distribution parameters
       - `segmentation_indices` (`Tensor`): (`batch_size`, `seq_len`, `1`)
       - `decoder_output` (`Tensor`): (`batch_size`, `seq_len`, `vocab_size`)
       - `confidence_estimates` (`Tensor`): (`batch_size`, `seq_len`, `1`)
@@ -1132,61 +1050,32 @@ class SerpentVAE(nn.Module):
       - `metrics` (`dict`): Dictionary of metrics
 
     """
-    # Deduplicate z, mu and logvar
-    # NOTE: The batch_size dimension of all these are lists
-    dedup_z = [] # (batch_size, num_subseq, concept_dim)
-    dedup_mu = [] # (batch_size, num_subseq, concept_dim)
-    dedup_logvar = [] # (batch_size, num_subseq, concept_dim)
-
-    # Remove unnecessary elements in mu and logvar
-    start_indices = bitmask_to_start_indices(segmentation_indices)
-    # NOTE: Inclusive is set to True as we are directly indexing for the end index
-    end_indices = bitmask_to_end_indices(segmentation_indices, inclusive = True)
-
-    # NOTE: We assume that the replacement operation used is use_last for simpler math
-    batch_size = len(start_indices)
-
-    for i in range(batch_size):
-      seq_dedup_z = torch.tensor([], device = self.device)
-      seq_dedup_mu = torch.tensor([], device=self.device)
-      seq_dedup_logvar = torch.tensor([], device = self.device)
-
-      seq_start_indices = start_indices[i]
-      seq_end_indices = end_indices[i]
-
-      seq_z = z[i]
-      seq_mu = mu[i]
-      seq_logvar = logvar[i]
-
-      for start, end in zip(seq_start_indices, seq_end_indices):
-        seq_dedup_z = torch.cat((seq_dedup_z, seq_z[end].unsqueeze(0)), dim = 0)
-        seq_dedup_mu = torch.cat((seq_dedup_mu, seq_mu[end].unsqueeze(0)), dim = 0)
-        seq_dedup_logvar = torch.cat((seq_dedup_logvar, seq_logvar[end].unsqueeze(0)), dim = 0)
-
-      dedup_z.append(seq_dedup_z)
-      dedup_mu.append(seq_dedup_mu)
-      dedup_logvar.append(seq_dedup_logvar)
+    # Deduplicate sampled latents and distribution parameters
+    dedup_z = deduplicate_latents(latents = z,
+                                  segmentation_indices = segmentation_indices
+                                 )
+    
+    dedup_dist_params = deduplicate_dist_params(dist_params = dist_params,  
+                                                segmentation_indices = segmentation_indices
+                                               )
 
     # Calculate the number of active units
-    num_active_units = self.num_active_units(mu = dedup_mu, threshold = threshold)
+    percent_utilisation = self.percent_utilisation(dedup_dist_params = dedup_dist_params, threshold = threshold)
 
-    # Calculate VMI, KL-Divergence and Reconstruction Error
-    total_loss, kl_divergence, reconstruction_error, vmi_loss = self.vae_loss(targets = correct_inputs,
-                                                                              mu = dedup_mu,
-                                                                              logvar = dedup_logvar,
-                                                                              z = dedup_z,
-                                                                              segmentation_indices = segmentation_indices,
-                                                                              decoder_output = decoder_output
-                                                                             )
+    # Calculate VMI, Regularization Loss and Reconstruction Error
+    total_loss, regularization_loss, reconstruction_error, vmi_loss = self.vae_loss(targets = correct_inputs,
+                                                                                      dedup_dist_params = dedup_dist_params,  
+                                                                                      dedup_z = dedup_z,
+                                                                                      segmentation_indices = segmentation_indices,
+                                                                                      decoder_output = decoder_output
+                                                                                     )
     
     if self.discrete_input is True:
       recon_loss_bits = (reconstruction_error * torch.log2(torch.exp(torch.tensor([1], device = self.device, dtype = self.dtype))))
       bits_per_byte = (recon_loss_bits/(torch.log2(torch.tensor([self.vocab_size], device = self.device, dtype = self.dtype))/3))
 
     # Calculate the full mutual information
-    full_mutual_info = self.statistical_mi(mu = dedup_mu,
-                                           logvar = dedup_logvar
-                                          )
+    full_mutual_info = self.statistical_mi(dedup_dist_params = dedup_dist_params)
 
     # Calculate the average subsequence length
     avg_subseq_length, stddev_subseq_length = self.subseq_length_stats(correct_inputs = correct_inputs,
@@ -1217,9 +1106,9 @@ class SerpentVAE(nn.Module):
       prefix = "validation_"
     
     # Initialize the metrics dictionary
-    metrics = {prefix + "num_active_units": num_active_units,
+    metrics = {prefix + "percent_utilisation": percent_utilisation,
                prefix + "full_mi": full_mutual_info.item(),
-               prefix + "kl_divergence": kl_divergence.item(),
+               prefix + f"{self.distribution.regularization_loss_name.lower()}": regularization_loss.item(),
                prefix + f"recon_error ({self.recon_loss_name})": reconstruction_error.item(),
                prefix + "avg_subsequence_len": avg_subseq_length,
                prefix + "stddev_subsequence_len": stddev_subseq_length,
@@ -1267,64 +1156,47 @@ class SerpentVAE(nn.Module):
     # decoder_predicted_segments: (batch_size, seq_len, 1)
     # predicted_confidence: (batch_size, seq_len, 1)
 
-    predicted_logits, mu, logvar, sampled_latents, segmentation_indices, encoder_predicted_segments, decoder_predicted_segments, predicted_confidence = self.forward(correct_inputs, current_epoch)
-    predicted_logits, mu, logvar, sampled_latents, segmentation_indices, encoder_predicted_segments, decoder_predicted_segments, predicted_confidence = self.forward(correct_inputs, current_epoch)
+    predicted_logits, dist_params, sampled_latents, segmentation_indices, encoder_predicted_segments, decoder_predicted_segments, predicted_confidence = self.forward(correct_inputs, current_epoch)
 
-    # Change mu, logvar, sampled_latents based on segmentation_indices
-    end_indices = bitmask_to_end_indices(segmentation_indices, inclusive = True)
-    # end_indices (batch_size, num_subseq)
-
-    # Format sampled_latents, mu and logvar
-    formatted_sampled_latents = []
-    formatted_mu = []
-    formatted_logvar = []
-
-    # Iterate over batch elements
-    for batch_idx, seq_end_indices in enumerate(end_indices):
-      seq_sampled_latents = torch.tensor([], device = self.device) # (num_subseq, concept_dim)
-      seq_mu = torch.tensor([], device = self.device) # (num_subseq, concept_dim)
-      seq_logvar = torch.tensor([], device = self.device) # (num_subseq, concept_dim)
-      
-      for end_index in seq_end_indices:
-        # NOTE: To correctly index batch elements, we use the batch_idx batch element and the end_index in the sequence dimension
-        seq_sampled_latents = torch.cat((seq_sampled_latents, sampled_latents[batch_idx, end_index].unsqueeze(0)), dim = 0)
-        seq_mu = torch.cat((seq_mu, mu[batch_idx, end_index].unsqueeze(0)), dim = 0)
-        seq_logvar = torch.cat((seq_logvar, logvar[batch_idx, end_index].unsqueeze(0)), dim = 0)
-
-      formatted_sampled_latents.append(seq_sampled_latents)
-      formatted_mu.append(seq_mu)
-      formatted_logvar.append(seq_logvar)
+    # Deduplicate sampled latents and distribution parameters
+    dedup_z = deduplicate_latents(latents = sampled_latents,
+                                  segmentation_indices = segmentation_indices
+                                 )
+    
+    dedup_dist_params = deduplicate_dist_params(dist_params = dist_params,
+                                                segmentation_indices = segmentation_indices
+                                               )
 
     # Calculate the VAE loss
-    loss_objective, kl_loss, reconstruction_loss, vmi_loss_term = self.vae_loss(targets = correct_inputs,
-                             mu = formatted_mu,
-                             logvar = formatted_logvar,
-                             z = formatted_sampled_latents,
-                             segmentation_indices = segmentation_indices,
-                             decoder_output = predicted_logits,
-                             alpha = self.alpha,
-                             beta = self.beta
-                            )
+    total_vae_loss, regularization_loss, recon_error, vmi_loss = self.vae_loss(targets = correct_inputs,
+                                                                               dedup_dist_params = dedup_dist_params,
+                                                                               dedup_z = dedup_z,
+                                                                               segmentation_indices = segmentation_indices,
+                                                                               decoder_output = predicted_logits,
+                                                                               alpha = self.alpha,
+                                                                               beta = self.beta
+                                                                              )
 
     # Update previous batch reconstruction loss
-    self.prev_batch_recon_loss = reconstruction_loss
+    self.prev_batch_recon_loss = recon_error
    
-    print(f"Reconstruction loss ({self.recon_loss_name}): {reconstruction_loss.item()}")
+    print(f"Reconstruction loss ({self.recon_loss_name}): {recon_error.item()}")
 
     if self.discrete_input is True:
-      print(f"Perplexity: {torch.exp(reconstruction_loss).item()}")
+      print(f"Perplexity: {torch.exp(recon_error).item()}")
 
-      recon_loss_bits = (reconstruction_loss * torch.log2(torch.exp(torch.tensor([1], device = self.device, dtype = self.dtype))))
+      recon_loss_bits = (recon_error * torch.log2(torch.exp(torch.tensor([1], device = self.device, dtype = self.dtype))))
       bits_per_byte = (recon_loss_bits/(torch.log2(torch.tensor([self.vocab_size], device = self.device, dtype = self.dtype))/3))
 
       print(f"Bits per byte: {bits_per_byte.item()}")
-
-    print(f"KL loss: {kl_loss.item()}")
+    
+    # Print out the regularization loss for the posterior distribution
+    print(f"{self.distribution.regularization_loss_name}: {regularization_loss.item()}")
 
     # Calculate the average subsequence length
     avg_subseq_length, stddev_subseq_length = self.subseq_length_stats(correct_inputs = correct_inputs,
-                                                                    segmentation_indices = segmentation_indices
-                                                                   )
+                                                                       segmentation_indices = segmentation_indices
+                                                                      )
 
     print(f"Average subsequence length: {avg_subseq_length}")
     print(f"Standard deviation of subsequence length: {stddev_subseq_length}")
@@ -1371,14 +1243,14 @@ class SerpentVAE(nn.Module):
       print("Confidence module is disabled")
 
     if self.enable_qnet is True:
-      print(f"VMI loss: {vmi_loss_term.item()}")
+      print(f"VMI loss: {vmi_loss.item()}")
     else:
       print("VMI is disabled")
 
     # Calculate total loss
-    total_loss = loss_objective + confidence_loss + encoder_segment_prediction_loss + decoder_segment_prediction_loss
+    total_loss = total_vae_loss + confidence_loss + encoder_segment_prediction_loss + decoder_segment_prediction_loss
 
-    return total_loss, loss_objective, confidence_loss, encoder_segment_prediction_loss, decoder_segment_prediction_loss
+    return total_loss, total_vae_loss, confidence_loss, encoder_segment_prediction_loss, decoder_segment_prediction_loss
   
   def eval_step(self, correct_inputs: Tensor, current_epoch: int, is_test: bool = True):
     """
@@ -1393,14 +1265,12 @@ class SerpentVAE(nn.Module):
       - `metrics` (`dict`): Dictionary of metrics
     """
     with torch.no_grad():
-      predicted_logits, mu, logvar, sampled_latents, segmentation_indices, encoder_predicted_segments, decoder_predicted_segments, predicted_confidence = self.forward(correct_inputs, current_epoch)
-      predicted_logits, mu, logvar, sampled_latents, segmentation_indices, encoder_predicted_segments, decoder_predicted_segments, predicted_confidence = self.forward(correct_inputs, current_epoch)
+      predicted_logits, dist_params, sampled_latents, segmentation_indices, encoder_predicted_segments, decoder_predicted_segments, predicted_confidence = self.forward(correct_inputs, current_epoch)
 
       # Get metrics
       metrics = self.metrics(correct_inputs = correct_inputs,
                              z = sampled_latents,
-                             mu = mu,
-                             logvar = logvar,
+                             dist_params = dist_params,
                              segmentation_indices = segmentation_indices,
                              decoder_output = predicted_logits,
                              confidence_estimates = predicted_confidence,

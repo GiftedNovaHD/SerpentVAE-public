@@ -28,10 +28,10 @@
                 "debug_train/discrete_test_no_optional"
             ],
             "presentation": {
-                "reveal": "silent",
+                "reveal": "always",
                 "panel": "new",
                 "revealProblems": "onProblem",
-                "close": true
+                "close": false
             },
             "problemMatcher": [],
             "group": {
@@ -49,10 +49,10 @@
                 "debug_train/discrete_debug_config"
             ],
             "presentation": {
-                "reveal": "silent",
+                "reveal": "always",
                 "panel": "new",
                 "revealProblems": "onProblem",
-                "close": true
+                "close": false
             },
             "problemMatcher": [],
             "group": {
