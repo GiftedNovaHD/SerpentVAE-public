@@ -235,3 +235,62 @@ class ScaledNormal(nn.Module):
     percent_utilisation = num_active_units / self.latent_dim
 
     return float(percent_utilisation.item())
+  
+  def statistical_mi(self,
+                     dedup_dist_params: ScaledNormalDistParams
+                    ) -> Tensor:
+    """
+    Compute the statistical conditional mutual information between the encoder and decoder
+
+    The computation is conditioned on the context (obtained from mu and logvar) with the aggregated posterior given by: 
+    P(Z | context). Note that P(Z | context) follows a Gaussian distribution. 
+
+    We first compute KL-divergence for each subsequence between KL(Q(Z | X, context) || P(Z | X, context))
+    then average over the batch dimension. 
+
+    NOTE: z is not needed because mu and logvar correspond to the parameters of Q(Z | X, context). 
+    Here, we can compute the KL-divergence without using Monte-Carlo sampling
+
+    Args:
+      - `dedup_dist_params` (`Dict`): Distribution parameters with dimensions (`batch_size`, `num_subseq`, `concept_dim`)
+         - Each value should be a list of tensors (List[Tensor])
+
+    NOTE: For mu, logvar and z batch_size dimension is a list while num_subseq and concept_dim are tensors
+
+    Return: 
+      - `mi_per_batch` (`Tensor`): (`1,`)
+    """    
+    # Extract mu and logvar from dist_params
+    mu, logvar = dedup_dist_params["mu"], dedup_dist_params["logvar"]
+
+    all_kl = torch.tensor([], device=self.device)
+    
+    for mu_i, logvar_i in zip(mu, logvar): 
+      var_i = torch.exp(logvar_i) # (num_subseq, concept_dim)
+
+      # Averaged across the num_subseq, i.e. subsequence dimension, not within subsequences
+      aggregated_mu = mu_i.mean(dim=0) # (concept_dim,)
+      
+      # Compute the aggregated second moment, then subtract the squared mean to obtain the aggregated variance
+      aggregated_second_moment = (mu_i ** 2 + var_i).mean(dim=0) # (concept_dim,) 
+      aggregated_variance = aggregated_second_moment - aggregated_mu ** 2 # (concept_dim,) 
+
+      # Clamp to avoid numerical instability issues
+      aggregated_variance = torch.clamp(aggregated_variance, min=1e-8) # (concept_dim,)
+      
+      # Compute KL divergence for each subsequence sample 
+      # Sum over concept_dim and compute per-sample KL
+      kl_divergence = 0.5 * torch.sum(
+        torch.log(aggregated_variance) - logvar_i - 1.0 + (var_i + (mu_i - aggregated_mu) ** 2) / aggregated_variance,
+        dim=1
+      ) # (num_subseq, )
+
+      # Average across the num_subseq, i.e. subsequence dimension
+      average_kl_divergence = kl_divergence.mean(dim=0) # (1,)
+      
+      all_kl = torch.cat((all_kl, average_kl_divergence.unsqueeze(0)), dim=0) # (batch_size, ) 
+      
+    # Stack over batch dimension and average over the batch
+    mi_per_batch = all_kl.mean() # Scalar
+    
+    return mi_per_batch # Scalar
