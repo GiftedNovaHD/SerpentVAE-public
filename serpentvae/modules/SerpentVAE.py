@@ -1011,7 +1011,8 @@ class SerpentVAE(nn.Module):
     Calculate the percentage of active units in latent variables
 
     Args:
-      - `dist_params` (`Dict`): Distribution parameters
+      - `dedup_dist_params` (`Dict`): Deduplicated distribution parameters
+         - NOTE: Values in the dictionary are lists of tensors (List[Tensor]) with dimensions (`batch_size`, `num_subseq`, `concept_dim`)
       - `threshold` (`float`): Threshold for considering a unit active
 
     Returns:
